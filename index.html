@@ -756,7 +756,14 @@
       </article>
     </template>
 
+    <!-- ① Supabase JS SDK (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <!-- ② Hunt Garaj Supabase veri katmanı -->
+    <script src="./supabase.js"></script>
+    <!-- ③ Katalog ve uygulama (değiştirilmedi) -->
     <script src="./catalog-2026.js?v=7"></script>
     <script src="./app.js?v=67"></script>
+    <!-- ④ Supabase patch – localStorage'ı override eder, en sona yükle -->
+    <script src="./app-supabase-patch.js"></script>
   </body>
 </html>
