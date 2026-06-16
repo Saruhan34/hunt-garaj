@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hunt Radar</title>
+    <link rel="stylesheet" href="./styles.css?v=55" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__shade"></div>
+      <nav class="topbar" aria-label="Ana gezinme">
+        <a class="brand" href="#koleksiyon" aria-label="Hunt Radar ana sayfa">
+          <span class="brand__mark">HR</span>
+          <span>Hunt Radar</span>
+        </a>
+        <div class="topbar__actions">
+          <div class="top-quick-actions" aria-label="Hızlı hesap aksiyonları">
+            <button class="top-action-button" id="topMessageButton" type="button" title="Mesajlar" aria-label="Mesajları aç">
+              <span aria-hidden="true">✉</span>
+              <span class="message-count" id="topMessageCount">0</span>
+            </button>
+            <button class="top-action-button" id="topNotificationButton" type="button" title="Bildirimler" aria-label="Bildirimleri aç">
+              <span class="top-action-icon top-action-icon--bell" aria-hidden="true"></span>
+              <span class="message-count" id="topNotificationCount">0</span>
+            </button>
+            <button class="top-action-button" id="topFavoritesButton" type="button" title="Favoriler" aria-label="Favori ilanları aç">
+              <span aria-hidden="true">★</span>
+            </button>
+          </div>
+          <div class="account-shell">
+            <button class="user-button" id="userButton" type="button" aria-expanded="false" aria-controls="accountMenu">
+              <span class="user-button__avatar" id="userAvatar">HR</span>
+              <span id="userButtonText">Giriş yap</span>
+            </button>
+            <section class="account-menu" id="accountMenu" aria-label="Hesap menüsü">
+              <div class="account-menu__hero">
+                <span class="account-menu__avatar" id="accountMenuAvatar">HR</span>
+                <div>
+                  <p class="eyebrow">Hesap</p>
+                  <h2 id="accountMenuName">Misafir</h2>
+                  <p id="accountMenuEmail">Pazar ilanı için giriş yap.</p>
+                </div>
+              </div>
+              <div class="account-menu__stats">
+                <span><strong id="accountListingCount">0</strong> ilan</span>
+                <span><strong id="accountCollectionCount">0</strong> araç</span>
+              </div>
+              <button class="account-menu__action" id="openProfileSettings" type="button">Profil bilgileri</button>
+              <button class="account-menu__action account-menu__action--message" id="openInbox" type="button">
+                Bildirimler
+                <span class="message-count" id="accountMessageCount">0</span>
+              </button>
+              <button class="account-menu__action account-menu__action--danger" id="accountLogout" type="button">Oturumu kapat</button>
+            </section>
+          </div>
+          <button class="icon-button" id="exportData" type="button" title="Verileri indir" aria-label="Verileri indir">↓</button>
+          <button class="icon-button" id="resetData" type="button" title="Örnek verilere dön" aria-label="Örnek verilere dön">↺</button>
+        </div>
+      </nav>
+
+      <section class="hero__content">
+        <p class="eyebrow">Koleksiyon ve hunt radarı</p>
+        <h1>Garajını kur, rafları takip et.</h1>
+        <p class="hero__copy">
+          Modellerinizi düzenleyin, istek listenizi büyütün ve mağaza avlarını arkadaşınızla aynı ekrandan yönetin.
+        </p>
+        <div class="hero__buttons">
+          <button class="button button--primary" type="button" data-jump-view="collection">Koleksiyona geç</button>
+          <button class="button button--ghost" type="button" data-jump-view="stores">Mağaza notları</button>
+          <button class="button button--ghost" type="button" data-jump-view="market">Pazar</button>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section class="summary" aria-label="Koleksiyon özeti">
+        <article class="metric">
+          <span class="metric__value" id="totalCars">0</span>
+          <span class="metric__label">koleksiyondaki araç</span>
+        </article>
+        <article class="metric">
+          <span class="metric__value" id="wishlistCount">0</span>
+          <span class="metric__label">aranan model</span>
+        </article>
+        <article class="metric">
+          <span class="metric__value" id="storeCount">0</span>
+          <span class="metric__label">mağaza gözlemi</span>
+        </article>
+        <article class="metric">
+          <span class="metric__value" id="tradeCount">0</span>
+          <span class="metric__label">takaslık/satılık</span>
+        </article>
+      </section>
+
+      <section class="toolbar" aria-label="Filtreler">
+        <div class="field field--search">
+          <label for="searchInput">Ara</label>
+          <input id="searchInput" type="search" placeholder="Model, seri, mağaza ya da not ara" />
+        </div>
+        <div class="segmented" role="tablist" aria-label="Liste seçimi">
+          <button class="segmented__button is-active" type="button" data-view="collection">Koleksiyon</button>
+          <button class="segmented__button" type="button" data-view="wishlist">İstek listesi</button>
+          <button class="segmented__button" type="button" data-view="stores">Mağazalar</button>
+          <button class="segmented__button" type="button" data-view="market">Pazar</button>
+        </div>
+      </section>
+
+      <section class="workspace" id="workspace">
+        <aside class="panel" aria-label="Yeni kayıt ekle">
+          <form class="entry-form is-active" id="carForm" data-form="collection">
+            <h2>Araba ekle</h2>
+            <div class="field catalog-search">
+              <label for="catalogSearch">Katalogda ara</label>
+              <input id="catalogSearch" type="search" autocomplete="off" placeholder="Model veya varyant ara" />
+              <div class="catalog-results" id="catalogResults"></div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="brandSelect">Marka</label>
+                <select id="brandSelect">
+                  <option value="">Tüm markalar</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="catalogSelect">Model</label>
+                <select id="catalogSelect">
+                  <option value="">Elle ekle / katalogda yok</option>
+                </select>
+              </div>
+              <span class="field-hint field-hint--wide">Aynı modelin renk, seri ve nadirlik farklarını görselli varyant olarak seç.</span>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="carModel">Model adı</label>
+                <input id="carModel" name="model" required placeholder="Nissan Skyline GT-R" />
+              </div>
+              <div class="field">
+                <label for="carOwner">Sahip</label>
+                <select id="carOwner" name="owner">
+                  <option>Saruhan</option>
+                  <option>Ali</option>
+                  <option>Ortak</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="carSeries">Seri / yıl</label>
+                <input id="carSeries" name="series" placeholder="J-Imports 2024" />
+              </div>
+              <div class="field">
+                <label for="carColor">Renk</label>
+                <select id="carColor" name="color">
+                  <option>Sarı</option>
+                  <option>Kırmızı</option>
+                  <option>Mavi</option>
+                  <option>Siyah</option>
+                  <option>Beyaz</option>
+                  <option>Gri</option>
+                  <option>Yeşil</option>
+                  <option>Turuncu</option>
+                  <option>Mor</option>
+                  <option>Gümüş</option>
+                  <option>Altın</option>
+                  <option>Çok renkli</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="carCondition">Durum</label>
+                <select id="carCondition" name="condition">
+                  <option>Sıfır / Kartonetli</option>
+                  <option>Açık</option>
+                  <option>Hasarlı</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="carRarity">Nadirlik</label>
+                <select id="carRarity" name="rarity">
+                  <option>Regular</option>
+                  <option>Treasure Hunt</option>
+                  <option>Silver Series</option>
+                  <option>Premium</option>
+                  <option>Super Treasure Hunt</option>
+                  <option>Chase</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Seçilen varyant görseli</label>
+              <input id="carPhoto" name="photo" type="hidden" />
+              <input id="carCropZoom" name="cropZoom" type="hidden" value="1" />
+              <input id="carCropX" name="cropX" type="hidden" value="50" />
+              <input id="carCropY" name="cropY" type="hidden" value="50" />
+              <div class="photo-preview" id="photoPreview">
+                <span class="mini-car mini-car--large" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="carSource">Nereden alındı?</label>
+                <input id="carSource" name="source" placeholder="Akasya Toyzz, takas, sahibinden" />
+              </div>
+              <div class="field">
+                <label for="carAddedDate">Koleksiyona giriş</label>
+                <input id="carAddedDate" name="addedDate" type="date" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="carMarketType">Pazar türü</label>
+                <select id="carMarketType" name="marketType">
+                  <option value="">Pazarda değil</option>
+                  <option>Satılık</option>
+                  <option>Takaslık</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="carListingStatus">Pazar durumu</label>
+                <select id="carListingStatus" name="listingStatus">
+                  <option>Kapalı</option>
+                  <option>Yayında</option>
+                  <option>Rezerve</option>
+                  <option>Satıldı</option>
+                  <option>Takaslandı</option>
+                </select>
+              </div>
+            </div>
+            <div class="field" id="salePriceField">
+              <label for="carSalePrice">Satış fiyatı</label>
+              <input id="carSalePrice" name="salePrice" placeholder="250 TL" />
+            </div>
+            <div class="field">
+              <label for="carTradeWish">Takas / satış notu</label>
+              <textarea id="carTradeWish" name="tradeWish" rows="2" placeholder="Şu modellerle takas olur, kutu durumu, pazarlık notu"></textarea>
+            </div>
+            <div class="field">
+              <label for="carReference">Wiki / referans sayfası</label>
+              <input id="carReference" name="reference" type="url" placeholder="https://hotwheels.fandom.com/wiki/..." />
+            </div>
+            <div class="field">
+              <label for="carNotes">Not</label>
+              <textarea id="carNotes" name="notes" rows="3" placeholder="Nereden alındı, takas notu, kutu durumu"></textarea>
+            </div>
+            <div class="form-actions">
+              <button class="button button--primary" id="carSubmitButton" type="submit">Koleksiyona ekle</button>
+              <button class="button button--subtle" id="cancelCarEdit" type="button">Vazgeç</button>
+            </div>
+          </form>
+
+          <form class="entry-form" id="wishForm" data-form="wishlist">
+            <h2>İstek ekle</h2>
+            <div class="grid-2">
+              <div class="field">
+                <label for="wishModel">Model adı</label>
+                <input id="wishModel" name="model" required placeholder="Porsche 911 GT3" />
+              </div>
+              <div class="field">
+                <label for="wishPriority">Öncelik</label>
+                <select id="wishPriority" name="priority">
+                  <option>Çok istiyorum</option>
+                  <option>Denk gelirse</option>
+                  <option>Nadir av</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="wishBudget">Hedef fiyat</label>
+                <input id="wishBudget" name="budget" placeholder="150 TL" />
+              </div>
+              <div class="field">
+                <label for="wishOwner">Kim arıyor?</label>
+                <select id="wishOwner" name="owner">
+                  <option>Saruhan</option>
+                  <option>Ali</option>
+                  <option>İkimiz</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="wishNotes">Not</label>
+              <textarea id="wishNotes" name="notes" rows="3" placeholder="Hangi renk, hangi seri, nerede görüldü"></textarea>
+            </div>
+            <button class="button button--primary" type="submit">İstek listesine ekle</button>
+          </form>
+
+          <form class="entry-form" id="storeForm" data-form="stores">
+            <h2>Mağaza notu ekle</h2>
+            <div class="grid-2">
+              <div class="field">
+                <label for="storePreset">Mağaza</label>
+                <select id="storePreset" name="storePreset">
+                  <option>Toyzz Shop</option>
+                  <option>LC Waikiki</option>
+                  <option>D&R</option>
+                  <option>Migros</option>
+                  <option>CarrefourSA</option>
+                  <option>Armağan Oyuncak</option>
+                  <option>Ebebek</option>
+                  <option>Joker</option>
+                  <option>Rossmann</option>
+                  <option>Kırtasiye</option>
+                  <option>Oyuncakçı</option>
+                  <option>Diğer</option>
+                </select>
+              </div>
+              <div class="field field--other-store" id="otherStoreField">
+                <label for="storeName">Mağaza adı</label>
+                <input id="storeName" name="store" placeholder="Örn. Moda Kırtasiye" />
+              </div>
+              <div class="field">
+                <label for="storeCity">Şehir</label>
+                <select id="storeCity" name="city">
+                  <option>İstanbul</option>
+                  <option>Ankara</option>
+                  <option>İzmir</option>
+                  <option>Bursa</option>
+                  <option>Antalya</option>
+                  <option>Kocaeli</option>
+                  <option>Diğer</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="storeArea">Bölge / AVM</label>
+                <input id="storeArea" name="area" placeholder="Akasya, Kadıköy, Emaar" />
+              </div>
+              <div class="field">
+                <label for="storeSpot">Raf / kat notu</label>
+                <input id="storeSpot" name="spot" placeholder="Oyuncak rafı, kasa önü" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="storeModels">Görülen modeller</label>
+              <textarea id="storeModels" name="models" required rows="3" placeholder="Mazda RX-7, Bone Shaker, Civic Custom"></textarea>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="storePrice">Fiyat</label>
+                <input id="storePrice" name="price" placeholder="89,90 TL" />
+              </div>
+              <div class="field">
+                <label for="storeStatus">Raf durumu</label>
+                <select id="storeStatus" name="status">
+                  <option>Yeni sevkiyat</option>
+                  <option>Premium var</option>
+                  <option>Az stok</option>
+                  <option>Boş</option>
+                  <option>TH görüldü</option>
+                  <option>STH görüldü</option>
+                  <option>Bakmaya değmez</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="storeConfidence">Güven</label>
+                <select id="storeConfidence" name="confidence">
+                  <option>Fotoğraflı</option>
+                  <option>Gözle görüldü</option>
+                  <option>Duyum</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="storeReporter">Kim gördü?</label>
+                <select id="storeReporter" name="reporter">
+                  <option>Saruhan</option>
+                  <option>Ali</option>
+                </select>
+              </div>
+            </div>
+            <button class="button button--primary" type="submit">Mağaza notu ekle</button>
+          </form>
+          <section class="entry-form market-helper" data-form="market">
+            <h2>Pazar vitrini</h2>
+            <p class="field-hint">İstersen koleksiyonundaki bir arabayı seç, istersen koleksiyona eklemeden doğrudan pazar ilanı oluştur.</p>
+            <div class="form-actions">
+              <button class="button button--primary" id="openDirectMarketListing" type="button">Pazara ilan ekle</button>
+              <button class="button button--ghost" id="startMarketPick" type="button">Koleksiyondan seç</button>
+            </div>
+            <div class="market-panel-shell">
+              <div class="market-panel-shell__head">
+                <strong>Pazar filtreleri</strong>
+                <span>Favorilerim burada görünür.</span>
+              </div>
+              <div class="market-panel-filters" id="marketPanelFilters" aria-label="Pazar filtreleri"></div>
+            </div>
+          </section>
+          <section class="admin-panel" aria-label="Katalog yönetimi">
+            <div>
+              <p class="eyebrow">Sadece sizin için</p>
+              <h2>Katalog paneli</h2>
+              <p class="field-hint">Bir varyant seçip görsel, renk veya nadirlik bilgisini düzeltebilirsin. Değişiklikler bu tarayıcıda saklanır.</p>
+            </div>
+            <div class="field">
+              <label for="adminCatalogSearch">Katalogda ara</label>
+              <input id="adminCatalogSearch" type="search" autocomplete="off" placeholder="Model, marka, seri veya toy no yaz" />
+              <div class="catalog-results" id="adminCatalogResults"></div>
+            </div>
+            <div class="field admin-select-fallback">
+              <label for="adminCatalogSelect">Varyant</label>
+              <select id="adminCatalogSelect">
+                <option value="">Varyant seç</option>
+              </select>
+            </div>
+            <div class="photo-preview is-empty" id="adminPhotoPreview">
+              <span class="mini-car mini-car--large" aria-hidden="true"></span>
+            </div>
+            <div class="crop-controls">
+              <label>Zoom <input id="adminCropZoom" type="range" min="1" max="2.4" step="0.05" value="1" /></label>
+              <label>Yatay <input id="adminCropX" type="range" min="0" max="100" value="50" /></label>
+              <label>Dikey <input id="adminCropY" type="range" min="0" max="100" value="50" /></label>
+            </div>
+            <div class="field">
+              <label for="adminPhoto">Yerel görsel yolu</label>
+              <input id="adminPhoto" placeholder="./assets/catalog/model.jpg" />
+              <input class="file-input" id="adminPhotoFile" type="file" accept="image/png,image/jpeg,image/webp" />
+            </div>
+            <div class="field">
+              <label for="adminModel">Varyant adı</label>
+              <input id="adminModel" placeholder="Ferrari F40 Competizione (Yellow)" />
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="adminColor">Renk</label>
+                <select id="adminColor"></select>
+              </div>
+              <div class="field">
+                <label for="adminRarity">Nadirlik</label>
+                <select id="adminRarity"></select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="adminNotes">Katalog notu</label>
+              <textarea id="adminNotes" rows="2" placeholder="Örn: ikinci renk görseli bekliyor"></textarea>
+            </div>
+            <div class="form-actions">
+              <button class="button button--primary" id="saveCatalogOverride" type="button">Katalog bilgisini kaydet</button>
+              <button class="button button--subtle" id="clearCatalogOverride" type="button">Düzeltmeyi sil</button>
+            </div>
+            <p class="save-status" id="adminSaveStatus" aria-live="polite"></p>
+          </section>
+        </aside>
+
+        <section class="list-zone" aria-live="polite">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Aktif liste</p>
+              <h2 id="listTitle">Koleksiyon</h2>
+              <p class="view-copy" id="viewCopy">Garajınızdaki modelleri sahip, seri, renk ve durum bilgisiyle düzenli tutun.</p>
+            </div>
+            <span class="pill" id="visibleCount">0 kayıt</span>
+          </div>
+          <div class="radar-filters" id="radarFilters" aria-label="Liste filtreleri"></div>
+          <div class="card-grid" id="cards"></div>
+          <p class="empty-state" id="emptyState">Henüz kayıt yok.</p>
+        </section>
+      </section>
+    </main>
+
+    <div class="market-modal" id="marketModal" aria-hidden="true">
+      <form class="market-modal__panel" id="marketListingForm">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Pazar kaydı</p>
+            <h2 id="marketModalTitle">Arabayı pazara ekle</h2>
+            <p class="view-copy" id="marketModalSubtitle">Satış ya da takas bilgisini gir.</p>
+          </div>
+          <button class="delete-button" id="closeMarketModal" type="button" aria-label="Pencereyi kapat">×</button>
+        </div>
+        <div class="market-choice" role="radiogroup" aria-label="Pazar türü">
+          <label>
+            <input type="radio" name="marketType" value="Satılık" checked />
+            <span>Satılık</span>
+          </label>
+          <label>
+            <input type="radio" name="marketType" value="Takaslık" />
+            <span>Takaslık</span>
+          </label>
+        </div>
+        <div class="grid-2" id="modalStandaloneFields">
+          <div class="field">
+            <label for="modalListingModel">Model adı</label>
+            <input id="modalListingModel" name="model" placeholder="Ferrari F40 Competizione" />
+          </div>
+          <div class="field is-hidden">
+            <label for="modalListingOwner">Sahip</label>
+            <select id="modalListingOwner" name="owner">
+              <option>Saruhan</option>
+              <option>Ali</option>
+              <option>Ortak</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modalListingSeries">Seri / yıl</label>
+            <input id="modalListingSeries" name="series" placeholder="HW Screen Time 2026" />
+          </div>
+          <div class="field">
+            <label for="modalListingColor">Renk</label>
+            <select id="modalListingColor" name="color">
+              <option>Sarı</option>
+              <option>Kırmızı</option>
+              <option>Mavi</option>
+              <option>Siyah</option>
+              <option>Beyaz</option>
+              <option>Gri</option>
+              <option>Yeşil</option>
+              <option>Turuncu</option>
+              <option>Mor</option>
+              <option>Gümüş</option>
+              <option>Altın</option>
+              <option>Çok renkli</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modalListingCondition">Durum</label>
+            <select id="modalListingCondition" name="condition">
+              <option>Sıfır / Kartonetli</option>
+              <option>Açık</option>
+              <option>Hasarlı</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modalListingRarity">Nadirlik</label>
+            <select id="modalListingRarity" name="rarity">
+              <option>Regular</option>
+              <option>Treasure Hunt</option>
+              <option>Silver Series</option>
+              <option>Premium</option>
+              <option>Super Treasure Hunt</option>
+              <option>Chase</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>İlan fotoğrafı</label>
+          <div class="listing-photo-preview is-empty" id="modalListingPhotoPreview">
+            <span class="mini-car mini-car--large" aria-hidden="true"></span>
+          </div>
+          <input id="modalListingPhoto" name="listingPhoto" type="hidden" />
+          <input class="file-input" id="modalListingPhotoFile" type="file" accept="image/png,image/jpeg,image/webp" />
+          <span class="field-hint">Gerçek ürün fotoğrafı buraya gelir. Eklenmezse katalog görseli kullanılmaya devam eder.</span>
+        </div>
+        <div class="field" id="modalPriceField">
+          <label for="modalSalePrice">Satış fiyatı</label>
+          <div class="currency-field">
+            <input id="modalSalePrice" name="salePrice" inputmode="numeric" pattern="[0-9]*" placeholder="250" />
+            <span>TL</span>
+          </div>
+        </div>
+        <div class="field is-hidden" id="modalTradeField">
+          <label for="modalTradeWish">Karşılığında istenen arabalar</label>
+          <textarea id="modalTradeWish" name="tradeWish" rows="3" placeholder="Örn. Porsche, Ferrari, Premium JDM modeller"></textarea>
+        </div>
+        <div class="field" id="modalSaleNoteField">
+          <label for="modalSaleNote">Satış notu</label>
+          <textarea id="modalSaleNote" name="saleNote" rows="3" placeholder="Kutu durumu, pazarlık, teslim notu"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="button button--primary" type="submit">Pazara ekle</button>
+          <button class="button button--subtle is-visible" id="removeMarketListing" type="button">Pazardan kaldır</button>
+          <button class="button button--subtle is-visible" type="button" id="cancelMarketModal">Vazgeç</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="market-modal auth-modal" id="authModal" aria-hidden="true">
+      <form class="market-modal__panel auth-modal__panel" id="authForm">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Üyelik</p>
+            <h2 id="authTitle">Giriş yap</h2>
+            <p class="view-copy" id="authSubtitle">Pazar ilanı oluşturmak için hesabına gir.</p>
+          </div>
+          <button class="delete-button" id="closeAuthModal" type="button" aria-label="Pencereyi kapat">×</button>
+        </div>
+        <div class="market-choice auth-choice" role="radiogroup" aria-label="Üyelik türü">
+          <label>
+            <input type="radio" name="authMode" value="login" checked />
+            <span>Giriş yap</span>
+          </label>
+          <label>
+            <input type="radio" name="authMode" value="register" />
+            <span>Kayıt ol</span>
+          </label>
+        </div>
+        <div class="field auth-register-field" id="authUsernameField">
+          <label for="authUsername">Kullanıcı adı</label>
+          <input id="authUsername" name="username" autocomplete="username" placeholder="hotcollector34" />
+          <span class="field-hint">İlanlarda bu ad görünecek.</span>
+        </div>
+        <div class="field">
+          <label for="authEmail">E-posta</label>
+          <input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="ornek@mail.com" />
+        </div>
+        <div class="field">
+          <label for="authPassword">Şifre</label>
+          <input id="authPassword" name="password" type="password" autocomplete="current-password" required placeholder="En az 6 karakter" />
+        </div>
+        <p class="auth-status" id="authStatus" aria-live="polite"></p>
+        <div class="form-actions">
+          <button class="button button--primary" id="authSubmitButton" type="submit">Giriş yap</button>
+          <button class="button button--subtle is-visible" id="logoutUser" type="button">Çıkış yap</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="market-modal profile-modal" id="profileModal" aria-hidden="true">
+      <section class="market-modal__panel profile-modal__panel" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Profil</p>
+            <h2 id="profileTitle">Profil bilgileri</h2>
+            <p class="view-copy">Hesabınız ve pazar kimliğiniz.</p>
+          </div>
+          <button class="delete-button" id="closeProfileModal" type="button" aria-label="Pencereyi kapat">×</button>
+        </div>
+        <div class="profile-card">
+          <span class="account-menu__avatar" id="profileAvatar">HR</span>
+          <div>
+            <h3 id="profileUsername">@kullanici</h3>
+            <p id="profileEmail">mail@example.com</p>
+          </div>
+        </div>
+        <div class="profile-facts">
+          <span><strong id="profileListingCount">0</strong>Aktif ilan</span>
+          <span><strong id="profileCollectionCount">0</strong>Koleksiyon kaydı</span>
+          <span><strong id="profileCreatedAt">-</strong>Üyelik tarihi</span>
+        </div>
+        <p class="field-hint">Profil düzenleme, doğrulanmış hesap ve Google ile giriş gibi özellikleri gerçek üyelik sistemine geçtiğimizde buraya bağlayacağız.</p>
+      </section>
+    </div>
+
+    <div class="market-modal public-profile-modal" id="publicProfileModal" aria-hidden="true">
+      <section class="market-modal__panel public-profile-modal__panel" role="dialog" aria-modal="true" aria-labelledby="publicProfileTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Kullanıcı profili</p>
+            <h2 id="publicProfileTitle">@kullanici</h2>
+            <p class="view-copy" id="publicProfileSubtitle">Koleksiyon ve aktif pazar ilanları.</p>
+          </div>
+          <button class="delete-button" id="closePublicProfileModal" type="button" aria-label="Pencereyi kapat">×</button>
+        </div>
+        <div class="profile-card">
+          <span class="account-menu__avatar" id="publicProfileAvatar">KU</span>
+          <div>
+            <h3 id="publicProfileUsername">@kullanici</h3>
+            <p id="publicProfileSummary">0 ilan · 0 koleksiyon kaydı</p>
+          </div>
+        </div>
+        <div class="public-profile-actions">
+          <button class="button button--primary" id="publicProfileMessage" type="button">Mesaj g&ouml;nder</button>
+        </div>
+        <div class="public-profile-sections">
+          <section>
+            <div class="public-profile-heading">
+              <h3>İlanları</h3>
+              <span id="publicProfileListingsCount">0</span>
+            </div>
+            <div class="public-profile-list" id="publicProfileListings"></div>
+          </section>
+          <section>
+            <div class="public-profile-heading">
+              <h3>Koleksiyonu</h3>
+              <span id="publicProfileCollectionCount">0</span>
+            </div>
+            <div class="public-profile-list" id="publicProfileCollection"></div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div class="listing-detail-modal" id="listingDetailModal" aria-hidden="true">
+      <section class="listing-detail-modal__panel" role="dialog" aria-modal="true" aria-labelledby="listingDetailTitle">
+        <button class="delete-button listing-detail__close" id="closeListingDetail" type="button" aria-label="Pencereyi kapat">×</button>
+        <div class="listing-detail__media car-card__media" id="listingDetailMedia"></div>
+        <div class="listing-detail__body">
+          <p class="eyebrow" id="listingDetailSource">Pazar ilanı</p>
+          <h2 id="listingDetailTitle">İlan detayı</h2>
+          <p class="view-copy" id="listingDetailSubtitle"></p>
+          <div id="listingDetailHighlight"></div>
+          <div class="listing-detail__facts" id="listingDetailFacts"></div>
+          <p class="notes" id="listingDetailNotes"></p>
+          <section class="listing-comments" aria-label="İlan yorumları">
+            <div class="listing-comments__head">
+              <h3>Yorumlar</h3>
+              <span id="listingCommentCount">0</span>
+            </div>
+            <div class="listing-comments__list" id="listingCommentsList"></div>
+            <form class="listing-comments__form" id="listingCommentForm">
+              <textarea id="listingCommentInput" rows="3" placeholder="İlan hakkında soru ya da yorum yaz"></textarea>
+              <button class="button button--subtle" type="submit">Yorum gönder</button>
+            </form>
+          </section>
+          <div class="form-actions listing-detail__actions">
+            <button class="button button--subtle" id="favoriteListingDetail" type="button">☆ Favoriye ekle</button>
+            <button class="button button--subtle" id="messageSellerDetail" type="button">Satıcıya mesaj at</button>
+            <button class="button button--primary" id="editListingDetail" type="button">İlanı düzenle</button>
+            <button class="button button--danger" id="removeListingDetail" type="button">Pazardan kaldır</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="market-modal message-modal" id="messageModal" aria-hidden="true">
+      <section class="market-modal__panel message-modal__panel" role="dialog" aria-modal="true" aria-labelledby="messageModalTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Mesajlar</p>
+            <h2 id="messageModalTitle">Bildirimler</h2>
+            <p class="view-copy" id="messageModalSubtitle">Hesap hareketlerini buradan takip et.</p>
+          </div>
+          <button class="delete-button" id="closeMessageModal" type="button" aria-label="Pencereyi kapat">×</button>
+        </div>
+        <div class="notification-tabs" role="tablist" aria-label="Bildirim turu">
+          <button class="notification-tab is-active" id="messagesTab" type="button">Mesajlar</button>
+          <button class="notification-tab" id="commentsTab" type="button">Yorumlar</button>
+        </div>
+        <div class="message-layout notification-panel is-active" id="messagesPanel">
+          <aside class="message-thread-list" id="messageThreadList"></aside>
+          <section class="message-thread">
+            <div class="message-thread__head">
+              <h3 id="activeThreadTitle">Konuşma seç</h3>
+              <p id="activeThreadMeta">Mesajlaşmak için bir konuşma aç.</p>
+            </div>
+            <div class="message-list" id="messageList"></div>
+            <form class="message-compose" id="messageForm">
+              <textarea id="messageInput" rows="3" placeholder="Mesajını yaz"></textarea>
+              <button class="button button--primary" type="submit">Gönder</button>
+            </form>
+          </section>
+        </div>
+        <div class="notification-panel comment-notification-list" id="commentsPanel"></div>
+      </section>
+    </div>
+
+    <template id="cardTemplate">
+      <article class="car-card">
+        <div class="car-card__top">
+          <span class="mini-car" aria-hidden="true"></span>
+          <button class="edit-button" type="button" title="Kaydı düzenle" aria-label="Kaydı düzenle">✎</button>
+          <button class="delete-button" type="button" title="Kaydı sil" aria-label="Kaydı sil">×</button>
+        </div>
+        <div class="car-card__media"></div>
+        <h3></h3>
+        <p class="muted"></p>
+        <div class="car-meta"></div>
+        <div class="tags"></div>
+        <p class="notes"></p>
+      </article>
+    </template>
+
+    <script src="./catalog-2026.js?v=7"></script>
+    <script src="./app.js?v=67"></script>
+  </body>
+</html>
