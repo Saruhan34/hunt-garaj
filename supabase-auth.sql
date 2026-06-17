@@ -94,3 +94,80 @@ with check (
 update public.profiles
 set role = 'admin'
 where lower(email) = 'saruhanckmak@gmail.com';
+
+-- Admin panel / public site içerik yönetimi
+create table if not exists public.site_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_by uuid references auth.users(id),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_settings enable row level security;
+
+drop trigger if exists site_settings_set_updated_at on public.site_settings;
+create trigger site_settings_set_updated_at
+before update on public.site_settings
+for each row execute function public.set_updated_at();
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and role = 'admin'
+  );
+$$;
+
+drop policy if exists "site settings are public readable" on public.site_settings;
+create policy "site settings are public readable"
+on public.site_settings
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "admins can insert site settings" on public.site_settings;
+create policy "admins can insert site settings"
+on public.site_settings
+for insert
+to authenticated
+with check (public.is_admin());
+
+drop policy if exists "admins can update site settings" on public.site_settings;
+create policy "admins can update site settings"
+on public.site_settings
+for update
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+insert into public.site_settings (key, value)
+values (
+  'site_config',
+  '{
+    "heroEyebrow": "Hot Wheels garaj pazarı",
+    "heroTitleOne": "HUNT",
+    "heroTitleTwo": "RADAR",
+    "heroCopy": "Hot Wheels garajını, pazar ilanlarını ve hunt bildirimlerini tek merkezde yönet.",
+    "heroTagline": "Garajını kur, rafları takip et.",
+    "heroImage": "./assets/garage-hero.png",
+    "bannerEnabled": false,
+    "bannerTitle": "Hunt Radar duyurusu",
+    "bannerText": "",
+    "featuredListingKey": "",
+    "featuredStoreId": "",
+    "popularSearch": "Premium Ferrari",
+    "communityTitle": "2026 mainline av listesi",
+    "communityMeta": "24 yorum · rehber konusu",
+    "catalogOverrides": {},
+    "customCatalog": [],
+    "hiddenCatalogIds": [],
+    "contents": []
+  }'::jsonb
+)
+on conflict (key) do nothing;

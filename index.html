@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=63" />
+    <link rel="stylesheet" href="./styles.css?v=64" />
   </head>
   <body>
     <header class="hero">
@@ -73,12 +73,12 @@
       </nav>
 
       <section class="hero__content">
-        <p class="eyebrow">Hot Wheels garaj pazarı</p>
-        <h1><span>HUNT</span><span>RADAR</span></h1>
-        <p class="hero__copy">
+        <p class="eyebrow" id="heroEyebrow">Hot Wheels garaj pazarı</p>
+        <h1 id="heroTitle"><span>HUNT</span><span>RADAR</span></h1>
+        <p class="hero__copy" id="heroCopy">
           Hot Wheels garajını, pazar ilanlarını ve hunt bildirimlerini tek merkezde yönet.
         </p>
-        <p class="hero__tagline">Garajını kur, rafları takip et.</p>
+        <p class="hero__tagline" id="heroTagline">Garajını kur, rafları takip et.</p>
         <div class="hero__buttons">
           <button class="button button--primary" type="button" data-jump-view="collection">Garajı Aç</button>
           <button class="button button--ghost" type="button" data-jump-view="market">Pazarı Keşfet</button>
@@ -89,6 +89,11 @@
     </header>
 
     <main>
+      <section class="site-banner app-home-only" id="siteBanner" aria-label="Duyuru">
+        <strong id="siteBannerTitle">Hunt Radar duyurusu</strong>
+        <p id="siteBannerText">Yeni duyurular burada görünür.</p>
+      </section>
+
       <section class="summary app-home-only" aria-label="Canlı istatistikler">
         <article class="metric">
           <span class="metric__value" id="totalCars">0</span>
@@ -510,12 +515,87 @@
               <div class="market-panel-filters" id="marketPanelFilters" aria-label="Pazar filtreleri"></div>
             </div>
           </section>
-            <section class="admin-panel is-hidden" id="adminPanel" aria-label="Katalog yönetimi">
+          <section class="admin-panel is-hidden" id="adminPanel" aria-label="Admin yönetimi">
             <div>
-              <p class="eyebrow">Sadece sizin için</p>
-              <h2>Katalog paneli</h2>
-              <p class="field-hint">Bir varyant seçip görsel, renk veya nadirlik bilgisini düzeltebilirsin. Değişiklikler bu tarayıcıda saklanır.</p>
+              <p class="eyebrow">Admin merkezi</p>
+              <h2>Site yönetimi</h2>
+              <p class="field-hint">Ana sayfa, vitrin, katalog, içerik ve kayıtları buradan yönet. Supabase bağlıysa değişiklikler public sitede görünür.</p>
             </div>
+            <div class="admin-tabs" role="tablist" aria-label="Admin bölümleri">
+              <button class="is-active" type="button" data-admin-tab="home">Ana sayfa</button>
+              <button type="button" data-admin-tab="featured">Öne çıkanlar</button>
+              <button type="button" data-admin-tab="catalog">Katalog</button>
+              <button type="button" data-admin-tab="content">İçerik</button>
+              <button type="button" data-admin-tab="manage">Yönetim</button>
+            </div>
+
+            <div class="admin-section is-active" data-admin-section="home">
+              <div class="field">
+                <label for="adminHeroEyebrow">Hero üst başlık</label>
+                <input id="adminHeroEyebrow" placeholder="Hot Wheels garaj pazarı" />
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="adminHeroTitleOne">Hero başlık 1</label>
+                  <input id="adminHeroTitleOne" placeholder="HUNT" />
+                </div>
+                <div class="field">
+                  <label for="adminHeroTitleTwo">Hero başlık 2</label>
+                  <input id="adminHeroTitleTwo" placeholder="RADAR" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="adminHeroCopy">Hero açıklama</label>
+                <textarea id="adminHeroCopy" rows="3"></textarea>
+              </div>
+              <div class="field">
+                <label for="adminHeroTagline">Destek sloganı</label>
+                <input id="adminHeroTagline" placeholder="Garajını kur, rafları takip et." />
+              </div>
+              <div class="field">
+                <label for="adminHeroImage">Hero görsel URL</label>
+                <input id="adminHeroImage" placeholder="./assets/garage-hero.png veya https://..." />
+              </div>
+              <label class="admin-toggle">
+                <input id="adminBannerEnabled" type="checkbox" />
+                <span>Banner / duyuru alanı aktif</span>
+              </label>
+              <div class="field">
+                <label for="adminBannerTitle">Banner başlığı</label>
+                <input id="adminBannerTitle" placeholder="Yeni sevkiyat radarı aktif" />
+              </div>
+              <div class="field">
+                <label for="adminBannerText">Banner metni</label>
+                <textarea id="adminBannerText" rows="2"></textarea>
+              </div>
+              <button class="button button--primary" id="saveSiteContent" type="button">Ana sayfayı kaydet</button>
+            </div>
+
+            <div class="admin-section" data-admin-section="featured">
+              <div class="field">
+                <label for="adminFeaturedListing">Öne çıkan ilan</label>
+                <select id="adminFeaturedListing"></select>
+              </div>
+              <div class="field">
+                <label for="adminFeaturedStore">Son mağaza bildirimi</label>
+                <select id="adminFeaturedStore"></select>
+              </div>
+              <div class="field">
+                <label for="adminPopularSearch">Popüler arama</label>
+                <input id="adminPopularSearch" placeholder="Premium Ferrari" />
+              </div>
+              <div class="field">
+                <label for="adminCommunityTitle">Topluluk konusu</label>
+                <input id="adminCommunityTitle" placeholder="2026 mainline av listesi" />
+              </div>
+              <div class="field">
+                <label for="adminCommunityMeta">Topluluk meta</label>
+                <input id="adminCommunityMeta" placeholder="24 yorum · rehber konusu" />
+              </div>
+              <button class="button button--primary" id="saveFeaturedContent" type="button">Öne çıkanları kaydet</button>
+            </div>
+
+            <div class="admin-section" data-admin-section="catalog">
             <div class="field">
               <label for="adminCatalogSearch">Katalogda ara</label>
               <input id="adminCatalogSearch" type="search" autocomplete="off" placeholder="Model, marka, seri veya toy no yaz" />
@@ -562,6 +642,53 @@
               <button class="button button--primary" id="saveCatalogOverride" type="button">Katalog bilgisini kaydet</button>
               <button class="button button--subtle" id="clearCatalogOverride" type="button">Düzeltmeyi sil</button>
             </div>
+            <div class="admin-divider"></div>
+            <h3>Yeni katalog aracı</h3>
+            <div class="grid-2">
+              <div class="field"><label for="adminNewBrand">Marka</label><input id="adminNewBrand" placeholder="Porsche" /></div>
+              <div class="field"><label for="adminNewModel">Model</label><input id="adminNewModel" placeholder="911 Carrera T" /></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label for="adminNewYear">Yıl</label><input id="adminNewYear" placeholder="2026" /></div>
+              <div class="field"><label for="adminNewSeries">Seri</label><input id="adminNewSeries" placeholder="HW Turbo" /></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label for="adminNewColor">Renk</label><input id="adminNewColor" placeholder="Sarı" /></div>
+              <div class="field"><label for="adminNewRarity">Nadirlik</label><input id="adminNewRarity" placeholder="Regular" /></div>
+            </div>
+            <div class="field"><label for="adminNewPhoto">Görsel URL</label><input id="adminNewPhoto" placeholder="./assets/catalog/model.jpg" /></div>
+            <div class="form-actions">
+              <button class="button button--primary" id="addCustomCatalogCar" type="button">Kataloğa ekle</button>
+              <button class="button button--subtle is-visible" id="deleteCatalogOverride" type="button">Seçili aracı sil/gizle</button>
+            </div>
+            </div>
+
+            <div class="admin-section" data-admin-section="content">
+              <div class="field">
+                <label for="adminContentType">İçerik türü</label>
+                <select id="adminContentType">
+                  <option>Forum</option>
+                  <option>Haber</option>
+                  <option>Rehber</option>
+                  <option>Duyuru</option>
+                </select>
+              </div>
+              <div class="field"><label for="adminContentTitle">Başlık</label><input id="adminContentTitle" /></div>
+              <div class="field"><label for="adminContentSummary">Kısa özet</label><textarea id="adminContentSummary" rows="2"></textarea></div>
+              <div class="field"><label for="adminContentBody">İçerik</label><textarea id="adminContentBody" rows="4"></textarea></div>
+              <button class="button button--primary" id="saveAdminContent" type="button">İçeriği yayınla</button>
+              <div class="admin-list" id="adminContentList"></div>
+            </div>
+
+            <div class="admin-section" data-admin-section="manage">
+              <h3>Kullanıcılar</h3>
+              <div class="admin-list" id="adminUsersList"></div>
+              <h3>İlanlar</h3>
+              <div class="admin-list" id="adminListingsList"></div>
+              <h3>Hunt Radar notları</h3>
+              <div class="admin-list" id="adminStoresList"></div>
+            </div>
+
             <p class="save-status" id="adminSaveStatus" aria-live="polite"></p>
           </section>
         </aside>
@@ -892,6 +1019,6 @@
 
     <script src="./catalog-2026.js?v=7"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=75"></script>
+    <script src="./app.js?v=76"></script>
   </body>
 </html>

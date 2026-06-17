@@ -5,6 +5,7 @@ const CURRENT_USER_KEY = "hunt-garaj-current-user-v1";
 const SUPABASE_URL = "https://lqksregvjhuswyvjjjqa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Zj-Vq30wPbhXccBxnenbDQ_T2HNo_1W";
 const ADMIN_EMAIL = "saruhanckmak@gmail.com";
+const SITE_SETTINGS_KEY = "hunt-radar-site-config";
 const supabaseClient = window.supabase
   && !SUPABASE_URL.includes("BURAYA_")
   && !SUPABASE_ANON_KEY.includes("BURAYA_")
@@ -29,6 +30,27 @@ const CATALOG_RULES = {
     colors: ["Sarı", "Kırmızı", "Siyah"],
     rarities: ["Regular", "Super Treasure Hunt"]
   }
+};
+
+const DEFAULT_SITE_CONFIG = {
+  heroEyebrow: "Hot Wheels garaj pazarı",
+  heroTitleOne: "HUNT",
+  heroTitleTwo: "RADAR",
+  heroCopy: "Hot Wheels garajını, pazar ilanlarını ve hunt bildirimlerini tek merkezde yönet.",
+  heroTagline: "Garajını kur, rafları takip et.",
+  heroImage: "./assets/garage-hero.png",
+  bannerEnabled: false,
+  bannerTitle: "Hunt Radar duyurusu",
+  bannerText: "",
+  featuredListingKey: "",
+  featuredStoreId: "",
+  popularSearch: "Premium Ferrari",
+  communityTitle: "2026 mainline av listesi",
+  communityMeta: "24 yorum · rehber konusu",
+  catalogOverrides: {},
+  customCatalog: [],
+  hiddenCatalogIds: [],
+  contents: []
 };
 
 const CATALOG_IMAGE_FILES = {
@@ -248,7 +270,8 @@ const HOT_WHEELS_CATALOG = [
   { id: "custom-68-camaro", brand: "Chevrolet", model: "Custom '68 Camaro", series: "Muscle Mania", color: "Kırmızı", rarity: "Regular", reference: "https://hotwheels.fandom.com/wiki/Custom_%2768_Camaro" }
 ];
 
-const ALL_CATALOG = [...HOT_WHEELS_CATALOG, ...(window.HW_CATALOG_2026 || [])];
+let siteConfig = loadSiteConfig();
+let ALL_CATALOG = buildCatalog();
 
 const statusTone = {
   "Yeni sevkiyat": "hot",
@@ -363,6 +386,14 @@ const featuredStore = document.querySelector("#featuredStore");
 const featuredStoreMeta = document.querySelector("#featuredStoreMeta");
 const featuredSearch = document.querySelector("#featuredSearch");
 const featuredSearchMeta = document.querySelector("#featuredSearchMeta");
+const hero = document.querySelector(".hero");
+const heroEyebrow = document.querySelector("#heroEyebrow");
+const heroTitle = document.querySelector("#heroTitle");
+const heroCopy = document.querySelector("#heroCopy");
+const heroTagline = document.querySelector("#heroTagline");
+const siteBanner = document.querySelector("#siteBanner");
+const siteBannerTitle = document.querySelector("#siteBannerTitle");
+const siteBannerText = document.querySelector("#siteBannerText");
 const globalSearchForm = document.querySelector("#globalSearchForm");
 const globalSearchInput = document.querySelector("#globalSearchInput");
 const searchInput = document.querySelector("#searchInput");
@@ -421,6 +452,42 @@ const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
 const logoutUser = document.querySelector("#logoutUser");
 const adminPanel = document.querySelector("#adminPanel");
 const profileRoleHint = document.querySelector("#profileRoleHint");
+const adminTabs = document.querySelectorAll("[data-admin-tab]");
+const adminSections = document.querySelectorAll("[data-admin-section]");
+const adminHeroEyebrow = document.querySelector("#adminHeroEyebrow");
+const adminHeroTitleOne = document.querySelector("#adminHeroTitleOne");
+const adminHeroTitleTwo = document.querySelector("#adminHeroTitleTwo");
+const adminHeroCopy = document.querySelector("#adminHeroCopy");
+const adminHeroTagline = document.querySelector("#adminHeroTagline");
+const adminHeroImage = document.querySelector("#adminHeroImage");
+const adminBannerEnabled = document.querySelector("#adminBannerEnabled");
+const adminBannerTitle = document.querySelector("#adminBannerTitle");
+const adminBannerText = document.querySelector("#adminBannerText");
+const saveSiteContent = document.querySelector("#saveSiteContent");
+const adminFeaturedListing = document.querySelector("#adminFeaturedListing");
+const adminFeaturedStore = document.querySelector("#adminFeaturedStore");
+const adminPopularSearch = document.querySelector("#adminPopularSearch");
+const adminCommunityTitle = document.querySelector("#adminCommunityTitle");
+const adminCommunityMeta = document.querySelector("#adminCommunityMeta");
+const saveFeaturedContent = document.querySelector("#saveFeaturedContent");
+const adminNewBrand = document.querySelector("#adminNewBrand");
+const adminNewModel = document.querySelector("#adminNewModel");
+const adminNewYear = document.querySelector("#adminNewYear");
+const adminNewSeries = document.querySelector("#adminNewSeries");
+const adminNewColor = document.querySelector("#adminNewColor");
+const adminNewRarity = document.querySelector("#adminNewRarity");
+const adminNewPhoto = document.querySelector("#adminNewPhoto");
+const addCustomCatalogCar = document.querySelector("#addCustomCatalogCar");
+const deleteCatalogOverride = document.querySelector("#deleteCatalogOverride");
+const adminContentType = document.querySelector("#adminContentType");
+const adminContentTitle = document.querySelector("#adminContentTitle");
+const adminContentSummary = document.querySelector("#adminContentSummary");
+const adminContentBody = document.querySelector("#adminContentBody");
+const saveAdminContent = document.querySelector("#saveAdminContent");
+const adminContentList = document.querySelector("#adminContentList");
+const adminUsersList = document.querySelector("#adminUsersList");
+const adminListingsList = document.querySelector("#adminListingsList");
+const adminStoresList = document.querySelector("#adminStoresList");
 const storePreset = document.querySelector("#storePreset");
 const storeName = document.querySelector("#storeName");
 const otherStoreField = document.querySelector("#otherStoreField");
@@ -546,6 +613,28 @@ function loadCatalogOverrides() {
   } catch {
     return {};
   }
+}
+
+function loadSiteConfig() {
+  try {
+    return {
+      ...DEFAULT_SITE_CONFIG,
+      ...(JSON.parse(localStorage.getItem(SITE_SETTINGS_KEY)) || {})
+    };
+  } catch {
+    return { ...DEFAULT_SITE_CONFIG };
+  }
+}
+
+function saveSiteConfigLocal() {
+  localStorage.setItem(SITE_SETTINGS_KEY, JSON.stringify(siteConfig));
+}
+
+function buildCatalog() {
+  const custom = Array.isArray(siteConfig?.customCatalog) ? siteConfig.customCatalog : [];
+  const hidden = new Set(siteConfig?.hiddenCatalogIds || []);
+  return [...HOT_WHEELS_CATALOG, ...(window.HW_CATALOG_2026 || []), ...custom]
+    .filter((car) => !hidden.has(car.id));
 }
 
 function loadUsers() {
@@ -2479,6 +2568,75 @@ function isAdminUser(user = currentUser) {
 function syncAdminVisibility() {
   if (!adminPanel) return;
   adminPanel.classList.toggle("is-hidden", !isAdminUser());
+  if (isAdminUser()) renderAdminCenter();
+}
+
+function applySiteConfig() {
+  heroEyebrow.textContent = siteConfig.heroEyebrow || DEFAULT_SITE_CONFIG.heroEyebrow;
+  heroTitle.innerHTML = `<span>${escapeHtml(siteConfig.heroTitleOne || "HUNT")}</span><span>${escapeHtml(siteConfig.heroTitleTwo || "RADAR")}</span>`;
+  heroCopy.textContent = siteConfig.heroCopy || DEFAULT_SITE_CONFIG.heroCopy;
+  heroTagline.textContent = siteConfig.heroTagline || DEFAULT_SITE_CONFIG.heroTagline;
+  const heroImage = siteConfig.heroImage || DEFAULT_SITE_CONFIG.heroImage;
+  hero.style.backgroundImage = [
+    "linear-gradient(90deg, rgba(7, 9, 13, 0.98), rgba(7, 9, 13, 0.7) 42%, rgba(7, 9, 13, 0.16) 76%)",
+    `url("${heroImage}")`
+  ].join(", ");
+  siteBanner.classList.toggle("is-visible", Boolean(siteConfig.bannerEnabled && siteConfig.bannerText));
+  siteBannerTitle.textContent = siteConfig.bannerTitle || DEFAULT_SITE_CONFIG.bannerTitle;
+  siteBannerText.textContent = siteConfig.bannerText || "";
+}
+
+function listingKeyForAdmin(item) {
+  return listingFavoriteKey(item);
+}
+
+function storeKeyForAdmin(item) {
+  return item.id || [item.store, item.createdAt, item.status].filter(Boolean).join("::");
+}
+
+function findFeaturedListing() {
+  const listings = allMarketListings();
+  return listings.find((item) => listingKeyForAdmin(item) === siteConfig.featuredListingKey) || listings[0];
+}
+
+function findFeaturedStore() {
+  return state.stores.find((item) => storeKeyForAdmin(item) === siteConfig.featuredStoreId) || state.stores[0];
+}
+
+async function saveSiteConfigToSupabase() {
+  saveSiteConfigLocal();
+  applySiteConfig();
+  renderAdminCenter();
+  render();
+  if (!supabaseClient || !isAdminUser()) {
+    setAdminStatus("Yerel kaydedildi. Supabase URL/key ve admin oturumu aktif olunca buluta yazılır.");
+    return;
+  }
+  const { error } = await supabaseClient
+    .from("site_settings")
+    .upsert({ key: "site_config", value: siteConfig, updated_by: currentUser.id });
+  setAdminStatus(error ? error.message : "Supabase'e kaydedildi.");
+}
+
+async function loadSiteConfigFromSupabase() {
+  if (!supabaseClient) {
+    applySiteConfig();
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from("site_settings")
+    .select("value")
+    .eq("key", "site_config")
+    .maybeSingle();
+  if (!error && data?.value) {
+    siteConfig = { ...DEFAULT_SITE_CONFIG, ...data.value };
+    catalogOverrides = siteConfig.catalogOverrides || catalogOverrides;
+    saveCatalogOverrides();
+    saveSiteConfigLocal();
+    ALL_CATALOG = buildCatalog();
+    refreshAdminCatalogOptions();
+  }
+  applySiteConfig();
 }
 
 function supabaseUsernameFromUser(authUser) {
@@ -2536,6 +2694,8 @@ async function ensureSupabaseProfile(authUser) {
 }
 
 async function initSupabaseAuth() {
+  await loadSiteConfigFromSupabase();
+  render();
   if (!supabaseClient) {
     syncAdminVisibility();
     return;
@@ -2766,18 +2926,21 @@ function updateMetrics() {
   document.querySelector("#todayStoreCount").textContent = state.stores.filter((store) => store.date === today).length || state.stores.length;
   document.querySelector("#wishlistCount").textContent = state.wishlist.length;
   document.querySelector("#activeCollectorCount").textContent = Math.max(collectors.size, currentUser ? 1 : 0);
-  const listing = marketListings[0];
+  const listing = findFeaturedListing();
   featuredListing.textContent = listing?.model || "Henüz ilan yok";
   featuredListingMeta.textContent = listing
     ? `${listing.salePrice || "Fiyat yok"} · ${listing.condition || "Durum yok"} · ${displayRarity(listing.rarity)}`
     : "Fiyat, durum ve nadirlik bilgisi bekleniyor.";
-  const store = state.stores[0];
+  const store = findFeaturedStore();
   featuredStore.textContent = store ? `${store.store} · ${store.status}` : "Henüz Hunt Radar notu yok";
   featuredStoreMeta.textContent = store
     ? `${formatDateTime(store.createdAt || new Date().toISOString())} · ${store.confidence || "Doğrulama bekliyor"}`
     : "Saat ve doğrulama bilgisi bekleniyor.";
-  featuredSearch.textContent = state.wishlist[0]?.model || "Premium Ferrari";
+  featuredSearch.textContent = siteConfig.popularSearch || state.wishlist[0]?.model || "Premium Ferrari";
   featuredSearchMeta.textContent = `${marketListings.length} ilan · ${state.wishlist.length} istek listesi kaydı`;
+  const communityStrong = document.querySelector("#featuredCommunityMeta")?.previousElementSibling;
+  if (communityStrong) communityStrong.textContent = siteConfig.communityTitle || DEFAULT_SITE_CONFIG.communityTitle;
+  document.querySelector("#featuredCommunityMeta").textContent = siteConfig.communityMeta || DEFAULT_SITE_CONFIG.communityMeta;
 }
 
 function formToObject(form) {
@@ -2860,6 +3023,207 @@ function setupAdminPanel() {
     adminCatalogSelect.appendChild(option);
   });
   updateAdminPanel();
+  renderAdminCenter();
+}
+
+function setAdminTab(tab) {
+  adminTabs.forEach((button) => button.classList.toggle("is-active", button.dataset.adminTab === tab));
+  adminSections.forEach((section) => section.classList.toggle("is-active", section.dataset.adminSection === tab));
+}
+
+function renderAdminCenter() {
+  if (!adminPanel || !isAdminUser()) return;
+  adminHeroEyebrow.value = siteConfig.heroEyebrow || "";
+  adminHeroTitleOne.value = siteConfig.heroTitleOne || "";
+  adminHeroTitleTwo.value = siteConfig.heroTitleTwo || "";
+  adminHeroCopy.value = siteConfig.heroCopy || "";
+  adminHeroTagline.value = siteConfig.heroTagline || "";
+  adminHeroImage.value = siteConfig.heroImage || "";
+  adminBannerEnabled.checked = Boolean(siteConfig.bannerEnabled);
+  adminBannerTitle.value = siteConfig.bannerTitle || "";
+  adminBannerText.value = siteConfig.bannerText || "";
+  adminPopularSearch.value = siteConfig.popularSearch || "";
+  adminCommunityTitle.value = siteConfig.communityTitle || "";
+  adminCommunityMeta.value = siteConfig.communityMeta || "";
+  renderAdminFeaturedOptions();
+  renderAdminContentList();
+  renderAdminManageLists();
+}
+
+function renderAdminFeaturedOptions() {
+  const listings = allMarketListings();
+  adminFeaturedListing.innerHTML = '<option value="">En yeni ilanı kullan</option>';
+  listings.forEach((listing) => {
+    const option = document.createElement("option");
+    option.value = listingKeyForAdmin(listing);
+    option.textContent = `${listing.model} · ${listing.salePrice || "Fiyat yok"} · @${listing.sellerUsername || "kullanıcı"}`;
+    adminFeaturedListing.appendChild(option);
+  });
+  adminFeaturedListing.value = siteConfig.featuredListingKey || "";
+
+  adminFeaturedStore.innerHTML = '<option value="">En yeni Hunt Radar notunu kullan</option>';
+  state.stores.forEach((store) => {
+    const option = document.createElement("option");
+    option.value = storeKeyForAdmin(store);
+    option.textContent = `${store.store} · ${store.status} · ${formatDateTime(store.createdAt || new Date().toISOString())}`;
+    adminFeaturedStore.appendChild(option);
+  });
+  adminFeaturedStore.value = siteConfig.featuredStoreId || "";
+}
+
+function renderAdminContentList() {
+  adminContentList.innerHTML = "";
+  const contents = siteConfig.contents || [];
+  if (!contents.length) {
+    adminContentList.innerHTML = '<p class="empty-state is-visible">Henüz içerik yok.</p>';
+    return;
+  }
+  contents.forEach((item) => {
+    const row = document.createElement("article");
+    row.className = "admin-list-item";
+    row.innerHTML = `
+      <div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.type)} · ${formatDateTime(item.createdAt)}</span><p>${escapeHtml(item.summary || "")}</p></div>
+      <button class="delete-button" type="button" aria-label="İçeriği sil">×</button>
+    `;
+    row.querySelector("button").addEventListener("click", async () => {
+      siteConfig.contents = contents.filter((content) => content.id !== item.id);
+      await saveSiteConfigToSupabase();
+    });
+    adminContentList.appendChild(row);
+  });
+}
+
+function renderAdminManageLists() {
+  adminUsersList.innerHTML = "";
+  const knownUsers = currentUser ? [currentUser, ...users.filter((user) => user.id !== currentUser.id)] : users;
+  knownUsers.forEach((user) => {
+    const row = document.createElement("article");
+    row.className = "admin-list-item";
+    row.innerHTML = `<div><strong>@${escapeHtml(user.username)}</strong><span>${escapeHtml(user.email || "")} · ${escapeHtml(user.role || "user")}</span></div>`;
+    adminUsersList.appendChild(row);
+  });
+  if (!knownUsers.length) adminUsersList.innerHTML = '<p class="empty-state is-visible">Kullanıcı listesi Supabase bağlanınca dolar.</p>';
+
+  adminListingsList.innerHTML = "";
+  allMarketListings().forEach((listing) => {
+    const row = document.createElement("article");
+    row.className = "admin-list-item";
+    row.innerHTML = `
+      <div><strong>${escapeHtml(listing.model)}</strong><span>${escapeHtml(listing.salePrice || "Fiyat yok")} · ${escapeHtml(listing.listingStatus || "Yayında")} · @${escapeHtml(listing.sellerUsername || "")}</span></div>
+      <button class="delete-button" type="button" aria-label="İlanı sil">×</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => {
+      state.market = state.market.filter((item) => item.id !== listing.id);
+      state.collection = state.collection.map((item) => item.id === listing.id ? { ...item, marketType: "", listingStatus: "Kapalı", salePrice: "", tradeWish: "" } : item);
+      saveState();
+      render();
+      renderAdminCenter();
+    });
+    adminListingsList.appendChild(row);
+  });
+  if (!allMarketListings().length) adminListingsList.innerHTML = '<p class="empty-state is-visible">İlan yok.</p>';
+
+  adminStoresList.innerHTML = "";
+  state.stores.forEach((store) => {
+    const row = document.createElement("article");
+    row.className = "admin-list-item";
+    row.innerHTML = `
+      <div><strong>${escapeHtml(store.store)}</strong><span>${escapeHtml(store.status)} · ${escapeHtml(store.confidence || "")}</span></div>
+      <button class="delete-button" type="button" aria-label="Mağaza notunu sil">×</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => {
+      state.stores = state.stores.filter((item) => item !== store);
+      saveState();
+      render();
+      renderAdminCenter();
+    });
+    adminStoresList.appendChild(row);
+  });
+  if (!state.stores.length) adminStoresList.innerHTML = '<p class="empty-state is-visible">Hunt Radar notu yok.</p>';
+}
+
+async function saveAdminHomeContent() {
+  siteConfig = {
+    ...siteConfig,
+    heroEyebrow: adminHeroEyebrow.value.trim(),
+    heroTitleOne: adminHeroTitleOne.value.trim() || "HUNT",
+    heroTitleTwo: adminHeroTitleTwo.value.trim() || "RADAR",
+    heroCopy: adminHeroCopy.value.trim(),
+    heroTagline: adminHeroTagline.value.trim(),
+    heroImage: adminHeroImage.value.trim() || DEFAULT_SITE_CONFIG.heroImage,
+    bannerEnabled: adminBannerEnabled.checked,
+    bannerTitle: adminBannerTitle.value.trim(),
+    bannerText: adminBannerText.value.trim()
+  };
+  await saveSiteConfigToSupabase();
+}
+
+async function saveAdminFeaturedContent() {
+  siteConfig = {
+    ...siteConfig,
+    featuredListingKey: adminFeaturedListing.value,
+    featuredStoreId: adminFeaturedStore.value,
+    popularSearch: adminPopularSearch.value.trim(),
+    communityTitle: adminCommunityTitle.value.trim(),
+    communityMeta: adminCommunityMeta.value.trim()
+  };
+  await saveSiteConfigToSupabase();
+}
+
+async function addCustomCatalogItem() {
+  if (!adminNewModel.value.trim()) {
+    setAdminStatus("Model adı gerekli.");
+    return;
+  }
+  const id = `custom-${Date.now()}-${normalize(adminNewModel.value).replace(/[^a-z0-9]+/g, "-")}`;
+  const car = {
+    id,
+    brand: adminNewBrand.value.trim() || "Özel",
+    model: adminNewModel.value.trim(),
+    year: adminNewYear.value.trim(),
+    series: adminNewSeries.value.trim() || "Admin katalog",
+    color: adminNewColor.value.trim() || "Çok renkli",
+    rarity: adminNewRarity.value.trim() || "Regular",
+    photo: adminNewPhoto.value.trim(),
+    reference: ""
+  };
+  siteConfig.customCatalog = [...(siteConfig.customCatalog || []), car];
+  ALL_CATALOG = buildCatalog();
+  setupCatalogSelect();
+  adminCatalogSelect.value = id;
+  updateAdminPanel();
+  await saveSiteConfigToSupabase();
+}
+
+async function hideSelectedCatalogItem() {
+  const car = selectedAdminCar();
+  if (!car) return;
+  siteConfig.hiddenCatalogIds = [...new Set([...(siteConfig.hiddenCatalogIds || []), car.id])];
+  delete catalogOverrides[car.id];
+  ALL_CATALOG = buildCatalog();
+  saveCatalogOverrides();
+  setupCatalogSelect();
+  await saveSiteConfigToSupabase();
+}
+
+async function saveAdminContentItem() {
+  if (!adminContentTitle.value.trim()) {
+    setAdminStatus("İçerik başlığı gerekli.");
+    return;
+  }
+  const item = {
+    id: crypto.randomUUID(),
+    type: adminContentType.value,
+    title: adminContentTitle.value.trim(),
+    summary: adminContentSummary.value.trim(),
+    body: adminContentBody.value.trim(),
+    createdAt: new Date().toISOString()
+  };
+  siteConfig.contents = [item, ...(siteConfig.contents || [])];
+  adminContentTitle.value = "";
+  adminContentSummary.value = "";
+  adminContentBody.value = "";
+  await saveSiteConfigToSupabase();
 }
 
 function renderCatalogOptions() {
@@ -3210,7 +3574,7 @@ function updateAdminPanel() {
   setAdminStatus("");
 }
 
-function saveAdminOverride() {
+async function saveAdminOverride() {
   const car = selectedAdminCar();
   if (!car) return;
 
@@ -3222,23 +3586,25 @@ function saveAdminOverride() {
     notes: adminNotes.value.trim(),
     ...getCurrentAdminCrop()
   };
+  siteConfig.catalogOverrides = catalogOverrides;
   saveCatalogOverrides();
   renderCatalogOptions();
   refreshAdminCatalogOptions(car.id);
   updateAdminPanel();
-  setAdminStatus("Kaydedildi.");
+  await saveSiteConfigToSupabase();
 }
 
-function clearAdminOverride() {
+async function clearAdminOverride() {
   const car = selectedAdminCar();
   if (!car) return;
 
   delete catalogOverrides[car.id];
+  siteConfig.catalogOverrides = catalogOverrides;
   saveCatalogOverrides();
   renderCatalogOptions();
   refreshAdminCatalogOptions(car.id);
   updateAdminPanel();
-  setAdminStatus("Düzeltme silindi.");
+  await saveSiteConfigToSupabase();
 }
 
 function refreshAdminCatalogOptions(selectedId = adminCatalogSelect.value) {
@@ -3595,6 +3961,14 @@ adminPhotoFile.addEventListener("change", (event) => {
 });
 document.querySelector("#saveCatalogOverride").addEventListener("click", saveAdminOverride);
 document.querySelector("#clearCatalogOverride").addEventListener("click", clearAdminOverride);
+adminTabs.forEach((button) => {
+  button.addEventListener("click", () => setAdminTab(button.dataset.adminTab));
+});
+saveSiteContent.addEventListener("click", saveAdminHomeContent);
+saveFeaturedContent.addEventListener("click", saveAdminFeaturedContent);
+addCustomCatalogCar.addEventListener("click", addCustomCatalogItem);
+deleteCatalogOverride.addEventListener("click", hideSelectedCatalogItem);
+saveAdminContent.addEventListener("click", saveAdminContentItem);
 
 document.querySelector("#wishForm").addEventListener("submit", (event) => {
   event.preventDefault();
