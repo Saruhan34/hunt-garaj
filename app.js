@@ -2,6 +2,14 @@ const STORAGE_KEY = "hunt-garaj-v1";
 const CATALOG_OVERRIDE_KEY = "hunt-garaj-catalog-overrides-v1";
 const USERS_KEY = "hunt-garaj-users-v1";
 const CURRENT_USER_KEY = "hunt-garaj-current-user-v1";
+const SUPABASE_URL = "https://lqksregvjhuswyvjjjqa.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Zj-Vq30wPbhXccBxnenbDQ_T2HNo_1W";
+const ADMIN_EMAIL = "saruhanckmak@gmail.com";
+const supabaseClient = window.supabase
+  && !SUPABASE_URL.includes("BURAYA_")
+  && !SUPABASE_ANON_KEY.includes("BURAYA_")
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 const STORE_STATUSES = ["Yeni sevkiyat", "Premium var", "Az stok", "Boş", "TH görüldü", "STH görüldü", "Bakmaya değmez"];
 const MARKET_TYPE_FILTERS = ["Tümü", "Satılık", "Takaslık"];
 const MARKET_FAVORITE_FILTERS = ["Tüm ilanlar", "Favorilerim"];
@@ -318,7 +326,7 @@ const starterData = {
 };
 
 let state = loadState();
-let activeView = "collection";
+let activeView = "home";
 let activeStoreStatus = "Tümü";
 let activeCollectionOwner = "Tümü";
 let activeMarketType = "Tümü";
@@ -328,6 +336,7 @@ let activeMarketRarity = "Tümü";
 let activeMarketSort = "En yeni";
 let activeMarketMinPrice = 0;
 let activeMarketMaxPrice = null;
+let activeGlobalSearchScope = "all";
 let marketPickMode = false;
 let editingCarId = null;
 let marketEditingCarId = null;
@@ -339,7 +348,7 @@ let currentPublicProfileUsername = "";
 let activeNotificationTab = "messages";
 let catalogOverrides = loadCatalogOverrides();
 let users = loadUsers();
-let currentUser = loadCurrentUser();
+let currentUser = supabaseClient ? null : loadCurrentUser();
 let pendingAuthAction = null;
 
 const cards = document.querySelector("#cards");
@@ -347,6 +356,15 @@ const emptyState = document.querySelector("#emptyState");
 const visibleCount = document.querySelector("#visibleCount");
 const listTitle = document.querySelector("#listTitle");
 const viewCopy = document.querySelector("#viewCopy");
+const communityModule = document.querySelector("#communityModule");
+const featuredListing = document.querySelector("#featuredListing");
+const featuredListingMeta = document.querySelector("#featuredListingMeta");
+const featuredStore = document.querySelector("#featuredStore");
+const featuredStoreMeta = document.querySelector("#featuredStoreMeta");
+const featuredSearch = document.querySelector("#featuredSearch");
+const featuredSearchMeta = document.querySelector("#featuredSearchMeta");
+const globalSearchForm = document.querySelector("#globalSearchForm");
+const globalSearchInput = document.querySelector("#globalSearchInput");
 const searchInput = document.querySelector("#searchInput");
 const radarFilters = document.querySelector("#radarFilters");
 const marketPanelFilters = document.querySelector("#marketPanelFilters");
@@ -357,7 +375,6 @@ const topMessageButton = document.querySelector("#topMessageButton");
 const topMessageCount = document.querySelector("#topMessageCount");
 const topNotificationButton = document.querySelector("#topNotificationButton");
 const topNotificationCount = document.querySelector("#topNotificationCount");
-const topFavoritesButton = document.querySelector("#topFavoritesButton");
 const accountMenu = document.querySelector("#accountMenu");
 const accountMenuAvatar = document.querySelector("#accountMenuAvatar");
 const accountMenuName = document.querySelector("#accountMenuName");
@@ -395,9 +412,15 @@ const authUsernameField = document.querySelector("#authUsernameField");
 const authUsername = document.querySelector("#authUsername");
 const authEmail = document.querySelector("#authEmail");
 const authPassword = document.querySelector("#authPassword");
+const authNewPassword = document.querySelector("#authNewPassword");
+const authNewPasswordField = document.querySelector("#authNewPasswordField");
 const authSubmitButton = document.querySelector("#authSubmitButton");
 const authStatus = document.querySelector("#authStatus");
+const googleLoginButton = document.querySelector("#googleLoginButton");
+const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
 const logoutUser = document.querySelector("#logoutUser");
+const adminPanel = document.querySelector("#adminPanel");
+const profileRoleHint = document.querySelector("#profileRoleHint");
 const storePreset = document.querySelector("#storePreset");
 const storeName = document.querySelector("#storeName");
 const otherStoreField = document.querySelector("#otherStoreField");
@@ -482,17 +505,21 @@ const adminCropX = document.querySelector("#adminCropX");
 const adminCropY = document.querySelector("#adminCropY");
 
 const viewTitles = {
-  collection: "Koleksiyon",
-  wishlist: "İstek listesi",
-  stores: "Mağaza notları",
-  market: "Pazar"
+  home: "Ana Sayfa",
+  collection: "Garaj",
+  wishlist: "İstek Listesi",
+  stores: "Hunt Radar",
+  market: "Pazar",
+  community: "Topluluk"
 };
 
 const viewCopies = {
-  collection: "Garajınızdaki modelleri sahip, seri, renk ve durum bilgisiyle düzenli tutun.",
-  wishlist: "Aradığınız modelleri öncelik, hedef fiyat ve notlarla takip edin.",
-  stores: "Bugün hangi rafta ne kaldı? Mağaza raflarını, son sevkiyat haberlerini ve güven durumunu hızlıca paylaşın.",
-  market: "Satılık ve takaslık modelleri fiyat, sahip ve pazar durumuyla tek vitrinde takip edin."
+  home: "Hunt Radar lobisi; garaj, pazar, radar ve topluluk modullerine buradan gec.",
+  collection: "Garajındaki modelleri profil, seri, renk ve durum bilgisiyle düzenli tut.",
+  wishlist: "İstek Listesi'ndeki modelleri öncelik, hedef fiyat ve notlarla takip edin.",
+  stores: "Bugün hangi rafta ne kaldı? Hunt Radar notlarını, son sevkiyat haberlerini ve güven durumunu hızlıca paylaşın.",
+  market: "Satılık ve takaslık modelleri fiyat, sahip ve pazar durumuyla tek vitrinde takip edin.",
+  community: "Popüler konular, yorumlar ve rehber yazıları."
 };
 
 const personLabels = {
@@ -680,6 +707,10 @@ function allMarketListings() {
 }
 
 function getActiveList() {
+  if (["home", "community"].includes(activeView)) {
+    return [];
+  }
+
   if (activeView === "market") {
     return allMarketListings();
   }
@@ -688,10 +719,11 @@ function getActiveList() {
 }
 
 function render() {
+  syncAppShell();
   const list = sortActiveList(getActiveList().filter(matchesViewFilters).filter(matchesSearch));
   cards.innerHTML = "";
-  listTitle.textContent = viewTitles[activeView];
-  viewCopy.textContent = viewCopies[activeView];
+  listTitle.textContent = viewTitles[activeView] || viewTitles.collection;
+  viewCopy.textContent = viewCopies[activeView] || "";
   visibleCount.textContent = `${list.length} kayıt`;
   emptyState.classList.toggle("is-visible", list.length === 0);
   renderListFilters();
@@ -702,6 +734,15 @@ function render() {
 
   updateMetrics();
   updateUserButton();
+}
+
+function syncAppShell() {
+  const isHome = activeView === "home";
+  const isCommunity = activeView === "community";
+  document.body.classList.toggle("is-home-view", isHome);
+  document.body.classList.toggle("is-community-view", isCommunity);
+  document.body.classList.toggle("is-module-view", !isHome && !isCommunity);
+  communityModule.classList.toggle("is-visible", isCommunity);
 }
 
 function createCard(item) {
@@ -1119,7 +1160,7 @@ function addMarketSourceBadge(card, item) {
   const top = card.querySelector(".car-card__top");
   const badge = document.createElement("span");
   badge.className = "listing-source-badge";
-  badge.textContent = item.listingSource === "market" ? "Doğrudan ilan" : "Koleksiyondan";
+  badge.textContent = item.listingSource === "market" ? "Doğrudan ilan" : "Garajdan";
   top.insertBefore(badge, top.querySelector(".edit-button"));
 }
 
@@ -1137,6 +1178,10 @@ function isFavoriteListing(item) {
 }
 
 function toggleFavoriteListing(item) {
+  if (!currentUser) {
+    requireAuth(() => toggleFavoriteListing(item));
+    return;
+  }
   const key = listingFavoriteKey(item);
   if (state.favoriteListings.includes(key)) {
     state.favoriteListings = state.favoriteListings.filter((favorite) => favorite !== key);
@@ -1523,6 +1568,27 @@ function openFavoriteMarketListings() {
   });
 }
 
+function resolveGlobalSearchView(query) {
+  if (activeGlobalSearchScope !== "all") return activeGlobalSearchScope;
+  const normalized = normalize(query);
+  if (["mağaza", "magaza", "raf", "sevkiyat", "radar"].some((word) => normalized.includes(word))) return "stores";
+  if (["forum", "topluluk", "konu", "rehber", "yorum"].some((word) => normalized.includes(word))) return "community";
+  if (["istek", "aranan", "wishlist"].some((word) => normalized.includes(word))) return "wishlist";
+  return "market";
+}
+
+function runGlobalSearch() {
+  const query = globalSearchInput.value.trim();
+  const view = resolveGlobalSearchView(query);
+  setActiveView(view, { clearSearch: true, scroll: true });
+  if (view === "community") {
+    if (query) showToast(`Toplulukta "${query}" için mock sonuçlar gösteriliyor.`);
+    return;
+  }
+  searchInput.value = query;
+  render();
+}
+
 function findFirstUnreadCommentListing() {
   if (!currentUser) return null;
   const username = normalize(currentUser.username);
@@ -1822,7 +1888,7 @@ function openListingDetail(item) {
   currentListingDetail = item;
   const detailItem = { ...item, photo: item.listingPhoto || item.photo };
   renderCarMedia(listingDetailMedia, detailItem);
-  listingDetailSource.textContent = item.listingSource === "market" ? "Doğrudan ilan" : "Koleksiyondan";
+  listingDetailSource.textContent = item.listingSource === "market" ? "Doğrudan ilan" : "Garajdan";
   listingDetailTitle.textContent = item.model;
   listingDetailSubtitle.textContent = [item.series, item.color, marketSellerLabel(item)]
     .filter(Boolean)
@@ -2106,10 +2172,10 @@ function openPublicProfile(username) {
   publicProfileMessage.disabled = Boolean(isOwnProfile);
   publicProfileMessage.textContent = isOwnProfile ? "Kendi profilin" : "Mesaj gönder";
   publicProfileTitle.textContent = `@${user.username}`;
-  publicProfileSubtitle.textContent = "Koleksiyon ve aktif pazar ilanları.";
+  publicProfileSubtitle.textContent = "Garaj ve aktif pazar ilanları.";
   publicProfileAvatar.textContent = userInitials(user.username);
   publicProfileUsername.textContent = `@${user.username}`;
-  publicProfileSummary.textContent = `${listingCount} ilan · ${collectionCount} koleksiyon kaydı`;
+  publicProfileSummary.textContent = `${listingCount} ilan · ${collectionCount} garaj kaydı`;
   publicProfileListingsCount.textContent = String(listingCount);
   publicProfileCollectionCount.textContent = String(collectionCount);
   renderPublicProfileList(publicProfileListings, listings, "listing");
@@ -2129,7 +2195,7 @@ function renderPublicProfileList(target, items, type) {
   if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "public-profile-empty";
-    empty.textContent = type === "listing" ? "Aktif ilan yok." : "Koleksiyon kaydı yok.";
+    empty.textContent = type === "listing" ? "Aktif ilan yok." : "Garaj kaydı yok.";
     target.appendChild(empty);
     return;
   }
@@ -2178,46 +2244,72 @@ function requireAuth(action) {
     return;
   }
   pendingAuthAction = action;
-  openAuthModal("login", "İlan oluşturmak için önce giriş yapmalısın.");
+  openAuthModal("login", "Bu işlem için önce giriş yapmalısın.");
 }
 
 function openAuthModal(mode = "login", message = "") {
-  authForm.elements.authMode.value = mode;
+  authForm.dataset.mode = mode;
+  if (mode === "login" || mode === "register") {
+    authForm.elements.authMode.value = mode;
+  }
   syncAuthMode();
   setAuthStatus(message);
   authModal.classList.add("is-visible");
   authModal.setAttribute("aria-hidden", "false");
-  authEmail.focus();
+  (mode === "update-password" ? authNewPassword : authEmail).focus();
 }
 
 function closeAuthModal() {
   authModal.classList.remove("is-visible");
   authModal.setAttribute("aria-hidden", "true");
   authForm.reset();
+  authForm.dataset.mode = "login";
   pendingAuthAction = null;
   syncAuthMode();
   setAuthStatus("");
 }
 
 function syncAuthMode() {
-  const mode = authForm.elements.authMode.value;
+  const mode = authForm.dataset.mode || authForm.elements.authMode.value;
   const isRegister = mode === "register";
+  const isReset = mode === "reset-password";
+  const isUpdatePassword = mode === "update-password";
   authUsernameField.classList.toggle("is-visible", isRegister);
+  authNewPasswordField.classList.toggle("is-visible", isUpdatePassword);
   authUsername.required = isRegister;
-  authTitle.textContent = isRegister ? "Kayıt ol" : "Giriş yap";
+  authPassword.required = !isReset && !isUpdatePassword;
+  authNewPassword.required = isUpdatePassword;
+  authPassword.closest(".field").classList.toggle("is-hidden", isReset || isUpdatePassword);
+  googleLoginButton.classList.toggle("is-hidden", isReset || isUpdatePassword);
+  forgotPasswordButton.classList.toggle("is-hidden", isRegister || isReset || isUpdatePassword);
+  authTitle.textContent = isRegister ? "Kayıt ol" : isReset ? "Şifremi unuttum" : isUpdatePassword ? "Yeni şifre belirle" : "Giriş yap";
   authSubtitle.textContent = isRegister
     ? "E-posta, şifre ve kullanıcı adıyla yeni hesap oluştur."
-    : "Pazar ilanı oluşturmak için hesabına gir.";
-  authSubmitButton.textContent = isRegister ? "Kayıt ol" : "Giriş yap";
+    : isReset
+      ? "E-posta adresine şifre sıfırlama bağlantısı gönder."
+      : isUpdatePassword
+        ? "Yeni şifreni belirleyip oturuma devam et."
+        : "Hunt Radar hesabına gir.";
+  authSubmitButton.textContent = isRegister ? "Kayıt ol" : isReset ? "Sıfırlama linki gönder" : isUpdatePassword ? "Şifreyi güncelle" : "Giriş yap";
   logoutUser.classList.toggle("is-visible", Boolean(currentUser));
 }
 
-function handleAuthSubmit(event) {
+async function handleAuthSubmit(event) {
   event.preventDefault();
-  const mode = authForm.elements.authMode.value;
+  const mode = authForm.dataset.mode || authForm.elements.authMode.value;
   const email = normalizeEmail(authEmail.value);
   const password = authPassword.value;
   const username = authUsername.value.trim();
+
+  if (mode === "reset-password") {
+    await sendPasswordReset(email);
+    return;
+  }
+
+  if (mode === "update-password") {
+    await updateSupabasePassword(authNewPassword.value);
+    return;
+  }
 
   if (!email || password.length < 6) {
     setAuthStatus("E-posta ve en az 6 karakter şifre gerekli.");
@@ -2225,16 +2317,39 @@ function handleAuthSubmit(event) {
   }
 
   if (mode === "register") {
-    registerUser({ email, password, username });
+    await registerUser({ email, password, username });
     return;
   }
 
-  loginUser({ email, password });
+  await loginUser({ email, password });
 }
 
-function registerUser({ email, password, username }) {
+async function registerUser({ email, password, username }) {
   if (!/^[a-zA-Z0-9_.-]{3,20}$/.test(username)) {
     setAuthStatus("Kullanıcı adı 3-20 karakter olmalı; harf, sayı, nokta, tire kullan.");
+    return;
+  }
+
+  if (supabaseClient) {
+    setAuthStatus("Hesap oluşturuluyor...");
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin + window.location.pathname,
+        data: { username }
+      }
+    });
+    if (error) {
+      setAuthStatus(error.message);
+      return;
+    }
+    if (data.user && data.session) {
+      const profile = await ensureSupabaseProfile(data.user);
+      completeAuth(profile, "Hesabınız başarıyla oluşturulmuştur.");
+      return;
+    }
+    setAuthStatus("Doğrulama e-postası gönderildi. Mailini onayladıktan sonra giriş yapabilirsin.");
     return;
   }
 
@@ -2260,7 +2375,19 @@ function registerUser({ email, password, username }) {
   completeAuth(user, "Hesabınız başarıyla oluşturulmuştur.");
 }
 
-function loginUser({ email, password }) {
+async function loginUser({ email, password }) {
+  if (supabaseClient) {
+    setAuthStatus("Giriş yapılıyor...");
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      setAuthStatus(error.message);
+      return;
+    }
+    const profile = await ensureSupabaseProfile(data.user);
+    completeAuth(profile, `Hoş geldin, @${profile.username}.`);
+    return;
+  }
+
   const user = users.find((candidate) => normalizeEmail(candidate.email) === email && candidate.password === password);
   if (!user) {
     setAuthStatus("E-posta veya şifre hatalı.");
@@ -2282,11 +2409,58 @@ function completeAuth(user, message) {
   if (action) action();
 }
 
-function logoutCurrentUser() {
+async function logoutCurrentUser() {
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
   saveCurrentUser(null);
   closeAuthModal();
   closeAccountMenu();
   showToast("Oturum kapatıldı.");
+}
+
+async function loginWithGoogle() {
+  if (!supabaseClient) {
+    setAuthStatus("Supabase URL ve anon key girilmeden Google girişi çalışmaz.");
+    return;
+  }
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin + window.location.pathname
+    }
+  });
+  if (error) setAuthStatus(error.message);
+}
+
+async function sendPasswordReset(email) {
+  if (!email) {
+    setAuthStatus("Şifre sıfırlama için e-posta gerekli.");
+    return;
+  }
+  if (!supabaseClient) {
+    setAuthStatus("Supabase URL ve anon key girilmeden şifre sıfırlama çalışmaz.");
+    return;
+  }
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname + "#reset-password"
+  });
+  setAuthStatus(error ? error.message : "Şifre sıfırlama bağlantısı e-postana gönderildi.");
+}
+
+async function updateSupabasePassword(newPassword) {
+  if (!supabaseClient) return;
+  if (!newPassword || newPassword.length < 6) {
+    setAuthStatus("Yeni şifre en az 6 karakter olmalı.");
+    return;
+  }
+  const { data, error } = await supabaseClient.auth.updateUser({ password: newPassword });
+  if (error) {
+    setAuthStatus(error.message);
+    return;
+  }
+  const profile = await ensureSupabaseProfile(data.user);
+  completeAuth(profile, "Şifren güncellendi.");
 }
 
 function setAuthStatus(message) {
@@ -2296,6 +2470,103 @@ function setAuthStatus(message) {
 
 function normalizeEmail(value) {
   return String(value || "").trim().toLocaleLowerCase("tr-TR");
+}
+
+function isAdminUser(user = currentUser) {
+  return user?.role === "admin";
+}
+
+function syncAdminVisibility() {
+  if (!adminPanel) return;
+  adminPanel.classList.toggle("is-hidden", !isAdminUser());
+}
+
+function supabaseUsernameFromUser(authUser) {
+  return authUser?.user_metadata?.username
+    || authUser?.user_metadata?.preferred_username
+    || authUser?.user_metadata?.name
+    || normalizeEmail(authUser?.email).split("@")[0]
+    || "collector";
+}
+
+function normalizeSupabaseProfile(authUser, profile = {}) {
+  const username = profile.username || supabaseUsernameFromUser(authUser);
+  return {
+    id: authUser.id,
+    username,
+    email: authUser.email || profile.email || "",
+    role: profile.role || "user",
+    createdAt: profile.created_at || authUser.created_at || new Date().toISOString(),
+    emailConfirmedAt: authUser.email_confirmed_at || null
+  };
+}
+
+async function ensureSupabaseProfile(authUser) {
+  if (!supabaseClient || !authUser) return null;
+  const { data: profile, error } = await supabaseClient
+    .from("profiles")
+    .select("id, email, username, role, created_at")
+    .eq("id", authUser.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Profil okunamadı:", error.message);
+    return normalizeSupabaseProfile(authUser);
+  }
+
+  if (profile) return normalizeSupabaseProfile(authUser, profile);
+
+  const username = supabaseUsernameFromUser(authUser);
+  const { data: createdProfile, error: insertError } = await supabaseClient
+    .from("profiles")
+    .insert({
+      id: authUser.id,
+      email: authUser.email,
+      username
+    })
+    .select("id, email, username, role, created_at")
+    .single();
+
+  if (insertError) {
+    console.warn("Profil oluşturulamadı:", insertError.message);
+    return normalizeSupabaseProfile(authUser);
+  }
+
+  return normalizeSupabaseProfile(authUser, createdProfile);
+}
+
+async function initSupabaseAuth() {
+  if (!supabaseClient) {
+    syncAdminVisibility();
+    return;
+  }
+
+  if (window.location.hash.includes("reset-password")) {
+    openAuthModal("update-password", "Yeni şifreni belirleyebilirsin.");
+  }
+
+  const { data } = await supabaseClient.auth.getSession();
+  if (data.session?.user) {
+    currentUser = await ensureSupabaseProfile(data.session.user);
+    saveCurrentUser(currentUser);
+    updateUserButton();
+    render();
+  } else {
+    saveCurrentUser(null);
+  }
+  syncAdminVisibility();
+
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      openAuthModal("update-password", "Yeni şifreni belirleyebilirsin.");
+      return;
+    }
+    currentUser = session?.user ? await ensureSupabaseProfile(session.user) : null;
+    saveCurrentUser(currentUser);
+    updateUserButton();
+    syncAdminVisibility();
+    render();
+  });
 }
 
 function updateUserButton() {
@@ -2322,13 +2593,12 @@ function updateUserButton() {
   topNotificationCount.classList.toggle("is-active", notifications.comments > 0);
   topMessageButton.classList.toggle("is-active", notifications.messages > 0);
   topNotificationButton.classList.toggle("is-active", notifications.comments > 0);
-  topFavoritesButton.classList.toggle("is-active", activeView === "market" && activeMarketFavorite === "Favorilerim");
   topMessageButton.classList.toggle("is-logged-out", !currentUser);
   topNotificationButton.classList.toggle("is-logged-out", !currentUser);
-  topFavoritesButton.classList.toggle("is-logged-out", !currentUser);
   userButton.classList.toggle("is-logged-in", Boolean(currentUser));
   accountLogout.disabled = !currentUser;
   openProfileSettings.textContent = currentUser ? "Profil bilgileri" : "Giriş yap / kayıt ol";
+  syncAdminVisibility();
 }
 
 function userInitials(value) {
@@ -2359,6 +2629,7 @@ function openProfileModal() {
   profileListingCount.textContent = String(allMarketListings().filter((listing) => normalize(listing.sellerUsername) === normalize(currentUser.username)).length);
   profileCollectionCount.textContent = String(collectionItemsForUsername(currentUser.username).length);
   profileCreatedAt.textContent = formatProfileDate(currentUser.createdAt);
+  profileRoleHint.textContent = `Rol: ${currentUser.role || "user"} · ${currentUser.emailConfirmedAt ? "E-posta doğrulandı" : "E-posta doğrulama bekleniyor"}`;
   profileModal.classList.add("is-visible");
   profileModal.setAttribute("aria-hidden", "false");
 }
@@ -2484,12 +2755,29 @@ function escapeHtml(value) {
 }
 
 function updateMetrics() {
+  const marketListings = allMarketListings();
+  const today = new Date().toLocaleDateString("tr-TR");
+  const collectors = new Set([
+    ...state.collection.map((item) => item.ownerUsername || item.owner),
+    ...marketListings.map((item) => item.sellerUsername)
+  ].filter(Boolean));
   document.querySelector("#totalCars").textContent = state.collection.length;
+  document.querySelector("#marketListingCount").textContent = marketListings.length;
+  document.querySelector("#todayStoreCount").textContent = state.stores.filter((store) => store.date === today).length || state.stores.length;
   document.querySelector("#wishlistCount").textContent = state.wishlist.length;
-  document.querySelector("#storeCount").textContent = state.stores.length;
-  document.querySelector("#tradeCount").textContent = state.collection.filter((car) =>
-    ["Takaslık", "Satılık"].includes(car.marketType)
-  ).length + state.market.filter((listing) => ["Takaslık", "Satılık"].includes(listing.marketType)).length;
+  document.querySelector("#activeCollectorCount").textContent = Math.max(collectors.size, currentUser ? 1 : 0);
+  const listing = marketListings[0];
+  featuredListing.textContent = listing?.model || "Henüz ilan yok";
+  featuredListingMeta.textContent = listing
+    ? `${listing.salePrice || "Fiyat yok"} · ${listing.condition || "Durum yok"} · ${displayRarity(listing.rarity)}`
+    : "Fiyat, durum ve nadirlik bilgisi bekleniyor.";
+  const store = state.stores[0];
+  featuredStore.textContent = store ? `${store.store} · ${store.status}` : "Henüz Hunt Radar notu yok";
+  featuredStoreMeta.textContent = store
+    ? `${formatDateTime(store.createdAt || new Date().toISOString())} · ${store.confidence || "Doğrulama bekliyor"}`
+    : "Saat ve doğrulama bilgisi bekleniyor.";
+  featuredSearch.textContent = state.wishlist[0]?.model || "Premium Ferrari";
+  featuredSearchMeta.textContent = `${marketListings.length} ilan · ${state.wishlist.length} istek listesi kaydı`;
 }
 
 function formToObject(form) {
@@ -2999,7 +3287,7 @@ function stopCarEdit() {
   applyCatalogRules("");
   updatePhotoPreview();
   syncMarketFields();
-  carSubmitButton.textContent = "Koleksiyona ekle";
+  carSubmitButton.textContent = "Garaja ekle";
   cancelCarEdit.classList.remove("is-visible");
   carForm.querySelector("h2").textContent = "Araba ekle";
 }
@@ -3061,6 +3349,10 @@ function setActiveView(view, options = {}) {
     item.classList.toggle("is-active", item.dataset.view === activeView);
   });
 
+  document.querySelectorAll("[data-view]").forEach((item) => {
+    item.classList.toggle("is-active", item.dataset.view === activeView);
+  });
+
   document.querySelectorAll(".entry-form").forEach((form) => {
     form.classList.toggle("is-active", form.dataset.form === activeView);
   });
@@ -3068,7 +3360,8 @@ function setActiveView(view, options = {}) {
   render();
 
   if (options.scroll) {
-    document.querySelector("#workspace").scrollIntoView({ behavior: "smooth", block: "start" });
+    const target = activeView === "home" ? document.querySelector("main") : activeView === "community" ? communityModule : document.querySelector("#workspace");
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 
@@ -3078,8 +3371,37 @@ document.querySelectorAll(".segmented__button").forEach((button) => {
   });
 });
 
+document.querySelectorAll("[data-view]:not(.segmented__button)").forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveView(button.dataset.view, { clearSearch: true, scroll: true });
+  });
+});
+
+document.querySelectorAll("[data-global-scope]").forEach((button) => {
+  button.addEventListener("click", () => {
+    activeGlobalSearchScope = button.dataset.globalScope;
+    document.querySelectorAll("[data-global-scope]").forEach((item) => {
+      item.classList.toggle("is-active", item === button);
+    });
+  });
+});
+
+globalSearchForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  runGlobalSearch();
+});
+
+document.querySelector("#bottomProfileButton").addEventListener("click", () => {
+  openProfileModal();
+});
+
 document.querySelectorAll("[data-jump-view]").forEach((button) => {
   button.addEventListener("click", () => {
+    setActiveView(button.dataset.jumpView, { clearSearch: true, scroll: true });
+  });
+  button.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
     setActiveView(button.dataset.jumpView, { clearSearch: true, scroll: true });
   });
 });
@@ -3118,11 +3440,6 @@ topNotificationButton.addEventListener("click", () => {
   openMessageModal("comments");
 });
 
-topFavoritesButton.addEventListener("click", () => {
-  closeAccountMenu();
-  openFavoriteMarketListings();
-});
-
 openInbox.addEventListener("click", () => {
   closeAccountMenu();
   openTopNotifications();
@@ -3137,9 +3454,17 @@ document.addEventListener("click", (event) => {
 authForm.addEventListener("submit", handleAuthSubmit);
 authForm.elements.authMode.forEach((input) => {
   input.addEventListener("change", () => {
+    authForm.dataset.mode = input.value;
     setAuthStatus("");
     syncAuthMode();
   });
+});
+googleLoginButton.addEventListener("click", loginWithGoogle);
+forgotPasswordButton.addEventListener("click", () => {
+  authForm.dataset.mode = "reset-password";
+  setAuthStatus("");
+  syncAuthMode();
+  authEmail.focus();
 });
 document.querySelector("#closeAuthModal").addEventListener("click", closeAuthModal);
 logoutUser.addEventListener("click", logoutCurrentUser);
@@ -3192,9 +3517,11 @@ listingCommentForm.addEventListener("submit", (event) => {
 });
 favoriteListingDetail.addEventListener("click", () => {
   if (!currentListingDetail) return;
-  toggleFavoriteListing(currentListingDetail);
-  syncListingFavoriteButton();
-  render();
+  requireAuth(() => {
+    toggleFavoriteListing(currentListingDetail);
+    syncListingFavoriteButton();
+    render();
+  });
 });
 messageSellerDetail.addEventListener("click", () => openMessageThreadForListing(currentListingDetail));
 editListingDetail.addEventListener("click", editCurrentListingDetail);
@@ -3216,20 +3543,22 @@ messageForm.addEventListener("submit", (event) => {
 
 carForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const entry = normalizeCarEntry(formToObject(event.currentTarget));
-  if (editingCarId) {
-    state.collection = state.collection.map((car) => (
-      car.id === editingCarId ? { ...car, ...entry, id: car.id } : car
-    ));
-    saveState();
-    stopCarEdit();
-    render();
-    return;
-  }
+  requireAuth(() => {
+    const entry = normalizeCarEntry(formToObject(event.currentTarget));
+    if (editingCarId) {
+      state.collection = state.collection.map((car) => (
+        car.id === editingCarId ? { ...car, ...entry, id: car.id } : car
+      ));
+      saveState();
+      stopCarEdit();
+      render();
+      return;
+    }
 
-  addEntry("collection", entry);
-  event.currentTarget.reset();
-  syncMarketFields();
+    addEntry("collection", entry);
+    event.currentTarget.reset();
+    syncMarketFields();
+  });
 });
 
 cancelCarEdit.addEventListener("click", stopCarEdit);
@@ -3269,15 +3598,19 @@ document.querySelector("#clearCatalogOverride").addEventListener("click", clearA
 
 document.querySelector("#wishForm").addEventListener("submit", (event) => {
   event.preventDefault();
-  addEntry("wishlist", formToObject(event.currentTarget));
-  event.currentTarget.reset();
+  requireAuth(() => {
+    addEntry("wishlist", formToObject(event.currentTarget));
+    event.currentTarget.reset();
+  });
 });
 
 document.querySelector("#storeForm").addEventListener("submit", (event) => {
   event.preventDefault();
-  addEntry("stores", storeFormToObject(event.currentTarget));
-  event.currentTarget.reset();
-  syncOtherStoreField();
+  requireAuth(() => {
+    addEntry("stores", storeFormToObject(event.currentTarget));
+    event.currentTarget.reset();
+    syncOtherStoreField();
+  });
 });
 
 storePreset.addEventListener("change", syncOtherStoreField);
@@ -3310,3 +3643,4 @@ updatePhotoPreview();
 syncMarketFields();
 render();
 syncOtherStoreField();
+initSupabaseAuth();

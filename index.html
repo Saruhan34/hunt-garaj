@@ -4,16 +4,32 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=55" />
+    <link rel="stylesheet" href="./styles.css?v=63" />
   </head>
   <body>
     <header class="hero">
       <div class="hero__shade"></div>
+      <div class="hero__radar-orbit" aria-hidden="true"></div>
+      <div class="hero__scanline" aria-hidden="true"></div>
       <nav class="topbar" aria-label="Ana gezinme">
-        <a class="brand" href="#koleksiyon" aria-label="Hunt Radar ana sayfa">
-          <span class="brand__mark">HR</span>
-          <span>Hunt Radar</span>
+        <a class="brand" href="#garaj" aria-label="Hunt Radar ana sayfa">
+          <span class="brand__mark" aria-hidden="true">
+            <span class="brand__mark-core">HR</span>
+            <span class="brand__mark-car"></span>
+          </span>
+          <span class="brand__wordmark">
+            <span>Hunt</span>
+            <span>Radar</span>
+          </span>
         </a>
+        <div class="top-module-nav" aria-label="Modül navigasyonu">
+          <button type="button" data-view="home">Ana Sayfa</button>
+          <button type="button" data-view="collection">Garaj</button>
+          <button type="button" data-view="market">Pazar</button>
+          <button type="button" data-view="stores">Hunt Radar</button>
+          <button type="button" data-view="wishlist">İstek Listesi</button>
+          <button type="button" data-view="community">Topluluk</button>
+        </div>
         <div class="topbar__actions">
           <div class="top-quick-actions" aria-label="Hızlı hesap aksiyonları">
             <button class="top-action-button" id="topMessageButton" type="button" title="Mesajlar" aria-label="Mesajları aç">
@@ -23,9 +39,6 @@
             <button class="top-action-button" id="topNotificationButton" type="button" title="Bildirimler" aria-label="Bildirimleri aç">
               <span class="top-action-icon top-action-icon--bell" aria-hidden="true"></span>
               <span class="message-count" id="topNotificationCount">0</span>
-            </button>
-            <button class="top-action-button" id="topFavoritesButton" type="button" title="Favoriler" aria-label="Favori ilanları aç">
-              <span aria-hidden="true">★</span>
             </button>
           </div>
           <div class="account-shell">
@@ -51,62 +64,169 @@
                 Bildirimler
                 <span class="message-count" id="accountMessageCount">0</span>
               </button>
+              <button class="account-menu__action" id="exportData" type="button">Verileri indir</button>
+              <button class="account-menu__action" id="resetData" type="button">Örnek verilere dön</button>
               <button class="account-menu__action account-menu__action--danger" id="accountLogout" type="button">Oturumu kapat</button>
             </section>
           </div>
-          <button class="icon-button" id="exportData" type="button" title="Verileri indir" aria-label="Verileri indir">↓</button>
-          <button class="icon-button" id="resetData" type="button" title="Örnek verilere dön" aria-label="Örnek verilere dön">↺</button>
         </div>
       </nav>
 
       <section class="hero__content">
-        <p class="eyebrow">Koleksiyon ve hunt radarı</p>
-        <h1>Garajını kur, rafları takip et.</h1>
+        <p class="eyebrow">Hot Wheels garaj pazarı</p>
+        <h1><span>HUNT</span><span>RADAR</span></h1>
         <p class="hero__copy">
-          Modellerinizi düzenleyin, istek listenizi büyütün ve mağaza avlarını arkadaşınızla aynı ekrandan yönetin.
+          Hot Wheels garajını, pazar ilanlarını ve hunt bildirimlerini tek merkezde yönet.
         </p>
+        <p class="hero__tagline">Garajını kur, rafları takip et.</p>
         <div class="hero__buttons">
-          <button class="button button--primary" type="button" data-jump-view="collection">Koleksiyona geç</button>
-          <button class="button button--ghost" type="button" data-jump-view="stores">Mağaza notları</button>
-          <button class="button button--ghost" type="button" data-jump-view="market">Pazar</button>
+          <button class="button button--primary" type="button" data-jump-view="collection">Garajı Aç</button>
+          <button class="button button--ghost" type="button" data-jump-view="market">Pazarı Keşfet</button>
+          <button class="button button--ghost" type="button" data-jump-view="stores">Hunt Radar’a Git</button>
+          <button class="button button--ghost" type="button" data-jump-view="wishlist">İstek Listem</button>
         </div>
       </section>
     </header>
 
     <main>
-      <section class="summary" aria-label="Koleksiyon özeti">
+      <section class="summary app-home-only" aria-label="Canlı istatistikler">
         <article class="metric">
           <span class="metric__value" id="totalCars">0</span>
-          <span class="metric__label">koleksiyondaki araç</span>
+          <span class="metric__label">garajdaki araç</span>
+        </article>
+        <article class="metric">
+          <span class="metric__value" id="marketListingCount">0</span>
+          <span class="metric__label">aktif ilan</span>
+        </article>
+        <article class="metric">
+          <span class="metric__value" id="todayStoreCount">0</span>
+          <span class="metric__label">bugünkü mağaza bildirimi</span>
         </article>
         <article class="metric">
           <span class="metric__value" id="wishlistCount">0</span>
-          <span class="metric__label">aranan model</span>
+          <span class="metric__label">aranan model eşleşmesi</span>
         </article>
         <article class="metric">
-          <span class="metric__value" id="storeCount">0</span>
-          <span class="metric__label">mağaza gözlemi</span>
-        </article>
-        <article class="metric">
-          <span class="metric__value" id="tradeCount">0</span>
-          <span class="metric__label">takaslık/satılık</span>
+          <span class="metric__value" id="activeCollectorCount">0</span>
+          <span class="metric__label">aktif kullanıcı</span>
         </article>
       </section>
 
-      <section class="toolbar" aria-label="Filtreler">
+      <section class="home-highlights app-home-only" aria-label="Bugünün öne çıkanları">
+        <article>
+          <span>Öne çıkan ilan</span>
+          <strong id="featuredListing">Henüz ilan yok</strong>
+          <p id="featuredListingMeta">Fiyat, durum ve nadirlik bilgisi bekleniyor.</p>
+        </article>
+        <article>
+          <span>Son mağaza bildirimi</span>
+          <strong id="featuredStore">Henüz Hunt Radar notu yok</strong>
+          <p id="featuredStoreMeta">Saat ve doğrulama bilgisi bekleniyor.</p>
+        </article>
+        <article>
+          <span>Popüler arama</span>
+          <strong id="featuredSearch">Premium Ferrari</strong>
+          <p id="featuredSearchMeta">İlan ve istek sayısı burada görünür.</p>
+        </article>
+        <article>
+          <span>Topluluk konusu</span>
+          <strong>2026 mainline av listesi</strong>
+          <p id="featuredCommunityMeta">24 yorum · rehber konusu</p>
+        </article>
+      </section>
+
+      <section class="global-search app-home-only" aria-label="Hunt Radar global arama">
+        <form id="globalSearchForm">
+          <label for="globalSearchInput">Hunt Radar’da ara</label>
+          <div class="global-search__bar">
+            <input id="globalSearchInput" type="search" placeholder="Model, seri, ilan, mağaza veya konu ara" />
+            <button class="button button--primary" type="submit">Ara</button>
+          </div>
+          <div class="global-search__filters" aria-label="Arama kapsamı">
+            <button class="is-active" type="button" data-global-scope="all">Tümü</button>
+            <button type="button" data-global-scope="market">Pazar</button>
+            <button type="button" data-global-scope="collection">Garaj</button>
+            <button type="button" data-global-scope="stores">Radar</button>
+            <button type="button" data-global-scope="community">Topluluk</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="landing-strip app-home-only" aria-label="Hunt Radar modülleri">
+        <article class="landing-feature landing-feature--garage">
+          <span class="landing-feature__icon">★</span>
+          <h2>Garaj</h2>
+          <p>Garajını kullanıcı profiline göre düzenle; model, seri, renk, nadirlik ve görselleri tek standartta sakla.</p>
+          <button type="button" data-jump-view="collection">Garaja git</button>
+        </article>
+        <article class="landing-feature landing-feature--market">
+          <span class="landing-feature__icon">₺</span>
+          <h2>Pazar</h2>
+          <p>İlanlar standart kartlarla açılır; fiyat, durum, nadirlik, favori ve mesaj akışı aynı yerde durur.</p>
+          <button type="button" data-jump-view="market">Pazarı aç</button>
+        </article>
+        <article class="landing-feature landing-feature--radar">
+          <span class="landing-feature__icon">⌁</span>
+          <h2>Hunt Radar</h2>
+          <p>Mağaza rafı, sevkiyat, kalan premium modeller ve güncel av notları hızlıca kayda geçer.</p>
+          <button type="button" data-jump-view="stores">Hunt Radar’a git</button>
+        </article>
+        <article class="landing-feature landing-feature--wishlist">
+          <span class="landing-feature__icon">?</span>
+          <h2>İstek Listesi</h2>
+          <p>Aranan modelleri öncelik, hedef fiyat ve notlarla takip et; denk gelince hızlıca yakala.</p>
+          <button type="button" data-jump-view="wishlist">Listeyi aç</button>
+        </article>
+      </section>
+
+      <section class="community-preview app-home-only" aria-label="Topluluk önizlemesi">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Forum / Topluluk</p>
+            <h2>Toplulukta bugün</h2>
+            <p class="view-copy">Popüler konular, yorumlar ve kısa rehberler burada öne çıkar.</p>
+          </div>
+          <button class="button button--ghost" type="button" data-jump-view="community">Topluluğa git</button>
+        </div>
+        <div class="community-grid">
+          <article><span>Rehber</span><strong>STH nasıl ayırt edilir?</strong><p>Lastik, boya ve kart detayları için hızlı kontrol listesi.</p></article>
+          <article><span>Konu</span><strong>İstanbul sevkiyat noktaları</strong><p>Akasya, Emaar ve Kadıköy çevresi için son gözlemler.</p></article>
+          <article><span>Yorum</span><strong>Premium fiyat dengesi</strong><p>Kutu durumu ve takas değerleri üzerine kısa tartışma.</p></article>
+        </div>
+      </section>
+
+      <section class="community-module app-module-only" id="communityModule" aria-label="Forum ve topluluk">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Forum / Topluluk</p>
+            <h2>Topluluk</h2>
+            <p class="view-copy">Mock konular, yorumlar ve rehber yazıları. Gerçek üyelik altyapısıyla büyütülecek alan.</p>
+          </div>
+        </div>
+        <div class="community-grid">
+          <article><span>Popüler</span><strong>2026 mainline’da ilk avlanacak modeller</strong><p>Ferrari, Porsche ve TH adayları için takip listesi.</p></article>
+          <article><span>Yorumlar</span><strong>Bugün hangi mağazaya gidilir?</strong><p>Son radar notlarına göre hızlı rota önerileri.</p></article>
+          <article><span>Rehber</span><strong>Kartonetli araç saklama düzeni</strong><p>Nem, kutu izi ve sergileme için kısa notlar.</p></article>
+          <article><span>Takas</span><strong>Premium takasında değer dengesi</strong><p>Hasar, blister ve seri farkı nasıl hesaplanır?</p></article>
+        </div>
+      </section>
+
+      <section class="toolbar app-module-only" aria-label="Filtreler">
         <div class="field field--search">
           <label for="searchInput">Ara</label>
           <input id="searchInput" type="search" placeholder="Model, seri, mağaza ya da not ara" />
         </div>
         <div class="segmented" role="tablist" aria-label="Liste seçimi">
-          <button class="segmented__button is-active" type="button" data-view="collection">Koleksiyon</button>
-          <button class="segmented__button" type="button" data-view="wishlist">İstek listesi</button>
-          <button class="segmented__button" type="button" data-view="stores">Mağazalar</button>
+          <button class="segmented__button" type="button" data-view="home">Ana Sayfa</button>
+          <button class="segmented__button is-active" type="button" data-view="collection">Garaj</button>
+          <button class="segmented__button" type="button" data-view="wishlist">İstek Listesi</button>
+          <button class="segmented__button" type="button" data-view="stores">Hunt Radar</button>
           <button class="segmented__button" type="button" data-view="market">Pazar</button>
+          <button class="segmented__button" type="button" data-view="community">Topluluk</button>
         </div>
       </section>
 
-      <section class="workspace" id="workspace">
+      <section class="workspace app-module-only" id="workspace">
         <aside class="panel" aria-label="Yeni kayıt ekle">
           <form class="entry-form is-active" id="carForm" data-form="collection">
             <h2>Araba ekle</h2>
@@ -204,7 +324,7 @@
                 <input id="carSource" name="source" placeholder="Akasya Toyzz, takas, sahibinden" />
               </div>
               <div class="field">
-                <label for="carAddedDate">Koleksiyona giriş</label>
+                <label for="carAddedDate">Garaja giriş</label>
                 <input id="carAddedDate" name="addedDate" type="date" />
               </div>
             </div>
@@ -245,13 +365,13 @@
               <textarea id="carNotes" name="notes" rows="3" placeholder="Nereden alındı, takas notu, kutu durumu"></textarea>
             </div>
             <div class="form-actions">
-              <button class="button button--primary" id="carSubmitButton" type="submit">Koleksiyona ekle</button>
+              <button class="button button--primary" id="carSubmitButton" type="submit">Garaja ekle</button>
               <button class="button button--subtle" id="cancelCarEdit" type="button">Vazgeç</button>
             </div>
           </form>
 
           <form class="entry-form" id="wishForm" data-form="wishlist">
-            <h2>İstek ekle</h2>
+            <h2>İstek Listesi kaydı ekle</h2>
             <div class="grid-2">
               <div class="field">
                 <label for="wishModel">Model adı</label>
@@ -284,11 +404,11 @@
               <label for="wishNotes">Not</label>
               <textarea id="wishNotes" name="notes" rows="3" placeholder="Hangi renk, hangi seri, nerede görüldü"></textarea>
             </div>
-            <button class="button button--primary" type="submit">İstek listesine ekle</button>
+            <button class="button button--primary" type="submit">İstek Listesi'ne ekle</button>
           </form>
 
           <form class="entry-form" id="storeForm" data-form="stores">
-            <h2>Mağaza notu ekle</h2>
+            <h2>Hunt Radar notu ekle</h2>
             <div class="grid-2">
               <div class="field">
                 <label for="storePreset">Mağaza</label>
@@ -373,14 +493,14 @@
                 </select>
               </div>
             </div>
-            <button class="button button--primary" type="submit">Mağaza notu ekle</button>
+            <button class="button button--primary" type="submit">Hunt Radar notu ekle</button>
           </form>
           <section class="entry-form market-helper" data-form="market">
             <h2>Pazar vitrini</h2>
-            <p class="field-hint">İstersen koleksiyonundaki bir arabayı seç, istersen koleksiyona eklemeden doğrudan pazar ilanı oluştur.</p>
+            <p class="field-hint">İstersen garajındaki bir arabayı seç, istersen garaja eklemeden doğrudan pazar ilanı oluştur.</p>
             <div class="form-actions">
               <button class="button button--primary" id="openDirectMarketListing" type="button">Pazara ilan ekle</button>
-              <button class="button button--ghost" id="startMarketPick" type="button">Koleksiyondan seç</button>
+              <button class="button button--ghost" id="startMarketPick" type="button">Garajdan seç</button>
             </div>
             <div class="market-panel-shell">
               <div class="market-panel-shell__head">
@@ -390,7 +510,7 @@
               <div class="market-panel-filters" id="marketPanelFilters" aria-label="Pazar filtreleri"></div>
             </div>
           </section>
-          <section class="admin-panel" aria-label="Katalog yönetimi">
+            <section class="admin-panel is-hidden" id="adminPanel" aria-label="Katalog yönetimi">
             <div>
               <p class="eyebrow">Sadece sizin için</p>
               <h2>Katalog paneli</h2>
@@ -450,8 +570,8 @@
           <div class="section-heading">
             <div>
               <p class="eyebrow">Aktif liste</p>
-              <h2 id="listTitle">Koleksiyon</h2>
-              <p class="view-copy" id="viewCopy">Garajınızdaki modelleri sahip, seri, renk ve durum bilgisiyle düzenli tutun.</p>
+              <h2 id="listTitle">Garaj</h2>
+              <p class="view-copy" id="viewCopy">Garajındaki modelleri profil, seri, renk ve durum bilgisiyle düzenli tut.</p>
             </div>
             <span class="pill" id="visibleCount">0 kayıt</span>
           </div>
@@ -461,6 +581,14 @@
         </section>
       </section>
     </main>
+
+    <nav class="bottom-nav" aria-label="Mobil navigasyon">
+      <button type="button" data-view="home">Ana Sayfa</button>
+      <button type="button" data-view="collection">Garaj</button>
+      <button type="button" data-view="market">Pazar</button>
+      <button type="button" data-view="stores">Hunt Radar</button>
+      <button type="button" id="bottomProfileButton">Profil</button>
+    </nav>
 
     <div class="market-modal" id="marketModal" aria-hidden="true">
       <form class="market-modal__panel" id="marketListingForm">
@@ -601,9 +729,15 @@
           <label for="authPassword">Şifre</label>
           <input id="authPassword" name="password" type="password" autocomplete="current-password" required placeholder="En az 6 karakter" />
         </div>
+        <div class="field auth-reset-field" id="authNewPasswordField">
+          <label for="authNewPassword">Yeni şifre</label>
+          <input id="authNewPassword" name="newPassword" type="password" autocomplete="new-password" placeholder="Yeni şifren" />
+        </div>
         <p class="auth-status" id="authStatus" aria-live="polite"></p>
         <div class="form-actions">
           <button class="button button--primary" id="authSubmitButton" type="submit">Giriş yap</button>
+          <button class="button button--ghost" id="googleLoginButton" type="button">Google ile giriş yap</button>
+          <button class="button button--subtle is-visible" id="forgotPasswordButton" type="button">Şifremi unuttum</button>
           <button class="button button--subtle is-visible" id="logoutUser" type="button">Çıkış yap</button>
         </div>
       </form>
@@ -628,10 +762,10 @@
         </div>
         <div class="profile-facts">
           <span><strong id="profileListingCount">0</strong>Aktif ilan</span>
-          <span><strong id="profileCollectionCount">0</strong>Koleksiyon kaydı</span>
+          <span><strong id="profileCollectionCount">0</strong>Garaj kaydı</span>
           <span><strong id="profileCreatedAt">-</strong>Üyelik tarihi</span>
         </div>
-        <p class="field-hint">Profil düzenleme, doğrulanmış hesap ve Google ile giriş gibi özellikleri gerçek üyelik sistemine geçtiğimizde buraya bağlayacağız.</p>
+        <p class="field-hint" id="profileRoleHint">Profil rolünüz ve doğrulama durumunuz Supabase üzerinden yönetilir.</p>
       </section>
     </div>
 
@@ -641,7 +775,7 @@
           <div>
             <p class="eyebrow">Kullanıcı profili</p>
             <h2 id="publicProfileTitle">@kullanici</h2>
-            <p class="view-copy" id="publicProfileSubtitle">Koleksiyon ve aktif pazar ilanları.</p>
+            <p class="view-copy" id="publicProfileSubtitle">Garaj ve aktif pazar ilanları.</p>
           </div>
           <button class="delete-button" id="closePublicProfileModal" type="button" aria-label="Pencereyi kapat">×</button>
         </div>
@@ -649,7 +783,7 @@
           <span class="account-menu__avatar" id="publicProfileAvatar">KU</span>
           <div>
             <h3 id="publicProfileUsername">@kullanici</h3>
-            <p id="publicProfileSummary">0 ilan · 0 koleksiyon kaydı</p>
+            <p id="publicProfileSummary">0 ilan · 0 garaj kaydı</p>
           </div>
         </div>
         <div class="public-profile-actions">
@@ -665,7 +799,7 @@
           </section>
           <section>
             <div class="public-profile-heading">
-              <h3>Koleksiyonu</h3>
+              <h3>Garajı</h3>
               <span id="publicProfileCollectionCount">0</span>
             </div>
             <div class="public-profile-list" id="publicProfileCollection"></div>
@@ -756,14 +890,8 @@
       </article>
     </template>
 
-    <!-- ① Supabase JS SDK (CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <!-- ② Hunt Garaj Supabase veri katmanı -->
-    <script src="./supabase.js"></script>
-    <!-- ③ Katalog ve uygulama (değiştirilmedi) -->
     <script src="./catalog-2026.js?v=7"></script>
-    <script src="./app.js?v=67"></script>
-    <!-- ④ Supabase patch – localStorage'ı override eder, en sona yükle -->
-    <script src="./app-supabase-patch.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app.js?v=75"></script>
   </body>
 </html>
