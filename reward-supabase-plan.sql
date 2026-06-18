@@ -1,0 +1,84 @@
+-- Hunt Radar Reward / Reputation future Supabase plan
+-- This is a draft, not an active migration.
+
+-- create table public.reward_events (
+--   id uuid primary key default gen_random_uuid(),
+--   user_id uuid references auth.users(id) on delete cascade,
+--   type text not null,
+--   points integer not null default 0,
+--   meta jsonb not null default '{}'::jsonb,
+--   created_at timestamptz not null default now()
+-- );
+
+-- create table public.user_rewards (
+--   user_id uuid primary key references auth.users(id) on delete cascade,
+--   radar_points integer not null default 0,
+--   seller_score integer not null default 0,
+--   verification_score integer not null default 0,
+--   rank_title text,
+--   updated_at timestamptz not null default now()
+-- );
+
+-- create table public.badges (
+--   id text primary key,
+--   title text not null,
+--   description text,
+--   requirement text,
+--   icon text,
+--   tone text,
+--   enabled boolean not null default true
+-- );
+
+-- create table public.user_badges (
+--   id uuid primary key default gen_random_uuid(),
+--   user_id uuid references auth.users(id) on delete cascade,
+--   badge_id text references public.badges(id) on delete cascade,
+--   earned_at timestamptz not null default now(),
+--   unique(user_id, badge_id)
+-- );
+
+-- create table public.leaderboard_snapshots (
+--   id uuid primary key default gen_random_uuid(),
+--   period text not null check (period in ('daily', 'weekly', 'monthly', 'all')),
+--   rows jsonb not null default '[]'::jsonb,
+--   created_at timestamptz not null default now()
+-- );
+
+-- create table public.avatar_options (
+--   id text primary key,
+--   label text not null,
+--   icon text,
+--   gradient text,
+--   image_url text,
+--   storage_path text,
+--   enabled boolean not null default true
+-- );
+--
+-- create table public.reward_rank_options (
+--   id text primary key,
+--   title text not null,
+--   min_points integer not null default 0,
+--   max_points integer,
+--   color text,
+--   icon text,
+--   image_url text,
+--   storage_path text,
+--   sort_order integer not null default 0,
+--   enabled boolean not null default true
+-- );
+
+-- create table public.reward_settings (
+--   key text primary key default 'default',
+--   value jsonb not null default '{}'::jsonb,
+--   updated_by uuid references auth.users(id),
+--   updated_at timestamptz not null default now()
+-- );
+
+-- create table public.store_report_votes (
+--   id uuid primary key default gen_random_uuid(),
+--   store_report_id uuid,
+--   user_id uuid references auth.users(id) on delete cascade,
+--   vote text not null check (vote in ('correct', 'gone', 'wrong')),
+--   created_at timestamptz not null default now(),
+--   unique(store_report_id, user_id)
+-- );

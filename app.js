@@ -6,6 +6,8 @@ const SUPABASE_URL = "https://lqksregvjhuswyvjjjqa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Zj-Vq30wPbhXccBxnenbDQ_T2HNo_1W";
 const ADMIN_EMAIL = "saruhanckmak@gmail.com";
 const SITE_SETTINGS_KEY = "hunt-radar-site-config";
+const CONTENT_TABLE = "content_records";
+const Rewards = window.HuntRadarRewards;
 const supabaseClient = window.supabase
   && !SUPABASE_URL.includes("BURAYA_")
   && !SUPABASE_ANON_KEY.includes("BURAYA_")
@@ -50,7 +52,8 @@ const DEFAULT_SITE_CONFIG = {
   catalogOverrides: {},
   customCatalog: [],
   hiddenCatalogIds: [],
-  contents: []
+  contents: [],
+  rewardSettings: {}
 };
 
 const CATALOG_IMAGE_FILES = {
@@ -272,6 +275,7 @@ const HOT_WHEELS_CATALOG = [
 
 let siteConfig = loadSiteConfig();
 let ALL_CATALOG = buildCatalog();
+Rewards?.configure(siteConfig.rewardSettings || {});
 
 const statusTone = {
   "Yeni sevkiyat": "hot",
@@ -360,6 +364,7 @@ let activeMarketSort = "En yeni";
 let activeMarketMinPrice = 0;
 let activeMarketMaxPrice = null;
 let activeGlobalSearchScope = "all";
+let activeLeaderboardPeriod = "daily";
 let marketPickMode = false;
 let editingCarId = null;
 let marketEditingCarId = null;
@@ -369,6 +374,7 @@ let activeThreadDraftListing = null;
 let activeThreadDraftRecipient = "";
 let currentPublicProfileUsername = "";
 let activeNotificationTab = "messages";
+let pendingProfileAvatar = null;
 let catalogOverrides = loadCatalogOverrides();
 let users = loadUsers();
 let currentUser = supabaseClient ? null : loadCurrentUser();
@@ -380,6 +386,15 @@ const visibleCount = document.querySelector("#visibleCount");
 const listTitle = document.querySelector("#listTitle");
 const viewCopy = document.querySelector("#viewCopy");
 const communityModule = document.querySelector("#communityModule");
+const rewardsModule = document.querySelector("#rewardsModule");
+const rewardModuleTitle = document.querySelector("#rewardModuleTitle");
+const rewardModuleCopy = document.querySelector("#rewardModuleCopy");
+const rewardPodium = document.querySelector("#rewardPodium");
+const rewardLeaderboardRows = document.querySelector("#rewardLeaderboardRows");
+const rewardRulesGrid = document.querySelector("#rewardRulesGrid");
+const rewardBadgesGrid = document.querySelector("#rewardBadgesGrid");
+const rewardRanksGrid = document.querySelector("#rewardRanksGrid");
+const rewardAvatarShowcase = document.querySelector("#rewardAvatarShowcase");
 const featuredListing = document.querySelector("#featuredListing");
 const featuredListingMeta = document.querySelector("#featuredListingMeta");
 const featuredStore = document.querySelector("#featuredStore");
@@ -394,6 +409,8 @@ const heroTagline = document.querySelector("#heroTagline");
 const siteBanner = document.querySelector("#siteBanner");
 const siteBannerTitle = document.querySelector("#siteBannerTitle");
 const siteBannerText = document.querySelector("#siteBannerText");
+const leaderboardList = document.querySelector("#leaderboardList");
+const leaderboardTabs = document.querySelectorAll("[data-leaderboard-period]");
 const globalSearchForm = document.querySelector("#globalSearchForm");
 const globalSearchInput = document.querySelector("#globalSearchInput");
 const searchInput = document.querySelector("#searchInput");
@@ -425,6 +442,20 @@ const profileEmail = document.querySelector("#profileEmail");
 const profileListingCount = document.querySelector("#profileListingCount");
 const profileCollectionCount = document.querySelector("#profileCollectionCount");
 const profileCreatedAt = document.querySelector("#profileCreatedAt");
+const profileRadarPoints = document.querySelector("#profileRadarPoints");
+const profileRankBadge = document.querySelector("#profileRankBadge");
+const profileRank = document.querySelector("#profileRank");
+const profileNextRank = document.querySelector("#profileNextRank");
+const profileSellerScore = document.querySelector("#profileSellerScore");
+const profileVerificationScore = document.querySelector("#profileVerificationScore");
+const profileProgressLabel = document.querySelector("#profileProgressLabel");
+const profileProgressValue = document.querySelector("#profileProgressValue");
+const profileProgressFill = document.querySelector("#profileProgressFill");
+const profileBadges = document.querySelector("#profileBadges");
+const profileRewardActivity = document.querySelector("#profileRewardActivity");
+const avatarOptions = document.querySelector("#avatarOptions");
+const saveProfileAvatar = document.querySelector("#saveProfileAvatar");
+const profileAvatarUpload = document.querySelector("#profileAvatarUpload");
 const publicProfileModal = document.querySelector("#publicProfileModal");
 const publicProfileTitle = document.querySelector("#publicProfileTitle");
 const publicProfileSubtitle = document.querySelector("#publicProfileSubtitle");
@@ -488,6 +519,16 @@ const adminContentList = document.querySelector("#adminContentList");
 const adminUsersList = document.querySelector("#adminUsersList");
 const adminListingsList = document.querySelector("#adminListingsList");
 const adminStoresList = document.querySelector("#adminStoresList");
+const adminRewardEnabled = document.querySelector("#adminRewardEnabled");
+const adminRewardPreviewEnabled = document.querySelector("#adminRewardPreviewEnabled");
+const adminRewardTitle = document.querySelector("#adminRewardTitle");
+const adminRewardDescription = document.querySelector("#adminRewardDescription");
+const adminRewardRulesJson = document.querySelector("#adminRewardRulesJson");
+const adminRewardRanksJson = document.querySelector("#adminRewardRanksJson");
+const adminRewardBadgesJson = document.querySelector("#adminRewardBadgesJson");
+const adminRewardAvatarsJson = document.querySelector("#adminRewardAvatarsJson");
+const adminRewardFeaturedBadges = document.querySelector("#adminRewardFeaturedBadges");
+const saveRewardSettings = document.querySelector("#saveRewardSettings");
 const storePreset = document.querySelector("#storePreset");
 const storeName = document.querySelector("#storeName");
 const otherStoreField = document.querySelector("#otherStoreField");
@@ -577,7 +618,8 @@ const viewTitles = {
   wishlist: "İstek Listesi",
   stores: "Hunt Radar",
   market: "Pazar",
-  community: "Topluluk"
+  community: "Topluluk",
+  rewards: "Radar Puanı"
 };
 
 const viewCopies = {
@@ -586,7 +628,8 @@ const viewCopies = {
   wishlist: "İstek Listesi'ndeki modelleri öncelik, hedef fiyat ve notlarla takip edin.",
   stores: "Bugün hangi rafta ne kaldı? Hunt Radar notlarını, son sevkiyat haberlerini ve güven durumunu hızlıca paylaşın.",
   market: "Satılık ve takaslık modelleri fiyat, sahip ve pazar durumuyla tek vitrinde takip edin.",
-  community: "Popüler konular, yorumlar ve rehber yazıları."
+  community: "Popüler konular, yorumlar ve rehber yazıları.",
+  rewards: "Radar puanı, seviyeler, rozetler ve haftanın avcıları."
 };
 
 const personLabels = {
@@ -779,6 +822,130 @@ function normalize(value) {
   return String(value || "").toLocaleLowerCase("tr-TR");
 }
 
+function recordOwnerId(type, item = {}) {
+  if (type === "market") return item.sellerId || item.ownerUserId || "";
+  if (type === "stores") return item.reporterId || item.ownerUserId || "";
+  if (type === "comments") return item.authorId || item.ownerUserId || "";
+  return item.ownerUserId || item.userId || "";
+}
+
+function recordOwnerUsername(type, item = {}) {
+  if (type === "market") return item.sellerUsername || item.ownerUsername || "";
+  if (type === "stores") return item.reporterUsername || item.reporter || "";
+  if (type === "comments") return item.authorUsername || item.ownerUsername || "";
+  return item.ownerUsername || "";
+}
+
+function isOwnedByCurrentUser(type, item = {}) {
+  if (!currentUser) return false;
+  const ownerId = recordOwnerId(type, item);
+  if (ownerId && currentUser.id) return String(ownerId) === String(currentUser.id);
+  const ownerUsername = recordOwnerUsername(type, item);
+  return Boolean(ownerUsername && normalize(ownerUsername) === normalize(currentUser.username));
+}
+
+function ownedRecord(type, entry = {}) {
+  if (!currentUser) return entry;
+  if (type === "market") {
+    return { ...entry, sellerId: currentUser.id, sellerUsername: currentUser.username };
+  }
+  if (type === "stores") {
+    return { ...entry, reporterId: currentUser.id, reporterUsername: currentUser.username };
+  }
+  if (type === "comments") {
+    return { ...entry, authorId: currentUser.id, authorUsername: currentUser.username };
+  }
+  return { ...entry, ownerUserId: currentUser.id, ownerUsername: currentUser.username };
+}
+
+function denyForeignRecordAction() {
+  showToast("Bu kayıt başka bir kullanıcıya ait. Yalnızca kendi içeriğini yönetebilirsin.");
+}
+
+async function syncPublicRecord(type, record) {
+  if (!supabaseClient || !currentUser || !record?.id || !isOwnedByCurrentUser(type, record)) return;
+  const { error } = await supabaseClient
+    .from(CONTENT_TABLE)
+    .upsert({
+      id: String(record.id),
+      content_type: type,
+      owner_id: currentUser.id,
+      owner_username: currentUser.username,
+      data: record,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "id" });
+  if (error && error.code !== "42P01") {
+    console.warn("Kayıt Supabase'e yazılamadı:", error.message);
+  }
+}
+
+async function deletePublicRecord(type, record) {
+  if (!supabaseClient || !currentUser || !record?.id) return true;
+  if (!isOwnedByCurrentUser(type, record)) {
+    denyForeignRecordAction();
+    return false;
+  }
+  const { error } = await supabaseClient
+    .from(CONTENT_TABLE)
+    .delete()
+    .eq("id", String(record.id))
+    .eq("content_type", type)
+    .eq("owner_id", currentUser.id);
+  if (error && error.code !== "42P01") {
+    showToast("Kayıt kaldırılamadı: yetkin bulunmuyor.");
+    return false;
+  }
+  return true;
+}
+
+async function loadPublicContentFromSupabase() {
+  if (!supabaseClient) return;
+  const { data, error } = await supabaseClient
+    .from(CONTENT_TABLE)
+    .select("id, content_type, owner_id, owner_username, data");
+  if (error) {
+    if (error.code !== "42P01") console.warn("Supabase içerikleri okunamadı:", error.message);
+    return;
+  }
+  const supported = ["collection", "wishlist", "stores", "market", "comments"];
+  supported.forEach((type) => {
+    const remote = (data || [])
+      .filter((row) => row.content_type === type)
+      .map((row) => ownedRemoteRecord(type, row));
+    if (!remote.length) return;
+    const merged = new Map(state[type].map((item) => [String(item.id), item]));
+    remote.forEach((item) => merged.set(String(item.id), item));
+    state[type] = [...merged.values()];
+  });
+  saveState();
+}
+
+async function syncOwnedLocalContentToSupabase() {
+  if (!supabaseClient || !currentUser) return;
+  const records = [
+    ...state.collection.map((record) => ["collection", record]),
+    ...state.wishlist.map((record) => ["wishlist", record]),
+    ...state.stores.map((record) => ["stores", record]),
+    ...state.market.map((record) => ["market", record]),
+    ...state.comments.map((record) => ["comments", record])
+  ].filter(([type, record]) => isOwnedByCurrentUser(type, record));
+  await Promise.all(records.map(([type, record]) => syncPublicRecord(type, record)));
+}
+
+function ownedRemoteRecord(type, row) {
+  const base = { ...(row.data || {}), id: row.id };
+  if (type === "market") {
+    return { ...base, sellerId: row.owner_id, sellerUsername: row.owner_username };
+  }
+  if (type === "stores") {
+    return { ...base, reporterId: row.owner_id, reporterUsername: row.owner_username };
+  }
+  if (type === "comments") {
+    return { ...base, authorId: row.owner_id, authorUsername: row.owner_username };
+  }
+  return { ...base, ownerUserId: row.owner_id, ownerUsername: row.owner_username };
+}
+
 function matchesSearch(item) {
   const query = normalize(searchInput.value);
   if (!query) return true;
@@ -796,7 +963,7 @@ function allMarketListings() {
 }
 
 function getActiveList() {
-  if (["home", "community"].includes(activeView)) {
+  if (["home", "community", "rewards"].includes(activeView)) {
     return [];
   }
 
@@ -822,16 +989,21 @@ function render() {
   });
 
   updateMetrics();
+  renderLeaderboard();
+  renderRewardCenter();
   updateUserButton();
 }
 
 function syncAppShell() {
   const isHome = activeView === "home";
   const isCommunity = activeView === "community";
+  const isRewards = activeView === "rewards";
   document.body.classList.toggle("is-home-view", isHome);
   document.body.classList.toggle("is-community-view", isCommunity);
-  document.body.classList.toggle("is-module-view", !isHome && !isCommunity);
+  document.body.classList.toggle("is-rewards-view", isRewards);
+  document.body.classList.toggle("is-module-view", !isHome && !isCommunity && !isRewards);
   communityModule.classList.toggle("is-visible", isCommunity);
+  rewardsModule.classList.toggle("is-visible", isRewards);
 }
 
 function createCard(item) {
@@ -845,6 +1017,10 @@ function createCard(item) {
   const notes = card.querySelector(".notes");
   const editButton = card.querySelector(".edit-button");
   const deleteButton = card.querySelector(".delete-button");
+  const recordType = activeView === "market"
+    ? (item.listingSource === "market" ? "market" : "collection")
+    : activeView;
+  const canManage = isOwnedByCurrentUser(recordType, item);
 
   card.className = "car-card";
 
@@ -861,7 +1037,7 @@ function createCard(item) {
     if (activeCollectionOwner === "Tümü") {
       addOwnerBadge(card, item.owner);
     }
-    if (marketPickMode) {
+    if (marketPickMode && canManage) {
       addMarketPickButton(card, item);
     }
     addTags(tags, [item.condition, item.marketType, displayRarity(item.rarity)]);
@@ -888,6 +1064,7 @@ function createCard(item) {
     muted.textContent = [locationLabel(item), item.spot, item.price, freshnessLabel(item)].filter(Boolean).join(" · ");
     addTags(tags, [item.status, item.confidence, displayPerson(item.reporter)]);
     notes.textContent = item.models;
+    addStoreRewardPanel(card, item);
   }
 
   if (activeView === "market") {
@@ -930,9 +1107,20 @@ function createCard(item) {
     });
   }
 
-  deleteButton.addEventListener("click", (event) => {
+  if (!canManage) {
+    editButton?.remove();
+    deleteButton.remove();
+    return card;
+  }
+
+  deleteButton.addEventListener("click", async (event) => {
     event.stopPropagation();
-    if (activeView === "market") removeFavoriteListing(item);
+    if (!isOwnedByCurrentUser(recordType, item)) {
+      denyForeignRecordAction();
+      return;
+    }
+    const deleted = await deletePublicRecord(recordType, item);
+    if (!deleted) return;
     if (activeView === "market" && item.listingSource === "market") {
       state.market = state.market.filter((entry) => entry.id !== item.id);
     } else {
@@ -1337,6 +1525,14 @@ function renderListingComments() {
         </div>
         <p>${escapeHtml(comment.text)}</p>
       `;
+      if (isOwnedByCurrentUser("comments", comment)) {
+        const removeComment = document.createElement("button");
+        removeComment.className = "button button--subtle comment-delete-button";
+        removeComment.type = "button";
+        removeComment.textContent = "Yorumumu sil";
+        removeComment.addEventListener("click", () => removeOwnComment(comment));
+        item.appendChild(removeComment);
+      }
       if (comment.replies.length) {
         const replies = document.createElement("div");
         replies.className = "comment-replies";
@@ -1391,22 +1587,37 @@ function submitListingComment() {
     return;
   }
 
-  state.comments.push({
+  const comment = ownedRecord("comments", {
     id: crypto.randomUUID(),
     listingKey: listingDiscussionKey(currentListingDetail),
     listingTitle: currentListingDetail.model,
-    authorId: currentUser.id,
-    authorUsername: currentUser.username,
     text,
     createdAt: new Date().toISOString(),
     readBy: [currentUser.username],
     replies: []
   });
+  state.comments.push(comment);
   listingCommentInput.value = "";
+  Rewards?.addEvent("helpful_forum", currentUser, { listingKey: listingDiscussionKey(currentListingDetail) });
   saveState();
+  void syncPublicRecord("comments", comment);
   renderListingComments();
   updateUserButton();
   showToast("Yorum eklendi.");
+}
+
+async function removeOwnComment(comment) {
+  if (!isOwnedByCurrentUser("comments", comment)) {
+    denyForeignRecordAction();
+    return;
+  }
+  const deleted = await deletePublicRecord("comments", comment);
+  if (!deleted) return;
+  state.comments = state.comments.filter((item) => item.id !== comment.id);
+  saveState();
+  renderListingComments();
+  updateUserButton();
+  showToast("Yorumun kaldırıldı.");
 }
 
 function submitCommentReply(commentId, input) {
@@ -1435,7 +1646,12 @@ function submitCommentReply(commentId, input) {
     };
   });
   input.value = "";
+  Rewards?.addEvent("helpful_forum", currentUser, { commentId });
   saveState();
+  const updatedComment = state.comments.find((comment) => comment.id === commentId);
+  if (updatedComment && isOwnedByCurrentUser("comments", updatedComment)) {
+    void syncPublicRecord("comments", updatedComment);
+  }
   renderListingComments();
   updateUserButton();
   showToast("Cevap eklendi.");
@@ -1975,6 +2191,10 @@ function addMarketSocialBar(card, item) {
 
 function openListingDetail(item) {
   currentListingDetail = item;
+  const recordType = item.listingSource === "market" ? "market" : "collection";
+  const canManage = isOwnedByCurrentUser(recordType, item);
+  editListingDetail.classList.toggle("is-hidden", !canManage);
+  removeListingDetail.classList.toggle("is-hidden", !canManage);
   const detailItem = { ...item, photo: item.listingPhoto || item.photo };
   renderCarMedia(listingDetailMedia, detailItem);
   listingDetailSource.textContent = item.listingSource === "market" ? "Doğrudan ilan" : "Garajdan";
@@ -2037,6 +2257,11 @@ function closeListingDetailModal() {
 function editCurrentListingDetail() {
   if (!currentListingDetail) return;
   const item = currentListingDetail;
+  const recordType = item.listingSource === "market" ? "market" : "collection";
+  if (!isOwnedByCurrentUser(recordType, item)) {
+    denyForeignRecordAction();
+    return;
+  }
   closeListingDetailModal();
 
   if (item.listingSource === "market") {
@@ -2047,10 +2272,16 @@ function editCurrentListingDetail() {
   openMarketListingModal({ ...item, listingSource: "collection" });
 }
 
-function removeCurrentListingDetail() {
+async function removeCurrentListingDetail() {
   if (!currentListingDetail) return;
   const item = currentListingDetail;
-  removeFavoriteListing(item);
+  const recordType = item.listingSource === "market" ? "market" : "collection";
+  if (!isOwnedByCurrentUser(recordType, item)) {
+    denyForeignRecordAction();
+    return;
+  }
+  const deleted = await deletePublicRecord(recordType, item);
+  if (!deleted) return;
 
   if (item.listingSource === "market") {
     state.market = state.market.filter((listing) => listing.id !== item.id);
@@ -2079,6 +2310,13 @@ function addMarketPickButton(card, item) {
 }
 
 function openMarketListingModal(item) {
+  if (item) {
+    const recordType = item.listingSource === "market" || item.standalone ? "market" : "collection";
+    if (!isOwnedByCurrentUser(recordType, item)) {
+      denyForeignRecordAction();
+      return;
+    }
+  }
   marketEditingCarId = item?.id || null;
   const isStandalone = !item || item.listingSource === "market" || item.standalone;
   const listing = item || {};
@@ -2101,7 +2339,7 @@ function openMarketListingModal(item) {
   modalSaleNote.value = listing.marketType === "Satılık" ? listing.tradeWish || "" : "";
   modalListingPhoto.value = listing.listingPhoto || "";
   updateListingPhotoPreview();
-  removeMarketListing.classList.toggle("is-hidden", !item?.marketType);
+  removeMarketListing.classList.toggle("is-hidden", !item?.marketType || !isOwnedByCurrentUser(isStandalone ? "market" : "collection", item));
   syncMarketModalFields();
   marketModal.classList.add("is-visible");
   marketModal.setAttribute("aria-hidden", "false");
@@ -2135,9 +2373,15 @@ function saveMarketListingFromModal() {
   const tradeWish = marketType === "Satılık" ? modalSaleNote.value.trim() : modalTradeWish.value.trim();
   const listingPhoto = modalListingPhoto.value.trim();
   const isStandalone = !marketEditingCarId || state.market.some((listing) => listing.id === marketEditingCarId);
+  const isNewListing = !marketEditingCarId;
   const existingListing = state.market.find((listing) => listing.id === marketEditingCarId)
     || state.collection.find((car) => car.id === marketEditingCarId)
     || {};
+  const existingType = state.market.some((listing) => listing.id === marketEditingCarId) ? "market" : "collection";
+  if (marketEditingCarId && !isOwnedByCurrentUser(existingType, existingListing)) {
+    denyForeignRecordAction();
+    return;
+  }
 
   const values = {
     marketType,
@@ -2150,7 +2394,7 @@ function saveMarketListingFromModal() {
   };
 
   if (isStandalone) {
-    saveStandaloneMarketListing({
+    saveStandaloneMarketListing(ownedRecord("market", {
       ...values,
       model: modalListingModel.value.trim(),
       owner: modalListingOwner.value,
@@ -2160,18 +2404,31 @@ function saveMarketListingFromModal() {
       rarity: modalListingRarity.value,
       source: "Doğrudan pazar",
       standalone: true
-    });
+    }));
   } else {
     updateMarketListing(marketEditingCarId, values);
   }
 
+  if (isNewListing && currentUser) {
+    Rewards?.addEvent("listing_created", currentUser, { marketType });
+  }
   closeMarketListingModal();
   marketPickMode = false;
   setActiveView("market", { clearSearch: true, scroll: true });
 }
 
-function removeCurrentMarketListing() {
-  if (state.market.some((listing) => listing.id === marketEditingCarId)) {
+async function removeCurrentMarketListing() {
+  const directListing = state.market.find((listing) => listing.id === marketEditingCarId);
+  const collectionListing = state.collection.find((listing) => listing.id === marketEditingCarId);
+  const record = directListing || collectionListing;
+  const recordType = directListing ? "market" : "collection";
+  if (!record || !isOwnedByCurrentUser(recordType, record)) {
+    denyForeignRecordAction();
+    return;
+  }
+  const deleted = await deletePublicRecord(recordType, record);
+  if (!deleted) return;
+  if (directListing) {
     state.market = state.market.filter((listing) => listing.id !== marketEditingCarId);
     saveState();
     closeMarketListingModal();
@@ -2206,21 +2463,28 @@ function updateMarketListing(carId, values) {
     ));
   }
   saveState();
+  const updated = state.market.find((listing) => listing.id === carId)
+    || state.collection.find((car) => car.id === carId);
+  if (updated) void syncPublicRecord(state.market.some((listing) => listing.id === carId) ? "market" : "collection", updated);
 }
 
 function saveStandaloneMarketListing(values) {
+  let savedListing;
   if (marketEditingCarId && state.market.some((listing) => listing.id === marketEditingCarId)) {
     state.market = state.market.map((listing) => (
       listing.id === marketEditingCarId ? { ...listing, ...values } : listing
     ));
+    savedListing = state.market.find((listing) => listing.id === marketEditingCarId);
   } else {
-    state.market.unshift({
+    savedListing = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       ...values
-    });
+    };
+    state.market.unshift(savedListing);
   }
   saveState();
+  void syncPublicRecord("market", savedListing);
 }
 
 function marketSellerLabel(item) {
@@ -2262,7 +2526,11 @@ function openPublicProfile(username) {
   publicProfileMessage.textContent = isOwnProfile ? "Kendi profilin" : "Mesaj gönder";
   publicProfileTitle.textContent = `@${user.username}`;
   publicProfileSubtitle.textContent = "Garaj ve aktif pazar ilanları.";
-  publicProfileAvatar.textContent = userInitials(user.username);
+  if (Rewards) {
+    applyAvatarElement(publicProfileAvatar, Rewards.getAvatar(user), user);
+  } else {
+    publicProfileAvatar.textContent = userInitials(user.username);
+  }
   publicProfileUsername.textContent = `@${user.username}`;
   publicProfileSummary.textContent = `${listingCount} ilan · ${collectionCount} garaj kaydı`;
   publicProfileListingsCount.textContent = String(listingCount);
@@ -2572,6 +2840,7 @@ function syncAdminVisibility() {
 }
 
 function applySiteConfig() {
+  Rewards?.configure(siteConfig.rewardSettings || {});
   heroEyebrow.textContent = siteConfig.heroEyebrow || DEFAULT_SITE_CONFIG.heroEyebrow;
   heroTitle.innerHTML = `<span>${escapeHtml(siteConfig.heroTitleOne || "HUNT")}</span><span>${escapeHtml(siteConfig.heroTitleTwo || "RADAR")}</span>`;
   heroCopy.textContent = siteConfig.heroCopy || DEFAULT_SITE_CONFIG.heroCopy;
@@ -2584,6 +2853,244 @@ function applySiteConfig() {
   siteBanner.classList.toggle("is-visible", Boolean(siteConfig.bannerEnabled && siteConfig.bannerText));
   siteBannerTitle.textContent = siteConfig.bannerTitle || DEFAULT_SITE_CONFIG.bannerTitle;
   siteBannerText.textContent = siteConfig.bannerText || "";
+}
+
+function knownRewardUsers() {
+  const map = new Map();
+  const add = (user) => {
+    if (!user?.username) return;
+    map.set(normalize(user.username), user);
+  };
+  users.forEach(add);
+  if (currentUser) add(currentUser);
+  state.collection.forEach((item) => add({
+    id: item.ownerUserId || item.ownerUsername || item.owner,
+    username: item.ownerUsername || item.owner,
+    email: ""
+  }));
+  allMarketListings().forEach((item) => add({
+    id: item.sellerUserId || item.sellerUsername,
+    username: item.sellerUsername,
+    email: ""
+  }));
+  state.stores.forEach((item) => add({
+    id: item.reporterUsername || item.reporter,
+    username: item.reporterUsername || item.reporter,
+    email: ""
+  }));
+  if (!map.size) {
+    add({ id: "demo-saruhan", username: "saruhan34", email: "" });
+    add({ id: "demo-ali", username: "ali_hotwheels", email: "" });
+  }
+  return [...map.values()];
+}
+
+function renderLeaderboard() {
+  if (!leaderboardList || !Rewards) return;
+  const settings = Rewards.settings();
+  leaderboardList.closest(".leaderboard-preview")?.classList.toggle("is-disabled", !settings.previewEnabled || !settings.enabled);
+  if (!settings.previewEnabled || !settings.enabled) {
+    leaderboardList.innerHTML = "";
+    return;
+  }
+  const rows = Rewards.leaderboard(knownRewardUsers(), state, "weekly").slice(0, 3);
+  leaderboardList.innerHTML = "";
+  rows.forEach((user, index) => {
+    const avatar = Rewards.getAvatar(user);
+    const row = document.createElement("article");
+    row.className = "leaderboard-item";
+    row.innerHTML = `
+      <span class="leaderboard-position">#${index + 1}</span>
+      <span class="leaderboard-avatar-slot"></span>
+      <div class="leaderboard-main">
+        <strong>@${escapeHtml(user.username)}</strong>
+        <span>${escapeHtml(user.rank.title)} · ${user.badges.length} rozet</span>
+      </div>
+      <div class="leaderboard-score"><strong>${user.points}</strong><span>puan</span></div>
+    `;
+    applyAvatarElement(row.querySelector(".leaderboard-avatar-slot"), avatar, user);
+    leaderboardList.appendChild(row);
+  });
+}
+
+function renderRewardCenter() {
+  if (!Rewards || !rewardsModule) return;
+  const settings = Rewards.settings();
+  rewardModuleTitle.textContent = settings.title;
+  rewardModuleCopy.textContent = settings.description;
+  const rows = Rewards.leaderboard(knownRewardUsers(), state, activeLeaderboardPeriod).slice(0, 10);
+  renderRewardPodium(rows.slice(0, 3));
+  renderRewardRows(rows);
+  renderRewardRules(settings.rules);
+  renderRewardRanks(settings.ranks);
+  renderRewardBadges();
+  renderRewardAvatarShowcase(settings.avatars);
+}
+
+function renderRewardPodium(rows) {
+  if (!rewardPodium || !Rewards) return;
+  rewardPodium.innerHTML = "";
+  rows.forEach((user, index) => {
+    const avatar = user.avatar || Rewards.getAvatar(user);
+    const card = document.createElement("article");
+    card.className = `podium-card podium-card--${index + 1}`;
+    card.innerHTML = `
+      <span class="podium-medal">#${index + 1}</span>
+      <span class="podium-avatar-slot reward-avatar--large"></span>
+      ${rankImageMarkup(user.rank, "podium-rank-image")}
+      <strong>@${escapeHtml(user.username)}</strong>
+      <span>${escapeHtml(user.rank.title)}</span>
+      <b>${user.points} Radar Puanı</b>
+    `;
+    applyAvatarElement(card.querySelector(".podium-avatar-slot"), avatar, user);
+    rewardPodium.appendChild(card);
+  });
+}
+
+function renderRewardRows(rows) {
+  if (!rewardLeaderboardRows || !Rewards) return;
+  rewardLeaderboardRows.innerHTML = rows.map((user, index) => {
+    const avatar = user.avatar || Rewards.getAvatar(user);
+    return `
+      <article class="reward-row">
+        <span class="leaderboard-position">#${index + 1}</span>
+        <span class="reward-row-avatar-slot" data-reward-row-index="${index}"></span>
+        <div class="leaderboard-main">
+          <strong>${rankImageMarkup(user.rank, "leaderboard-rank-image")}@${escapeHtml(user.username)}</strong>
+          <span>${escapeHtml(user.rank.title)} · ${user.badges.length} rozet</span>
+        </div>
+        <div class="leaderboard-score"><strong>${user.points}</strong><span>puan</span></div>
+      </article>
+    `;
+  }).join("");
+  rows.forEach((user, index) => {
+    const avatar = user.avatar || Rewards.getAvatar(user);
+    applyAvatarElement(rewardLeaderboardRows.querySelector(`[data-reward-row-index="${index}"]`), avatar, user);
+  });
+}
+
+function renderRewardRules(rules) {
+  if (!rewardRulesGrid) return;
+  rewardRulesGrid.innerHTML = Object.entries(rules).map(([key, rule]) => `
+    <article class="reward-rule-card reward-tone--${escapeHtml(rule.tone || "gold")} reward-card--${escapeHtml(rewardVisualKey(key, rule))}">
+      <span class="reward-visual reward-visual--${escapeHtml(rewardVisualKey(key, rule))}" aria-hidden="true"><i></i></span>
+      <div>
+        <strong>${escapeHtml(rule.label)}</strong>
+        <p>${Number(rule.points || 0) > 0 ? "+" : ""}${Number(rule.points || 0)} Radar Puanı</p>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderRewardRanks(ranks) {
+  if (!rewardRanksGrid) return;
+  rewardRanksGrid.innerHTML = ranks.map((rank) => `
+    <article class="rank-card" style="--rank-color:${escapeHtml(rank.color || "#f5c451")}">
+      ${rankImageMarkup(rank)}
+      <div>
+        <strong>${escapeHtml(rank.title)}</strong>
+        <p>${Number(rank.min || 0)}${rank.max ? ` - ${Number(rank.max)}` : "+"} puan</p>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderRewardBadges() {
+  if (!rewardBadgesGrid || !Rewards) return;
+  const badges = currentUser ? Rewards.allBadgesFor(currentUser, state) : Rewards.BADGES.map((badge) => ({ ...badge, earned: false }));
+  rewardBadgesGrid.innerHTML = badges.map((badge) => `
+    <article class="badge-card ${badge.earned ? "is-earned" : "is-locked"} reward-tone--${escapeHtml(badge.tone || "gold")} reward-card--${escapeHtml(rewardVisualKey(badge.id, badge))}">
+      <span class="reward-visual reward-visual--${escapeHtml(rewardVisualKey(badge.id, badge))}" aria-hidden="true"><i></i></span>
+      <div>
+        <strong>${escapeHtml(badge.title)}</strong>
+        <p>${escapeHtml(badge.description || "")}</p>
+        <small>${escapeHtml(badge.requirement || "")}</small>
+      </div>
+      <b>${badge.earned ? "Kazanıldı" : "Kilitli"}</b>
+    </article>
+  `).join("");
+}
+
+function renderRewardAvatarShowcase(avatars) {
+  if (!rewardAvatarShowcase) return;
+  rewardAvatarShowcase.innerHTML = avatars.map((avatar) => `
+    <article class="avatar-showcase-card">
+      ${avatarVisualMarkup(avatar)}
+      <strong>${escapeHtml(avatar.label)}</strong>
+    </article>
+  `).join("");
+}
+
+function rewardVisualKey(key, item = {}) {
+  return String(item.visual || item.id || key || "hr").replace(/_/g, "-").replace(/[^a-z0-9-]/gi, "").toLocaleLowerCase("tr-TR");
+}
+
+function avatarText(avatar, user) {
+  if (avatar?.type === "custom") return "";
+  const preset = Rewards.AVATARS.find((item) => item.id === avatar?.id);
+  if (preset?.image) return "";
+  return preset?.icon || userInitials(user.username);
+}
+
+function avatarPresetStyle(preset) {
+  if (preset?.image) {
+    return `background-image:url("${escapeHtml(preset.image)}");background-size:cover;background-position:center;--avatar-gradient:${escapeHtml(preset.gradient || "linear-gradient(135deg,#141922,#ff4b28)")};`;
+  }
+  return `--avatar-gradient:${escapeHtml(preset?.gradient || "linear-gradient(135deg,#141922,#ff4b28)")};background:${escapeHtml(preset?.gradient || "linear-gradient(135deg,#141922,#ff4b28)")};`;
+}
+
+function avatarVisualMarkup(avatar, className = "") {
+  if (avatar?.image) {
+    return `<span class="avatar-visual avatar-visual--image ${className}" aria-hidden="true"><img src="${escapeHtml(avatar.image)}" alt="" loading="lazy"></span>`;
+  }
+  return `<span class="avatar-visual avatar-visual--${escapeHtml(avatar.id)} ${className}" style="${avatarPresetStyle(avatar)}" aria-hidden="true"><i></i></span>`;
+}
+
+function avatarStyle(avatar) {
+  if (avatar?.type === "custom") return `background-image:url("${avatar.dataUrl}");background-size:cover;background-position:center;`;
+  const preset = Rewards.AVATARS.find((item) => item.id === avatar?.id) || Rewards.AVATARS[2];
+  return avatarPresetStyle(preset);
+}
+
+function avatarClass(avatar) {
+  if (!Rewards || avatar?.type === "custom") return "";
+  const preset = Rewards.AVATARS.find((item) => item.id === avatar?.id);
+  return preset ? `avatar-visual--${escapeHtml(preset.id)}` : "";
+}
+
+function applyAvatarElement(element, avatar, user, options = {}) {
+  if (!element) return;
+  element.classList.remove(...[...element.classList].filter((name) => name.startsWith("avatar-visual--")));
+  element.classList.add("reward-avatar");
+  element.setAttribute("style", avatarStyle(avatar));
+  element.classList.toggle("avatar-visual", options.visual !== false);
+  const presetClass = avatarClass(avatar);
+  if (presetClass) element.classList.add(presetClass);
+  const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
+  element.innerHTML = preset?.image ? `<img src="${escapeHtml(preset.image)}" alt="">` : escapeHtml(avatarText(avatar, user));
+}
+
+function resetAvatarElement(element, text) {
+  if (!element) return;
+  element.classList.remove("avatar-visual");
+  element.classList.remove(...[...element.classList].filter((name) => name.startsWith("avatar-visual--")));
+  element.removeAttribute("style");
+  element.textContent = text;
+}
+
+function avatarMarkup(avatar, user, size = "") {
+  const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
+  if (preset?.image) {
+    return `<span class="reward-avatar avatar-visual avatar-visual--image ${size} ${avatarClass(avatar)}" aria-hidden="true"><img src="${escapeHtml(preset.image)}" alt=""></span>`;
+  }
+  return `<span class="reward-avatar avatar-visual ${size} ${avatarClass(avatar)}" style="${avatarStyle(avatar)}" aria-hidden="true"><i></i>${escapeHtml(avatarText(avatar, user))}</span>`;
+}
+
+function rankImageMarkup(rank, className = "") {
+  if (!rank?.image) {
+    return `<span class="rank-medal ${className}"><i>${escapeHtml(rank?.icon || "HR")}</i></span>`;
+  }
+  return `<img class="rank-image ${className}" src="${escapeHtml(rank.image)}" alt="${escapeHtml(rank.title || "Rank")}">`;
 }
 
 function listingKeyForAdmin(item) {
@@ -2695,6 +3202,7 @@ async function ensureSupabaseProfile(authUser) {
 
 async function initSupabaseAuth() {
   await loadSiteConfigFromSupabase();
+  await loadPublicContentFromSupabase();
   render();
   if (!supabaseClient) {
     syncAdminVisibility();
@@ -2709,6 +3217,7 @@ async function initSupabaseAuth() {
   if (data.session?.user) {
     currentUser = await ensureSupabaseProfile(data.session.user);
     saveCurrentUser(currentUser);
+    await syncOwnedLocalContentToSupabase();
     updateUserButton();
     render();
   } else {
@@ -2723,6 +3232,7 @@ async function initSupabaseAuth() {
     }
     currentUser = session?.user ? await ensureSupabaseProfile(session.user) : null;
     saveCurrentUser(currentUser);
+    if (currentUser) await syncOwnedLocalContentToSupabase();
     updateUserButton();
     syncAdminVisibility();
     render();
@@ -2734,8 +3244,14 @@ function updateUserButton() {
   const unreadCount = notifications.total;
   userButtonText.textContent = currentUser ? `@${currentUser.username}` : "Giriş yap";
   const initials = currentUser ? userInitials(currentUser.username) : "HR";
-  userAvatar.textContent = initials;
-  accountMenuAvatar.textContent = initials;
+  const avatar = currentUser && Rewards ? Rewards.getAvatar(currentUser) : null;
+  if (avatar) {
+    applyAvatarElement(userAvatar, avatar, currentUser);
+    applyAvatarElement(accountMenuAvatar, avatar, currentUser);
+  } else {
+    resetAvatarElement(userAvatar, initials);
+    resetAvatarElement(accountMenuAvatar, initials);
+  }
   accountMenuName.textContent = currentUser ? `@${currentUser.username}` : "Misafir";
   accountMenuEmail.textContent = currentUser ? currentUser.email : "Pazar ilanı için giriş yap.";
   accountListingCount.textContent = currentUser
@@ -2790,8 +3306,63 @@ function openProfileModal() {
   profileCollectionCount.textContent = String(collectionItemsForUsername(currentUser.username).length);
   profileCreatedAt.textContent = formatProfileDate(currentUser.createdAt);
   profileRoleHint.textContent = `Rol: ${currentUser.role || "user"} · ${currentUser.emailConfirmedAt ? "E-posta doğrulandı" : "E-posta doğrulama bekleniyor"}`;
+  pendingProfileAvatar = Rewards?.getAvatar(currentUser) || null;
+  renderProfileRewards();
   profileModal.classList.add("is-visible");
   profileModal.setAttribute("aria-hidden", "false");
+}
+
+function renderProfileRewards() {
+  if (!Rewards || !currentUser) return;
+  const stats = Rewards.statsFor(currentUser, state);
+  const rank = Rewards.rankFor(stats.points);
+  const nextRank = Rewards.nextRankFor(stats.points);
+  const avatar = Rewards.getAvatar(currentUser);
+  pendingProfileAvatar = pendingProfileAvatar || avatar;
+  applyAvatarElement(profileAvatar, pendingProfileAvatar, currentUser);
+  profileRadarPoints.textContent = String(stats.points);
+  profileRankBadge.innerHTML = rankImageMarkup(rank, "profile-rank-image");
+  profileRank.textContent = rank.title;
+  profileNextRank.textContent = nextRank ? `${nextRank.min - stats.points} puan sonra ${nextRank.title}` : "Maksimum seviye";
+  profileSellerScore.textContent = String(stats.sellerScore);
+  profileVerificationScore.textContent = String(stats.verificationScore || 0);
+  const previousMin = Number(rank.min || 0);
+  const nextMin = nextRank ? Number(nextRank.min || 0) : Math.max(stats.points, previousMin + 1);
+  const progress = nextRank ? Math.min(100, Math.round(((stats.points - previousMin) / Math.max(1, nextMin - previousMin)) * 100)) : 100;
+  profileProgressLabel.textContent = nextRank ? `${rank.title} -> ${nextRank.title}` : "Garaj Ustası seviyesi";
+  profileProgressValue.textContent = `${progress}%`;
+  profileProgressFill.style.width = `${progress}%`;
+  const badges = Rewards.badgesFor(currentUser, state);
+  profileBadges.innerHTML = badges.length
+    ? badges.map((badge) => `<span class="reward-badge"><b>${escapeHtml(badge.icon)}</b>${escapeHtml(badge.title)}</span>`).join("")
+    : '<span class="reward-badge is-muted">Henüz rozet yok</span>';
+  profileRewardActivity.innerHTML = stats.events.slice(0, 4).map((event) => `
+    <article>
+      <span>${escapeHtml(Rewards.RULES[event.type]?.label || event.type)}</span>
+      <strong>${Number(event.points || 0) > 0 ? "+" : ""}${Number(event.points || 0)}</strong>
+    </article>
+  `).join("") || '<p class="field-hint">Henüz puan hareketi yok.</p>';
+  renderAvatarOptions(pendingProfileAvatar);
+}
+
+function renderAvatarOptions(activeAvatar) {
+  if (!Rewards) return;
+  avatarOptions.innerHTML = "";
+  Rewards.AVATARS.forEach((avatar) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "avatar-option";
+    button.classList.toggle("is-active", activeAvatar?.type !== "custom" && activeAvatar?.id === avatar.id);
+    button.innerHTML = `
+      ${avatarVisualMarkup(avatar)}
+      <strong>${escapeHtml(avatar.label)}</strong>
+    `;
+    button.addEventListener("click", () => {
+      pendingProfileAvatar = { type: "preset", id: avatar.id };
+      renderProfileRewards();
+    });
+    avatarOptions.appendChild(button);
+  });
 }
 
 function closeProfileModal() {
@@ -2848,6 +3419,54 @@ function marketTagClass(value) {
   if (value === "Satılık") return "tag--sale";
   if (value === "Takaslık") return "tag--trade";
   return "";
+}
+
+function storeRewardPreview(item) {
+  if (!Rewards) return 0;
+  const hasPhoto = item.confidence === "Fotoğraflı";
+  const isEmpty = item.status === "Boş" || /boş/i.test(item.models || "");
+  if (hasPhoto && isEmpty) return Number(Rewards.RULES.empty_shelf_photo?.points || 0);
+  if (hasPhoto) return Number(Rewards.RULES.store_photo_report?.points || 0);
+  return 0;
+}
+
+function addStoreRewardPanel(card, item) {
+  const panel = document.createElement("div");
+  panel.className = "store-reward-panel";
+  const points = storeRewardPreview(item);
+  const votes = item.verifications || { correct: 0, gone: 0, wrong: 0 };
+  const evidenceLabel = item.confidence === "Fotoğraflı" ? "Fotoğraflı kanıt var" : "Kanıt puanı";
+  panel.innerHTML = `
+    <div class="store-reward-panel__score">
+      <span>Kanıt puanı</span>
+      <strong>${points > 0 ? `+${points}` : "0"}</strong>
+      <small>${evidenceLabel}</small>
+    </div>
+    <div class="store-verify-actions">
+      <button type="button" data-store-vote="correct">Doğru <em>${votes.correct || 0}</em></button>
+      <button type="button" data-store-vote="gone">Artık kalmadı <em>${votes.gone || 0}</em></button>
+      <button type="button" data-store-vote="wrong">Yanlış bilgi <em>${votes.wrong || 0}</em></button>
+    </div>
+  `;
+  panel.querySelectorAll("[data-store-vote]").forEach((button) => {
+    button.addEventListener("click", () => voteStoreReport(item.id, button.dataset.storeVote));
+  });
+  card.appendChild(panel);
+}
+
+function voteStoreReport(storeId, vote) {
+  requireAuth(() => {
+    state.stores = state.stores.map((store) => {
+      if (store.id !== storeId) return store;
+      const verifications = { correct: 0, gone: 0, wrong: 0, ...(store.verifications || {}) };
+      verifications[vote] += 1;
+      return { ...store, verifications };
+    });
+    if (vote === "correct") Rewards?.addEvent("store_verified", currentUser, { storeId });
+    if (vote === "wrong") Rewards?.addEvent("false_report", currentUser, { storeId });
+    saveState();
+    render();
+  });
 }
 
 function addMeta(target, values) {
@@ -3048,6 +3667,7 @@ function renderAdminCenter() {
   renderAdminFeaturedOptions();
   renderAdminContentList();
   renderAdminManageLists();
+  renderAdminRewardSettings();
 }
 
 function renderAdminFeaturedOptions() {
@@ -3140,6 +3760,40 @@ function renderAdminManageLists() {
     adminStoresList.appendChild(row);
   });
   if (!state.stores.length) adminStoresList.innerHTML = '<p class="empty-state is-visible">Hunt Radar notu yok.</p>';
+}
+
+function renderAdminRewardSettings() {
+  if (!Rewards || !adminRewardEnabled) return;
+  const settings = Rewards.settings();
+  adminRewardEnabled.checked = settings.enabled !== false;
+  adminRewardPreviewEnabled.checked = settings.previewEnabled !== false;
+  adminRewardTitle.value = settings.title || "";
+  adminRewardDescription.value = settings.description || "";
+  adminRewardRulesJson.value = JSON.stringify(settings.rules, null, 2);
+  adminRewardRanksJson.value = JSON.stringify(settings.ranks, null, 2);
+  adminRewardBadgesJson.value = JSON.stringify(settings.badges, null, 2);
+  adminRewardAvatarsJson.value = JSON.stringify(settings.avatars, null, 2);
+  adminRewardFeaturedBadges.value = (settings.featuredBadges || []).join(",");
+}
+
+async function saveAdminRewardSettings() {
+  try {
+    siteConfig.rewardSettings = {
+      enabled: adminRewardEnabled.checked,
+      previewEnabled: adminRewardPreviewEnabled.checked,
+      title: adminRewardTitle.value.trim() || "Radar Puanı",
+      description: adminRewardDescription.value.trim(),
+      rules: JSON.parse(adminRewardRulesJson.value || "{}"),
+      ranks: JSON.parse(adminRewardRanksJson.value || "[]"),
+      badges: JSON.parse(adminRewardBadgesJson.value || "[]"),
+      avatars: JSON.parse(adminRewardAvatarsJson.value || "[]"),
+      featuredBadges: adminRewardFeaturedBadges.value.split(",").map((item) => item.trim()).filter(Boolean)
+    };
+    await saveSiteConfigToSupabase();
+    showToast("Puan ve rozet ayarları kaydedildi.");
+  } catch (error) {
+    setAdminStatus(`Reward JSON hatası: ${error.message}`);
+  }
 }
 
 async function saveAdminHomeContent() {
@@ -3625,6 +4279,10 @@ function setAdminStatus(message) {
 }
 
 function startCarEdit(item) {
+  if (!isOwnedByCurrentUser("collection", item)) {
+    denyForeignRecordAction();
+    return;
+  }
   editingCarId = item.id;
   marketPickMode = false;
   setActiveView("collection", { clearSearch: true, scroll: true });
@@ -3676,12 +4334,22 @@ function syncOtherStoreField() {
 }
 
 function addEntry(type, entry) {
-  state[type].unshift({
+  const record = ownedRecord(type, {
     id: crypto.randomUUID(),
     ...entry,
     ...(type === "stores" ? { date: new Date().toLocaleDateString("tr-TR"), createdAt: new Date().toISOString() } : {})
   });
+  state[type].unshift(record);
+  if (type === "stores" && currentUser) {
+    const emptyShelfPoints = Number(Rewards?.RULES.empty_shelf_photo?.points || 0);
+    const pointType = emptyShelfPoints && storeRewardPreview(record) === emptyShelfPoints ? "empty_shelf_photo" : record.confidence === "Fotoğraflı" ? "store_photo_report" : "";
+    if (pointType) Rewards?.addEvent(pointType, currentUser, { storeId: record.id });
+  }
+  if (type === "market" && currentUser) {
+    Rewards?.addEvent("listing_created", currentUser, { listingId: record.id });
+  }
   saveState();
+  void syncPublicRecord(type, record);
   render();
 }
 
@@ -3726,7 +4394,13 @@ function setActiveView(view, options = {}) {
   render();
 
   if (options.scroll) {
-    const target = activeView === "home" ? document.querySelector("main") : activeView === "community" ? communityModule : document.querySelector("#workspace");
+    const target = activeView === "home"
+      ? document.querySelector("main")
+      : activeView === "community"
+        ? communityModule
+        : activeView === "rewards"
+          ? rewardsModule
+          : document.querySelector("#workspace");
     target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
@@ -3806,6 +4480,14 @@ topNotificationButton.addEventListener("click", () => {
   openMessageModal("comments");
 });
 
+leaderboardTabs.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeLeaderboardPeriod = button.dataset.leaderboardPeriod;
+    leaderboardTabs.forEach((tab) => tab.classList.toggle("is-active", tab === button));
+    renderLeaderboard();
+  });
+});
+
 openInbox.addEventListener("click", () => {
   closeAccountMenu();
   openTopNotifications();
@@ -3841,6 +4523,23 @@ authModal.addEventListener("click", (event) => {
 document.querySelector("#closeProfileModal").addEventListener("click", closeProfileModal);
 profileModal.addEventListener("click", (event) => {
   if (event.target === profileModal) closeProfileModal();
+});
+saveProfileAvatar.addEventListener("click", () => {
+  if (!currentUser || !pendingProfileAvatar) return;
+  Rewards?.setAvatar(currentUser, pendingProfileAvatar);
+  updateUserButton();
+  renderProfileRewards();
+  renderLeaderboard();
+  renderRewardCenter();
+  showToast("Avatarınız kaydedildi.");
+});
+profileAvatarUpload.addEventListener("change", (event) => {
+  if (!currentUser) return;
+  readImageFile(event.currentTarget.files[0], (imageData) => {
+    if (!imageData) return;
+    pendingProfileAvatar = { type: "custom", dataUrl: imageData };
+    renderProfileRewards();
+  });
 });
 document.querySelector("#closePublicProfileModal").addEventListener("click", closePublicProfileModal);
 publicProfileModal.addEventListener("click", (event) => {
@@ -3912,10 +4611,17 @@ carForm.addEventListener("submit", (event) => {
   requireAuth(() => {
     const entry = normalizeCarEntry(formToObject(event.currentTarget));
     if (editingCarId) {
+      const existing = state.collection.find((car) => car.id === editingCarId);
+      if (!existing || !isOwnedByCurrentUser("collection", existing)) {
+        denyForeignRecordAction();
+        return;
+      }
       state.collection = state.collection.map((car) => (
         car.id === editingCarId ? { ...car, ...entry, id: car.id } : car
       ));
+      const updated = state.collection.find((car) => car.id === editingCarId);
       saveState();
+      void syncPublicRecord("collection", updated);
       stopCarEdit();
       render();
       return;
@@ -3966,6 +4672,7 @@ adminTabs.forEach((button) => {
 });
 saveSiteContent.addEventListener("click", saveAdminHomeContent);
 saveFeaturedContent.addEventListener("click", saveAdminFeaturedContent);
+saveRewardSettings.addEventListener("click", saveAdminRewardSettings);
 addCustomCatalogCar.addEventListener("click", addCustomCatalogItem);
 deleteCatalogOverride.addEventListener("click", hideSelectedCatalogItem);
 saveAdminContent.addEventListener("click", saveAdminContentItem);
