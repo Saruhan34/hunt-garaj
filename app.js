@@ -7,6 +7,30 @@ const SUPABASE_ANON_KEY = "sb_publishable_Zj-Vq30wPbhXccBxnenbDQ_T2HNo_1W";
 const ADMIN_EMAIL = "saruhanckmak@gmail.com";
 const SITE_SETTINGS_KEY = "hunt-radar-site-config";
 const CONTENT_TABLE = "content_records";
+const ASSET_BUCKET = "hunt-radar-assets";
+const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
+const MANAGED_ASSET_PATHS = [
+  "garage-hero.png",
+  "hunt-radar-brand-portfolio.png",
+  "f40-competizione-yellow.jpg",
+  "porsche-911-carrera-t.jpg",
+  "barbie-dream-camper.jpg",
+  "catalog/2026-jjh86-ford-mustang-mach-e-1400.jpg",
+  "avatars/carbon-wing.png",
+  "avatars/flame-wheel.png",
+  "avatars/garage-shield.png",
+  "avatars/gold-key.png",
+  "avatars/gold-supra.png",
+  "avatars/neon-front.png",
+  "avatars/turbo-core.png",
+  "ranks/HR.png",
+  "ranks/R1.png",
+  "ranks/R2.png",
+  "ranks/R3.png",
+  "ranks/R4.png",
+  "ranks/STH.png",
+  "ranks/TH.png"
+];
 const Rewards = window.HuntRadarRewards;
 const supabaseClient = window.supabase
   && !SUPABASE_URL.includes("BURAYA_")
@@ -820,6 +844,97 @@ function saveState() {
 
 function normalize(value) {
   return String(value || "").toLocaleLowerCase("tr-TR");
+}
+
+function publicAssetUrl(storagePath) {
+  if (!storagePath) return "";
+  return `${SUPABASE_ASSET_BASE}/${String(storagePath).split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function localAssetUrl(path) {
+  if (!path) return "";
+  try {
+    return new URL(path, document.baseURI).href;
+  } catch {
+    return path;
+  }
+}
+
+function managedAsset(item = {}) {
+  const local = localAssetUrl(item.image || "");
+  return {
+    src: item.storagePath ? publicAssetUrl(item.storagePath) : local,
+    fallback: local
+  };
+}
+
+function managedAssetFromPath(path) {
+  const local = localAssetUrl(path);
+  const marker = "/assets/";
+  const normalized = String(path || "").replace(/\\/g, "/");
+  const markerIndex = normalized.indexOf(marker);
+  const storagePath = normalized.startsWith("./assets/")
+    ? normalized.slice("./assets/".length)
+    : markerIndex >= 0
+      ? normalized.slice(markerIndex + marker.length)
+      : "";
+  return {
+    src: storagePath ? publicAssetUrl(storagePath) : local,
+    fallback: local
+  };
+}
+
+function setManagedImageSource(image, path) {
+  const asset = managedAssetFromPath(path);
+  image.src = asset.src;
+  if (asset.fallback && asset.fallback !== asset.src) {
+    image.dataset.fallbackSrc = asset.fallback;
+  }
+}
+
+function useImageFallback(image) {
+  const fallback = image?.dataset?.fallbackSrc;
+  if (!fallback || image.src === fallback) return false;
+  image.removeAttribute("data-fallback-src");
+  image.dataset.fallbackApplied = "true";
+  image.src = fallback;
+  return true;
+}
+
+function consumeAppliedFallback(image) {
+  if (image?.dataset?.fallbackApplied !== "true") return false;
+  image.removeAttribute("data-fallback-applied");
+  return true;
+}
+
+function imageMarkup(item, alt = "", className = "", loading = "lazy") {
+  const asset = managedAsset(item);
+  if (!asset.src) return "";
+  return `<img class="${className}" src="${escapeHtml(asset.src)}" data-fallback-src="${escapeHtml(asset.fallback)}" alt="${escapeHtml(alt)}" loading="${loading}">`;
+}
+
+document.addEventListener("error", (event) => {
+  const image = event.target;
+  if (!(image instanceof HTMLImageElement)) return;
+  useImageFallback(image);
+}, true);
+
+async function syncManagedAssetsToSupabase() {
+  if (!supabaseClient || !isAdminUser()) return;
+  const results = await Promise.allSettled(MANAGED_ASSET_PATHS.map(async (path) => {
+    const response = await fetch(localAssetUrl(`./assets/${path}`));
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok || !contentType.startsWith("image/")) return;
+    const blob = await response.blob();
+    const { error } = await supabaseClient.storage
+      .from(ASSET_BUCKET)
+      .upload(path, blob, { upsert: true, contentType, cacheControl: "31536000" });
+    if (error) throw error;
+  }));
+  const failed = results.filter((result) => result.status === "rejected");
+  if (failed.length) {
+    console.warn(`${failed.length} görsel Supabase Storage'a aktarılamadı.`);
+  }
 }
 
 function recordOwnerId(type, item = {}) {
@@ -2846,9 +2961,14 @@ function applySiteConfig() {
   heroCopy.textContent = siteConfig.heroCopy || DEFAULT_SITE_CONFIG.heroCopy;
   heroTagline.textContent = siteConfig.heroTagline || DEFAULT_SITE_CONFIG.heroTagline;
   const heroImage = siteConfig.heroImage || DEFAULT_SITE_CONFIG.heroImage;
+  const localHeroImage = localAssetUrl(heroImage);
+  const storageHeroImage = heroImage.includes("garage-hero.png")
+    ? publicAssetUrl("garage-hero.png")
+    : localHeroImage;
   hero.style.backgroundImage = [
     "linear-gradient(90deg, rgba(7, 9, 13, 0.98), rgba(7, 9, 13, 0.7) 42%, rgba(7, 9, 13, 0.16) 76%)",
-    `url("${heroImage}")`
+    `url("${storageHeroImage}")`,
+    `url("${localHeroImage}")`
   ].join(", ");
   siteBanner.classList.toggle("is-visible", Boolean(siteConfig.bannerEnabled && siteConfig.bannerText));
   siteBannerTitle.textContent = siteConfig.bannerTitle || DEFAULT_SITE_CONFIG.bannerTitle;
@@ -3041,7 +3161,7 @@ function avatarPresetStyle(preset) {
 
 function avatarVisualMarkup(avatar, className = "") {
   if (avatar?.image) {
-    return `<span class="avatar-visual avatar-visual--image ${className}" aria-hidden="true"><img src="${escapeHtml(avatar.image)}" alt="" loading="lazy"></span>`;
+    return `<span class="avatar-visual avatar-visual--image ${className}" aria-hidden="true">${imageMarkup(avatar, "", "", "lazy")}</span>`;
   }
   return `<span class="avatar-visual avatar-visual--${escapeHtml(avatar.id)} ${className}" style="${avatarPresetStyle(avatar)}" aria-hidden="true"><i></i></span>`;
 }
@@ -3067,7 +3187,7 @@ function applyAvatarElement(element, avatar, user, options = {}) {
   const presetClass = avatarClass(avatar);
   if (presetClass) element.classList.add(presetClass);
   const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
-  element.innerHTML = preset?.image ? `<img src="${escapeHtml(preset.image)}" alt="">` : escapeHtml(avatarText(avatar, user));
+  element.innerHTML = preset?.image ? imageMarkup(preset, "") : escapeHtml(avatarText(avatar, user));
 }
 
 function resetAvatarElement(element, text) {
@@ -3081,7 +3201,7 @@ function resetAvatarElement(element, text) {
 function avatarMarkup(avatar, user, size = "") {
   const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
   if (preset?.image) {
-    return `<span class="reward-avatar avatar-visual avatar-visual--image ${size} ${avatarClass(avatar)}" aria-hidden="true"><img src="${escapeHtml(preset.image)}" alt=""></span>`;
+    return `<span class="reward-avatar avatar-visual avatar-visual--image ${size} ${avatarClass(avatar)}" aria-hidden="true">${imageMarkup(preset, "")}</span>`;
   }
   return `<span class="reward-avatar avatar-visual ${size} ${avatarClass(avatar)}" style="${avatarStyle(avatar)}" aria-hidden="true"><i></i>${escapeHtml(avatarText(avatar, user))}</span>`;
 }
@@ -3090,7 +3210,7 @@ function rankImageMarkup(rank, className = "") {
   if (!rank?.image) {
     return `<span class="rank-medal ${className}"><i>${escapeHtml(rank?.icon || "HR")}</i></span>`;
   }
-  return `<img class="rank-image ${className}" src="${escapeHtml(rank.image)}" alt="${escapeHtml(rank.title || "Rank")}">`;
+  return imageMarkup(rank, rank.title || "Rank", `rank-image ${className}`);
 }
 
 function listingKeyForAdmin(item) {
@@ -3217,6 +3337,7 @@ async function initSupabaseAuth() {
   if (data.session?.user) {
     currentUser = await ensureSupabaseProfile(data.session.user);
     saveCurrentUser(currentUser);
+    if (isAdminUser()) void syncManagedAssetsToSupabase();
     await syncOwnedLocalContentToSupabase();
     updateUserButton();
     render();
@@ -3232,6 +3353,7 @@ async function initSupabaseAuth() {
     }
     currentUser = session?.user ? await ensureSupabaseProfile(session.user) : null;
     saveCurrentUser(currentUser);
+    if (isAdminUser()) void syncManagedAssetsToSupabase();
     if (currentUser) await syncOwnedLocalContentToSupabase();
     updateUserButton();
     syncAdminVisibility();
@@ -3495,11 +3617,13 @@ function renderCarMedia(target, item) {
   target.classList.remove("is-placeholder");
   if (item.photo) {
     const image = document.createElement("img");
-    image.src = item.photo;
+    setManagedImageSource(image, item.photo);
     image.alt = `${item.model} fotoğrafı`;
     image.loading = "lazy";
     applyCropToImage(image, getEntryCrop(item));
     image.addEventListener("error", () => {
+      if (consumeAppliedFallback(image)) return;
+      if (useImageFallback(image)) return;
       target.classList.add("is-placeholder");
       target.innerHTML = '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
     });
@@ -4147,7 +4271,7 @@ function updatePhotoPreview() {
   }
 
   const image = document.createElement("img");
-  image.src = photo;
+  setManagedImageSource(image, photo);
   image.alt = "Seçilen model görseli";
   image.loading = "lazy";
   applyCropToImage(image, getCurrentCarCrop());
@@ -4155,6 +4279,8 @@ function updatePhotoPreview() {
     photoPreview.classList.remove("has-error");
   });
   image.addEventListener("error", () => {
+    if (consumeAppliedFallback(image)) return;
+    if (useImageFallback(image)) return;
     photoPreview.classList.add("has-error");
     photoPreview.innerHTML = '<span class="mini-car mini-car--large" aria-hidden="true"></span><small>Görsel yüklenemedi</small>';
   });
@@ -4172,11 +4298,13 @@ function updateImagePreview(target, photo, crop = { cropZoom: "1", cropX: "50", 
   }
 
   const image = document.createElement("img");
-  image.src = photo;
+  setManagedImageSource(image, photo);
   image.alt = "Katalog görseli";
   image.loading = "lazy";
   applyCropToImage(image, crop);
   image.addEventListener("error", () => {
+    if (consumeAppliedFallback(image)) return;
+    if (useImageFallback(image)) return;
     target.classList.add("has-error");
     target.innerHTML = '<span class="mini-car mini-car--large" aria-hidden="true"></span><small>Görsel yüklenemedi</small>';
   });
