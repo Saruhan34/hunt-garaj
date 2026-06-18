@@ -1,5 +1,5 @@
--- Hunt Radar Reward / Reputation future Supabase plan
--- This is a draft, not an active migration.
+-- DEPRECATED DRAFT
+-- Aktif ve güvenli migration için supabase-reward-system.sql dosyasını kullanın.
 
 -- create table public.reward_events (
 --   id uuid primary key default gen_random_uuid(),

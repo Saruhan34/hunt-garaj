@@ -403,6 +403,8 @@ let catalogOverrides = loadCatalogOverrides();
 let users = loadUsers();
 let currentUser = supabaseClient ? null : loadCurrentUser();
 let pendingAuthAction = null;
+let rewardNotifications = [];
+Rewards?.connect(supabaseClient, () => currentUser);
 
 const cards = document.querySelector("#cards");
 const emptyState = document.querySelector("#emptyState");
@@ -1713,9 +1715,9 @@ function submitListingComment() {
   });
   state.comments.push(comment);
   listingCommentInput.value = "";
-  Rewards?.addEvent("helpful_forum", currentUser, { listingKey: listingDiscussionKey(currentListingDetail) });
   saveState();
-  void syncPublicRecord("comments", comment);
+  void syncPublicRecord("comments", comment)
+    .then(() => awardReward("helpful_forum", { targetKey: comment.id, listingKey: listingDiscussionKey(currentListingDetail) }));
   renderListingComments();
   updateUserButton();
   showToast("Yorum eklendi.");
@@ -1761,7 +1763,6 @@ function submitCommentReply(commentId, input) {
     };
   });
   input.value = "";
-  Rewards?.addEvent("helpful_forum", currentUser, { commentId });
   saveState();
   const updatedComment = state.comments.find((comment) => comment.id === commentId);
   if (updatedComment && isOwnedByCurrentUser("comments", updatedComment)) {
@@ -1879,7 +1880,7 @@ function unreadCommentCount() {
 
 function unreadNotificationCount() {
   const messages = unreadMessageCount();
-  const comments = unreadCommentCount();
+  const comments = unreadCommentCount() + rewardNotifications.filter((item) => !item.read_at).length;
   return { messages, comments, total: messages + comments };
 }
 
@@ -1937,10 +1938,32 @@ function setNotificationTab(tab) {
 function renderCommentNotifications() {
   const notifications = commentNotifications();
   commentsPanel.innerHTML = "";
-  if (!notifications.length) {
+  if (!notifications.length && !rewardNotifications.length) {
     commentsPanel.innerHTML = '<div class="notification-empty"><strong>Bildiriminiz yok.</strong><p>İlanlarına yorum veya cevap geldiğinde burada görünecek.</p></div>';
     return;
   }
+  rewardNotifications.forEach((notification) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "comment-notification reward-notification";
+    button.classList.toggle("is-unread", !notification.read_at);
+    button.innerHTML = `
+      <span>Radar Puanı</span>
+      <strong>${escapeHtml(notification.title)}</strong>
+      <p>${escapeHtml(Rewards?.RULES[notification.event_type]?.label || notification.body)}</p>
+      <em>${Number(notification.points || 0) > 0 ? "+" : ""}${Number(notification.points || 0)} puan · ${formatDateTime(notification.created_at)}</em>
+    `;
+    button.addEventListener("click", async () => {
+      if (!notification.read_at && supabaseClient) {
+        await supabaseClient.from("reward_notifications").update({ read_at: new Date().toISOString() }).eq("id", notification.id);
+        notification.read_at = new Date().toISOString();
+        updateUserButton();
+      }
+      setActiveView("rewards", { clearSearch: true, scroll: true });
+      closeMessageModal();
+    });
+    commentsPanel.appendChild(button);
+  });
   notifications.forEach((notification) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -1958,6 +1981,17 @@ function renderCommentNotifications() {
     });
     commentsPanel.appendChild(button);
   });
+}
+
+async function loadRewardNotifications() {
+  rewardNotifications = [];
+  if (!supabaseClient || !currentUser) return;
+  const { data, error } = await supabaseClient
+    .from("reward_notifications")
+    .select("id,title,body,points,event_type,read_at,created_at")
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (!error) rewardNotifications = data || [];
 }
 
 function openTopNotifications() {
@@ -2524,8 +2558,9 @@ function saveMarketListingFromModal() {
     updateMarketListing(marketEditingCarId, values);
   }
 
-  if (isNewListing && currentUser) {
-    Rewards?.addEvent("listing_created", currentUser, { marketType });
+  if (isNewListing && currentUser && !isStandalone) {
+    void syncPublicRecord("collection", state.collection.find((car) => car.id === marketEditingCarId))
+      .then(() => awardReward("listing_created", { targetKey: marketEditingCarId, marketType }));
   }
   closeMarketListingModal();
   marketPickMode = false;
@@ -2585,12 +2620,14 @@ function updateMarketListing(carId, values) {
 
 function saveStandaloneMarketListing(values) {
   let savedListing;
+  let created = false;
   if (marketEditingCarId && state.market.some((listing) => listing.id === marketEditingCarId)) {
     state.market = state.market.map((listing) => (
       listing.id === marketEditingCarId ? { ...listing, ...values } : listing
     ));
     savedListing = state.market.find((listing) => listing.id === marketEditingCarId);
   } else {
+    created = true;
     savedListing = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -2599,7 +2636,10 @@ function saveStandaloneMarketListing(values) {
     state.market.unshift(savedListing);
   }
   saveState();
-  void syncPublicRecord("market", savedListing);
+  void syncPublicRecord("market", savedListing).then(() => {
+    if (created) return awardReward("listing_created", { targetKey: savedListing.id, listingId: savedListing.id });
+    return null;
+  });
 }
 
 function marketSellerLabel(item) {
@@ -3097,6 +3137,7 @@ function renderRewardRules(rules) {
       <div>
         <strong>${escapeHtml(rule.label)}</strong>
         <p>${Number(rule.points || 0) > 0 ? "+" : ""}${Number(rule.points || 0)} Radar Puanı</p>
+        <small>${rule.oncePerTarget ? "Aynı kayıt için tek sefer" : rule.cooldownMinutes ? `${Number(rule.cooldownMinutes)} dk tekrar süresi` : "Sunucu doğrulamalı"}</small>
       </div>
     </article>
   `).join("");
@@ -3266,6 +3307,26 @@ async function loadSiteConfigFromSupabase() {
   applySiteConfig();
 }
 
+async function loadRewardSettingsFromSupabase() {
+  if (!supabaseClient || !Rewards) return;
+  const [{ data, error }, { data: actionRules }] = await Promise.all([
+    supabaseClient.from("reward_settings").select("value").eq("key", "default").maybeSingle(),
+    supabaseClient.from("reward_action_rules").select("event_type,label,points,seller_points,cooldown_minutes,once_per_target,tone,visual").eq("enabled", true)
+  ]);
+  if (error || !data?.value) return;
+  const rules = Object.fromEntries((actionRules || []).map((rule) => [rule.event_type, {
+    label: rule.label,
+    points: rule.points,
+    sellerPoints: rule.seller_points,
+    cooldownMinutes: rule.cooldown_minutes,
+    oncePerTarget: rule.once_per_target,
+    tone: rule.tone,
+    visual: rule.visual
+  }]));
+  siteConfig.rewardSettings = { ...Rewards.settings(), ...data.value, rules: { ...Rewards.settings().rules, ...rules }, version: 2 };
+  Rewards.configure(siteConfig.rewardSettings);
+}
+
 function supabaseUsernameFromUser(authUser) {
   return authUser?.user_metadata?.username
     || authUser?.user_metadata?.preferred_username
@@ -3322,6 +3383,7 @@ async function ensureSupabaseProfile(authUser) {
 
 async function initSupabaseAuth() {
   await loadSiteConfigFromSupabase();
+  await loadRewardSettingsFromSupabase();
   await loadPublicContentFromSupabase();
   render();
   if (!supabaseClient) {
@@ -3337,6 +3399,8 @@ async function initSupabaseAuth() {
   if (data.session?.user) {
     currentUser = await ensureSupabaseProfile(data.session.user);
     saveCurrentUser(currentUser);
+    await Rewards?.refresh();
+    await loadRewardNotifications();
     if (isAdminUser()) void syncManagedAssetsToSupabase();
     await syncOwnedLocalContentToSupabase();
     updateUserButton();
@@ -3353,6 +3417,8 @@ async function initSupabaseAuth() {
     }
     currentUser = session?.user ? await ensureSupabaseProfile(session.user) : null;
     saveCurrentUser(currentUser);
+    if (currentUser) await Rewards?.refresh();
+    if (currentUser) await loadRewardNotifications();
     if (isAdminUser()) void syncManagedAssetsToSupabase();
     if (currentUser) await syncOwnedLocalContentToSupabase();
     updateUserButton();
@@ -3438,22 +3504,20 @@ function renderProfileRewards() {
   if (!Rewards || !currentUser) return;
   const stats = Rewards.statsFor(currentUser, state);
   const rank = Rewards.rankFor(stats.points);
-  const nextRank = Rewards.nextRankFor(stats.points);
+  const rankProgress = Rewards.rankProgress(stats.points);
+  const nextRank = rankProgress.next;
   const avatar = Rewards.getAvatar(currentUser);
   pendingProfileAvatar = pendingProfileAvatar || avatar;
   applyAvatarElement(profileAvatar, pendingProfileAvatar, currentUser);
   profileRadarPoints.textContent = String(stats.points);
   profileRankBadge.innerHTML = rankImageMarkup(rank, "profile-rank-image");
   profileRank.textContent = rank.title;
-  profileNextRank.textContent = nextRank ? `${nextRank.min - stats.points} puan sonra ${nextRank.title}` : "Maksimum seviye";
+  profileNextRank.textContent = nextRank ? `Sonraki ranka ${rankProgress.remaining} puan kaldı` : "Maksimum rank";
   profileSellerScore.textContent = String(stats.sellerScore);
   profileVerificationScore.textContent = String(stats.verificationScore || 0);
-  const previousMin = Number(rank.min || 0);
-  const nextMin = nextRank ? Number(nextRank.min || 0) : Math.max(stats.points, previousMin + 1);
-  const progress = nextRank ? Math.min(100, Math.round(((stats.points - previousMin) / Math.max(1, nextMin - previousMin)) * 100)) : 100;
-  profileProgressLabel.textContent = nextRank ? `${rank.title} -> ${nextRank.title}` : "Garaj Ustası seviyesi";
-  profileProgressValue.textContent = `${progress}%`;
-  profileProgressFill.style.width = `${progress}%`;
+  profileProgressLabel.textContent = nextRank ? `${rank.title} → ${nextRank.title}` : "HR Garaj Ustası";
+  profileProgressValue.textContent = `${rankProgress.percent}%`;
+  profileProgressFill.style.width = `${rankProgress.percent}%`;
   const badges = Rewards.badgesFor(currentUser, state);
   profileBadges.innerHTML = badges.length
     ? badges.map((badge) => `<span class="reward-badge"><b>${escapeHtml(badge.icon)}</b>${escapeHtml(badge.title)}</span>`).join("")
@@ -3502,6 +3566,28 @@ function showToast(message) {
   }, 2800);
 }
 
+async function awardReward(type, meta = {}, successMessage = "") {
+  if (!Rewards || !currentUser) return null;
+  const result = await Rewards.addEvent(type, currentUser, meta);
+  if (result?.awarded) {
+    showToast(successMessage || `${Number(result.points) > 0 ? "+" : ""}${result.points} Radar Puanı`);
+    await loadRewardNotifications();
+    updateUserButton();
+    renderLeaderboard();
+    renderRewardCenter();
+    return result;
+  }
+  const messages = {
+    duplicate: "Bu katkı için puan daha önce verildi.",
+    cooldown: "Aynı aksiyondan tekrar puan kazanmak için biraz beklemelisin.",
+    daily_limit: "Bugünkü 150 Radar Puanı limitine ulaştın.",
+    self_vote: "Kendi radar notunu doğrulayamazsın.",
+    server_rejected: "Puan işlemi güvenlik kontrolünden geçmedi."
+  };
+  if (messages[result?.reason]) showToast(messages[result.reason]);
+  return result;
+}
+
 function formatProfileDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
@@ -3547,9 +3633,11 @@ function storeRewardPreview(item) {
   if (!Rewards) return 0;
   const hasPhoto = item.confidence === "Fotoğraflı";
   const isEmpty = item.status === "Boş" || /boş/i.test(item.models || "");
-  if (hasPhoto && isEmpty) return Number(Rewards.RULES.empty_shelf_photo?.points || 0);
-  if (hasPhoto) return Number(Rewards.RULES.store_photo_report?.points || 0);
-  return 0;
+  if (/STH/i.test(item.status || "")) return Number(Rewards.RULES.radar_sth?.points || 0);
+  if (/(^|\s)TH(\s|$)/i.test(item.status || "")) return Number(Rewards.RULES.radar_th?.points || 0);
+  if (/premium/i.test(item.status || "")) return Number(Rewards.RULES.radar_premium?.points || 0);
+  if (isEmpty) return Number(Rewards.RULES.radar_empty?.points || 0);
+  return Number(Rewards.RULES[hasPhoto ? "radar_photo" : "radar_text"]?.points || 0);
 }
 
 function addStoreRewardPanel(card, item) {
@@ -3557,6 +3645,8 @@ function addStoreRewardPanel(card, item) {
   panel.className = "store-reward-panel";
   const points = storeRewardPreview(item);
   const votes = item.verifications || { correct: 0, gone: 0, wrong: 0 };
+  const currentVote = currentUser ? item.verificationUsers?.[currentUser.id] : "";
+  const isOwnReport = isOwnedByCurrentUser("stores", item);
   const evidenceLabel = item.confidence === "Fotoğraflı" ? "Fotoğraflı kanıt var" : "Kanıt puanı";
   panel.innerHTML = `
     <div class="store-reward-panel__score">
@@ -3565,10 +3655,11 @@ function addStoreRewardPanel(card, item) {
       <small>${evidenceLabel}</small>
     </div>
     <div class="store-verify-actions">
-      <button type="button" data-store-vote="correct">Doğru <em>${votes.correct || 0}</em></button>
-      <button type="button" data-store-vote="gone">Artık kalmadı <em>${votes.gone || 0}</em></button>
-      <button type="button" data-store-vote="wrong">Yanlış bilgi <em>${votes.wrong || 0}</em></button>
+      <button type="button" data-store-vote="correct" ${isOwnReport || currentVote ? "disabled" : ""}>Hâlâ var <em>${votes.correct || 0}</em></button>
+      <button type="button" data-store-vote="gone" ${isOwnReport || currentVote ? "disabled" : ""}>Artık kalmadı <em>${votes.gone || 0}</em></button>
+      <button type="button" data-store-vote="wrong" ${isOwnReport || currentVote ? "disabled" : ""}>Yanlış bilgi <em>${votes.wrong || 0}</em></button>
     </div>
+    ${isOwnReport ? '<small class="store-vote-hint">Kendi radar notuna oy veremezsin.</small>' : currentVote ? '<small class="store-vote-hint">Bu radar notunu doğruladın.</small>' : ""}
   `;
   panel.querySelectorAll("[data-store-vote]").forEach((button) => {
     button.addEventListener("click", () => voteStoreReport(item.id, button.dataset.storeVote));
@@ -3577,16 +3668,42 @@ function addStoreRewardPanel(card, item) {
 }
 
 function voteStoreReport(storeId, vote) {
-  requireAuth(() => {
+  requireAuth(async () => {
+    const selectedStore = state.stores.find((item) => item.id === storeId);
+    if (!selectedStore) return;
+    if (isOwnedByCurrentUser("stores", selectedStore)) {
+      showToast("Kendi radar notuna oy veremezsin.");
+      return;
+    }
+    if (selectedStore.verificationUsers?.[currentUser.id]) {
+      showToast("Aynı radar notuna yalnızca bir kez oy verebilirsin.");
+      return;
+    }
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient.rpc("vote_store_report", {
+        p_store_report_id: String(storeId),
+        p_vote: vote
+      });
+      if (error || data?.reason === "duplicate") {
+        showToast(data?.reason === "duplicate" ? "Aynı radar notuna yalnızca bir kez oy verebilirsin." : "Doğrulama kaydedilemedi.");
+        return;
+      }
+      await Rewards?.refresh();
+    }
     state.stores = state.stores.map((store) => {
       if (store.id !== storeId) return store;
       const verifications = { correct: 0, gone: 0, wrong: 0, ...(store.verifications || {}) };
       verifications[vote] += 1;
-      return { ...store, verifications };
+      return { ...store, verifications, verificationUsers: { ...(store.verificationUsers || {}), [currentUser.id]: vote } };
     });
-    if (vote === "correct") Rewards?.addEvent("store_verified", currentUser, { storeId });
-    if (vote === "wrong") Rewards?.addEvent("false_report", currentUser, { storeId });
+    if (!supabaseClient) {
+      const rewardType = vote === "correct" ? "vote_correct" : vote === "gone" ? "vote_gone" : "vote_wrong";
+      await awardReward(rewardType, { storeId, targetKey: storeId });
+    } else {
+      showToast("Doğrulaman kaydedildi.");
+    }
     saveState();
+    void syncPublicRecord("stores", state.stores.find((item) => item.id === storeId));
     render();
   });
 }
@@ -3903,10 +4020,12 @@ function renderAdminRewardSettings() {
 async function saveAdminRewardSettings() {
   try {
     siteConfig.rewardSettings = {
+      version: 2,
       enabled: adminRewardEnabled.checked,
       previewEnabled: adminRewardPreviewEnabled.checked,
       title: adminRewardTitle.value.trim() || "Radar Puanı",
       description: adminRewardDescription.value.trim(),
+      limits: Rewards.settings().limits,
       rules: JSON.parse(adminRewardRulesJson.value || "{}"),
       ranks: JSON.parse(adminRewardRanksJson.value || "[]"),
       badges: JSON.parse(adminRewardBadgesJson.value || "[]"),
@@ -3914,6 +4033,25 @@ async function saveAdminRewardSettings() {
       featuredBadges: adminRewardFeaturedBadges.value.split(",").map((item) => item.trim()).filter(Boolean)
     };
     await saveSiteConfigToSupabase();
+    if (supabaseClient && isAdminUser()) {
+      const { error } = await supabaseClient
+        .from("reward_settings")
+        .upsert({ key: "default", value: siteConfig.rewardSettings, updated_by: currentUser.id });
+      if (error) throw error;
+      const ruleRows = Object.entries(siteConfig.rewardSettings.rules).map(([eventType, rule]) => ({
+        event_type: eventType,
+        label: rule.label,
+        points: Number(rule.points || 0),
+        seller_points: Number(rule.sellerPoints || 0),
+        cooldown_minutes: Number(rule.cooldownMinutes || 0),
+        once_per_target: rule.oncePerTarget !== false,
+        tone: rule.tone || "gold",
+        visual: rule.visual || "verified-radar",
+        enabled: true
+      }));
+      const { error: rulesError } = await supabaseClient.from("reward_action_rules").upsert(ruleRows);
+      if (rulesError) throw rulesError;
+    }
     showToast("Puan ve rozet ayarları kaydedildi.");
   } catch (error) {
     setAdminStatus(`Reward JSON hatası: ${error.message}`);
@@ -4468,17 +4606,37 @@ function addEntry(type, entry) {
     ...(type === "stores" ? { date: new Date().toLocaleDateString("tr-TR"), createdAt: new Date().toISOString() } : {})
   });
   state[type].unshift(record);
+  saveState();
+  void syncPublicRecord(type, record).then(() => rewardNewEntry(type, record));
+  render();
+}
+
+async function rewardNewEntry(type, record) {
+  if (!currentUser) return;
   if (type === "stores" && currentUser) {
-    const emptyShelfPoints = Number(Rewards?.RULES.empty_shelf_photo?.points || 0);
-    const pointType = emptyShelfPoints && storeRewardPreview(record) === emptyShelfPoints ? "empty_shelf_photo" : record.confidence === "Fotoğraflı" ? "store_photo_report" : "";
-    if (pointType) Rewards?.addEvent(pointType, currentUser, { storeId: record.id });
+    const pointType = /STH/i.test(record.status || "")
+      ? "radar_sth"
+      : /(^|\s)TH(\s|$)/i.test(record.status || "")
+        ? "radar_th"
+        : /premium/i.test(record.status || "")
+          ? "radar_premium"
+          : record.status === "Boş" || /boş/i.test(record.models || "")
+            ? "radar_empty"
+            : record.confidence === "Fotoğraflı"
+              ? "radar_photo"
+              : "radar_text";
+    await awardReward(pointType, {
+      targetKey: record.id,
+      storeId: record.id,
+      storeKey: [record.store, record.city, record.area].map(normalize).join("|")
+    });
   }
   if (type === "market" && currentUser) {
-    Rewards?.addEvent("listing_created", currentUser, { listingId: record.id });
+    await awardReward("listing_created", { targetKey: record.id, listingId: record.id });
   }
-  saveState();
-  void syncPublicRecord(type, record);
-  render();
+  if (type === "collection" && currentUser) {
+    await awardReward("garage_created", { targetKey: record.id, collectionId: record.id });
+  }
 }
 
 function setActiveView(view, options = {}) {
@@ -4749,7 +4907,14 @@ carForm.addEventListener("submit", (event) => {
       ));
       const updated = state.collection.find((car) => car.id === editingCarId);
       saveState();
-      void syncPublicRecord("collection", updated);
+      void syncPublicRecord("collection", updated).then(() => {
+        const completedNow = ["Satıldı", "Takaslandı"].includes(updated.listingStatus);
+        const wasCompleted = ["Satıldı", "Takaslandı"].includes(existing.listingStatus);
+        if (completedNow && !wasCompleted) {
+          return awardReward("deal_completed", { targetKey: updated.id, listingId: updated.id });
+        }
+        return null;
+      });
       stopCarEdit();
       render();
       return;
