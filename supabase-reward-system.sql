@@ -12,8 +12,8 @@ insert into public.reward_settings (key, value)
 values ('default', '{
   "daily_limit": 150,
   "store_cooldown_minutes": 60,
-  "verification_threshold": 2,
-  "wrong_threshold": 2,
+  "verification_threshold": 3,
+  "wrong_threshold": 3,
   "ranks": [
     {"id":"r1","title":"R1 Çaylak Avcı","min":0},
     {"id":"r2","title":"R2 Raf Takipçisi","min":250},
@@ -100,6 +100,26 @@ create table if not exists public.store_report_votes (
   check (report_owner_id <> voter_id)
 );
 
+create table if not exists public.store_report_states (
+  store_report_id text primary key,
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending','verified','expired','disputed')),
+  correct_count integer not null default 0,
+  gone_count integer not null default 0,
+  wrong_count integer not null default 0,
+  expires_at timestamptz not null default (now() + interval '8 hours'),
+  last_activity_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.store_report_states add column if not exists status text not null default 'pending';
+alter table public.store_report_states add column if not exists correct_count integer not null default 0;
+alter table public.store_report_states add column if not exists gone_count integer not null default 0;
+alter table public.store_report_states add column if not exists wrong_count integer not null default 0;
+alter table public.store_report_states add column if not exists expires_at timestamptz not null default (now() + interval '8 hours');
+alter table public.store_report_states add column if not exists last_activity_at timestamptz not null default now();
+alter table public.store_report_states add column if not exists updated_at timestamptz not null default now();
+
 create table if not exists public.reward_notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -133,6 +153,7 @@ alter table public.reward_action_rules enable row level security;
 alter table public.reward_events enable row level security;
 alter table public.user_rewards enable row level security;
 alter table public.store_report_votes enable row level security;
+alter table public.store_report_states enable row level security;
 alter table public.reward_notifications enable row level security;
 alter table public.badges enable row level security;
 alter table public.user_badges enable row level security;
@@ -157,8 +178,10 @@ drop policy if exists "user rewards public readable" on public.user_rewards;
 create policy "user rewards public readable" on public.user_rewards for select to authenticated using (true);
 
 drop policy if exists "votes readable" on public.store_report_votes;
-create policy "votes readable" on public.store_report_votes for select to authenticated using (true);
--- Votes are inserted only through vote_store_report().
+-- Raw votes are private. Public summaries are exposed by a security-definer RPC.
+
+drop policy if exists "store report states readable" on public.store_report_states;
+-- State rows include owner IDs. Clients only receive the safe projection from get_store_report_summaries().
 
 drop policy if exists "users read own reward notifications" on public.reward_notifications;
 create policy "users read own reward notifications" on public.reward_notifications
@@ -185,6 +208,77 @@ as $$
   select points, seller_points, cooldown_minutes, once_per_target
   from public.reward_action_rules
   where event_type = p_event_type and enabled;
+$$;
+
+create or replace function public.sync_store_report_state()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.content_type = 'stores' then
+    insert into public.store_report_states(store_report_id, owner_id, expires_at, last_activity_at)
+    values (new.id, new.owner_id, coalesce(new.created_at, now()) + interval '8 hours', coalesce(new.updated_at, now()))
+    on conflict (store_report_id) do update set
+      owner_id = excluded.owner_id,
+      last_activity_at = greatest(public.store_report_states.last_activity_at, excluded.last_activity_at);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists content_records_sync_store_state on public.content_records;
+create trigger content_records_sync_store_state
+after insert or update on public.content_records
+for each row execute function public.sync_store_report_state();
+
+insert into public.store_report_states(store_report_id, owner_id, expires_at, last_activity_at)
+select id, owner_id, created_at + interval '8 hours', updated_at
+from public.content_records
+where content_type = 'stores'
+on conflict (store_report_id) do nothing;
+
+create or replace function public.get_store_report_summaries()
+returns table(
+  store_report_id text,
+  status text,
+  correct_count integer,
+  gone_count integer,
+  wrong_count integer,
+  total_votes integer,
+  current_vote text,
+  expires_at timestamptz,
+  last_activity_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.store_report_states s
+  set status = 'expired', updated_at = now()
+  where s.status = 'pending' and s.expires_at <= now();
+
+  return query
+  select
+    s.store_report_id,
+    s.status,
+    s.correct_count,
+    s.gone_count,
+    s.wrong_count,
+    s.correct_count + s.gone_count + s.wrong_count,
+    (
+      select v.vote
+      from public.store_report_votes v
+      where v.store_report_id = s.store_report_id
+        and v.voter_id = auth.uid()
+      limit 1
+    ),
+    s.expires_at,
+    s.last_activity_at
+  from public.store_report_states s;
+end;
 $$;
 
 create or replace function public.apply_reward_event(
@@ -369,6 +463,8 @@ declare
   v_counts record;
   v_consensus text;
   v_vote record;
+  v_state_status text;
+  v_expires_at timestamptz;
 begin
   if auth.uid() is null then raise exception 'login_required'; end if;
   if p_vote not in ('correct','gone','wrong') then raise exception 'invalid_vote'; end if;
@@ -380,6 +476,29 @@ begin
   if v_owner is null then raise exception 'report_not_found'; end if;
   if v_owner = auth.uid() then
     return jsonb_build_object('awarded', false, 'reason', 'self_vote');
+  end if;
+
+  insert into public.store_report_states(store_report_id, owner_id, expires_at, last_activity_at)
+  select id, owner_id, created_at + interval '8 hours', updated_at
+  from public.content_records
+  where id = p_store_report_id and content_type = 'stores'
+  on conflict (store_report_id) do nothing;
+
+  select s.status, s.expires_at
+  into v_state_status, v_expires_at
+  from public.store_report_states s
+  where s.store_report_id = p_store_report_id
+  for update;
+
+  if v_expires_at <= now() and v_state_status = 'pending' then
+    update public.store_report_states
+    set status = 'expired', updated_at = now()
+    where store_report_id = p_store_report_id;
+    return jsonb_build_object('awarded', false, 'reason', 'expired');
+  end if;
+
+  if v_state_status <> 'pending' then
+    return jsonb_build_object('awarded', false, 'reason', 'closed', 'status', v_state_status);
   end if;
 
   insert into public.store_report_votes(store_report_id, report_owner_id, voter_id, vote)
@@ -396,11 +515,36 @@ begin
   from public.store_report_votes where store_report_id = p_store_report_id;
 
   v_consensus := case
-    when v_counts.wrong_count >= 2 and v_counts.wrong_count >= v_counts.correct_count and v_counts.wrong_count >= v_counts.gone_count then 'wrong'
-    when v_counts.gone_count >= 2 and v_counts.gone_count >= v_counts.correct_count then 'gone'
-    when v_counts.correct_count >= 2 then 'correct'
+    when v_counts.wrong_count >= 3 and v_counts.wrong_count >= v_counts.correct_count and v_counts.wrong_count >= v_counts.gone_count then 'wrong'
+    when v_counts.gone_count >= 3 and v_counts.gone_count >= v_counts.correct_count then 'gone'
+    when v_counts.correct_count >= 3 then 'correct'
     else null
   end;
+
+  insert into public.store_report_states(
+    store_report_id, owner_id, status, correct_count, gone_count, wrong_count, last_activity_at, updated_at
+  )
+  values (
+    p_store_report_id,
+    v_owner,
+    case v_consensus when 'correct' then 'verified' when 'gone' then 'expired' when 'wrong' then 'disputed' else 'pending' end,
+    v_counts.correct_count,
+    v_counts.gone_count,
+    v_counts.wrong_count,
+    now(),
+    now()
+  )
+  on conflict (store_report_id) do update set
+    status = case
+      when excluded.status <> 'pending' then excluded.status
+      when public.store_report_states.expires_at <= now() then 'expired'
+      else public.store_report_states.status
+    end,
+    correct_count = excluded.correct_count,
+    gone_count = excluded.gone_count,
+    wrong_count = excluded.wrong_count,
+    last_activity_at = now(),
+    updated_at = now();
 
   if v_consensus is not null then
     for v_vote in
@@ -436,8 +580,10 @@ $$;
 revoke all on function public.apply_reward_event(uuid, text, text, jsonb) from public, anon, authenticated;
 revoke all on function public.award_reward_event(text, text, jsonb) from public, anon;
 revoke all on function public.vote_store_report(text, text) from public, anon;
+revoke all on function public.get_store_report_summaries() from public;
 grant execute on function public.award_reward_event(text, text, jsonb) to authenticated;
 grant execute on function public.vote_store_report(text, text) to authenticated;
+grant execute on function public.get_store_report_summaries() to anon, authenticated;
 
 insert into public.badges(id, title, description, requirement, visual, tone) values
 ('photo-proof','Fotoğraflı Kanıtçı','Radar notlarına gerçek raf fotoğrafı ekle.','{"event":"radar_photo","count":10}','camera-proof','red'),

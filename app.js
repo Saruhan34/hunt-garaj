@@ -7,6 +7,8 @@ const SUPABASE_ANON_KEY = "sb_publishable_Zj-Vq30wPbhXccBxnenbDQ_T2HNo_1W";
 const ADMIN_EMAIL = "saruhanckmak@gmail.com";
 const SITE_SETTINGS_KEY = "hunt-radar-site-config";
 const CONTENT_TABLE = "content_records";
+const RADAR_PHOTO_TABLE = "radar_note_photos";
+const MAX_STORE_PHOTOS = 8;
 const ASSET_BUCKET = "hunt-radar-assets";
 const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
 const MANAGED_ASSET_PATHS = [
@@ -389,10 +391,15 @@ let activeMarketMinPrice = 0;
 let activeMarketMaxPrice = null;
 let activeGlobalSearchScope = "all";
 let activeLeaderboardPeriod = "daily";
+let storeVerificationSummaries = {};
+let radarNotePhotos = {};
+let pendingStorePhotoFiles = [];
+const storePhotoPreviewUrls = new WeakMap();
 let marketPickMode = false;
 let editingCarId = null;
 let marketEditingCarId = null;
 let currentListingDetail = null;
+let currentStoreDetail = null;
 let activeThreadKey = "";
 let activeThreadDraftListing = null;
 let activeThreadDraftRecipient = "";
@@ -557,7 +564,13 @@ const adminRewardFeaturedBadges = document.querySelector("#adminRewardFeaturedBa
 const saveRewardSettings = document.querySelector("#saveRewardSettings");
 const storePreset = document.querySelector("#storePreset");
 const storeName = document.querySelector("#storeName");
+const storePrice = document.querySelector("#storePrice");
 const otherStoreField = document.querySelector("#otherStoreField");
+const storePhotoFiles = document.querySelector("#storePhotoFiles");
+const storePhotoCount = document.querySelector("#storePhotoCount");
+const storePhotoStatus = document.querySelector("#storePhotoStatus");
+const storePhotoPreview = document.querySelector("#storePhotoPreview");
+const storePhotoPicker = document.querySelector(".store-photo-picker");
 const STORE_NAME_REQUIRED_PRESETS = ["Kırtasiye", "Oyuncakçı", "Diğer"];
 const carForm = document.querySelector("#carForm");
 const carSubmitButton = document.querySelector("#carSubmitButton");
@@ -609,6 +622,16 @@ const favoriteListingDetail = document.querySelector("#favoriteListingDetail");
 const messageSellerDetail = document.querySelector("#messageSellerDetail");
 const editListingDetail = document.querySelector("#editListingDetail");
 const removeListingDetail = document.querySelector("#removeListingDetail");
+const storeDetailModal = document.querySelector("#storeDetailModal");
+const storeDetailGallery = document.querySelector("#storeDetailGallery");
+const storeDetailTitle = document.querySelector("#storeDetailTitle");
+const storeDetailSubtitle = document.querySelector("#storeDetailSubtitle");
+const storeDetailStatus = document.querySelector("#storeDetailStatus");
+const storeDetailFacts = document.querySelector("#storeDetailFacts");
+const storeDetailModels = document.querySelector("#storeDetailModels");
+const storeDetailVerification = document.querySelector("#storeDetailVerification");
+const storePhotoLightbox = document.querySelector("#storePhotoLightbox");
+const storePhotoLightboxImage = document.querySelector("#storePhotoLightboxImage");
 const messageModal = document.querySelector("#messageModal");
 const closeMessageModalButton = document.querySelector("#closeMessageModal");
 const messageModalTitle = document.querySelector("#messageModalTitle");
@@ -980,7 +1003,7 @@ function denyForeignRecordAction() {
 }
 
 async function syncPublicRecord(type, record) {
-  if (!supabaseClient || !currentUser || !record?.id || !isOwnedByCurrentUser(type, record)) return;
+  if (!supabaseClient || !currentUser || !record?.id || !isOwnedByCurrentUser(type, record)) return false;
   const { error } = await supabaseClient
     .from(CONTENT_TABLE)
     .upsert({
@@ -993,7 +1016,9 @@ async function syncPublicRecord(type, record) {
     }, { onConflict: "id" });
   if (error && error.code !== "42P01") {
     console.warn("Kayıt Supabase'e yazılamadı:", error.message);
+    return false;
   }
+  return !error;
 }
 
 async function deletePublicRecord(type, record) {
@@ -1019,7 +1044,7 @@ async function loadPublicContentFromSupabase() {
   if (!supabaseClient) return;
   const { data, error } = await supabaseClient
     .from(CONTENT_TABLE)
-    .select("id, content_type, owner_id, owner_username, data");
+    .select("id, content_type, owner_id, owner_username, data, created_at, updated_at");
   if (error) {
     if (error.code !== "42P01") console.warn("Supabase içerikleri okunamadı:", error.message);
     return;
@@ -1037,6 +1062,70 @@ async function loadPublicContentFromSupabase() {
   saveState();
 }
 
+async function loadRadarNotePhotosFromSupabase() {
+  if (!supabaseClient) {
+    radarNotePhotos = {};
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from(RADAR_PHOTO_TABLE)
+    .select("radar_note_id, photo_url, sort_order")
+    .order("sort_order", { ascending: true });
+  if (error) {
+    if (!["42P01", "PGRST205"].includes(error.code)) {
+      console.warn("Radar fotoğrafları okunamadı:", error.message);
+    }
+    return;
+  }
+  radarNotePhotos = (data || []).reduce((groups, row) => {
+    const key = String(row.radar_note_id);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(row.photo_url);
+    return groups;
+  }, {});
+}
+
+async function syncRadarNotePhotos(record) {
+  const photos = storePhotos(record)
+    .filter((photo) => !photo.startsWith("data:") && photo.length <= 4096)
+    .slice(0, MAX_STORE_PHOTOS);
+  if (!supabaseClient || !currentUser || !record?.id || !photos.length || !isOwnedByCurrentUser("stores", record)) return;
+  const rows = photos.map((photoUrl, sortOrder) => ({
+    radar_note_id: String(record.id),
+    user_id: currentUser.id,
+    photo_url: photoUrl,
+    sort_order: sortOrder
+  }));
+  const { error } = await supabaseClient
+    .from(RADAR_PHOTO_TABLE)
+    .upsert(rows, { onConflict: "radar_note_id,sort_order" });
+  if (error) {
+    if (!["42P01", "PGRST205"].includes(error.code)) {
+      console.warn("Radar fotoğrafları kaydedilemedi:", error.message);
+    }
+    return;
+  }
+  radarNotePhotos[String(record.id)] = photos;
+}
+
+async function loadStoreVerificationSummaries() {
+  if (!supabaseClient) {
+    storeVerificationSummaries = {};
+    return;
+  }
+  const { data, error } = await supabaseClient.rpc("get_store_report_summaries");
+  if (error) {
+    if (!["42883", "42P01", "PGRST202"].includes(error.code)) {
+      console.warn("Radar doğrulama özetleri okunamadı:", error.message);
+    }
+    return;
+  }
+  storeVerificationSummaries = Object.fromEntries((data || []).map((summary) => [
+    String(summary.store_report_id),
+    summary
+  ]));
+}
+
 async function syncOwnedLocalContentToSupabase() {
   if (!supabaseClient || !currentUser) return;
   const records = [
@@ -1046,11 +1135,19 @@ async function syncOwnedLocalContentToSupabase() {
     ...state.market.map((record) => ["market", record]),
     ...state.comments.map((record) => ["comments", record])
   ].filter(([type, record]) => isOwnedByCurrentUser(type, record));
-  await Promise.all(records.map(([type, record]) => syncPublicRecord(type, record)));
+  await Promise.all(records.map(async ([type, record]) => {
+    const synced = await syncPublicRecord(type, record);
+    if (synced && type === "stores") await syncRadarNotePhotos(record);
+  }));
 }
 
 function ownedRemoteRecord(type, row) {
-  const base = { ...(row.data || {}), id: row.id };
+  const base = {
+    ...(row.data || {}),
+    id: row.id,
+    createdAt: row.created_at || row.data?.createdAt,
+    updatedAt: row.updated_at || row.data?.updatedAt
+  };
   if (type === "market") {
     return { ...base, sellerId: row.owner_id, sellerUsername: row.owner_username };
   }
@@ -1173,15 +1270,30 @@ function createCard(item) {
 
   if (activeView === "stores") {
     editButton.remove();
-    media.remove();
-    meta.remove();
+    card.querySelector(".mini-car")?.remove();
     const tone = statusTone[item.status] || "neutral";
     card.classList.add("store-card", `store-card--${tone}`);
+    renderStoreEvidence(media, item);
     title.textContent = item.store;
-    muted.textContent = [locationLabel(item), item.spot, item.price, freshnessLabel(item)].filter(Boolean).join(" · ");
-    addTags(tags, [item.status, item.confidence, displayPerson(item.reporter)]);
+    muted.textContent = [locationLabel(item), freshnessLabel(item)].filter(Boolean).join(" · ");
+    addTags(tags, [item.status, item.confidence]);
     notes.textContent = item.models;
-    addStoreRewardPanel(card, item);
+    addMeta(meta, [
+      `@${item.reporterUsername || item.reporter || "anonim"}`
+    ]);
+    addStoreCardSummary(card, item);
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `${item.store} radar detayını aç`);
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, select, textarea")) return;
+      openStoreDetail(item);
+    });
+    card.addEventListener("keydown", (event) => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      openStoreDetail(item);
+    });
   }
 
   if (activeView === "market") {
@@ -3385,6 +3497,8 @@ async function initSupabaseAuth() {
   await loadSiteConfigFromSupabase();
   await loadRewardSettingsFromSupabase();
   await loadPublicContentFromSupabase();
+  await loadRadarNotePhotosFromSupabase();
+  await loadStoreVerificationSummaries();
   render();
   if (!supabaseClient) {
     syncAdminVisibility();
@@ -3401,6 +3515,7 @@ async function initSupabaseAuth() {
     saveCurrentUser(currentUser);
     await Rewards?.refresh();
     await loadRewardNotifications();
+    await loadStoreVerificationSummaries();
     if (isAdminUser()) void syncManagedAssetsToSupabase();
     await syncOwnedLocalContentToSupabase();
     updateUserButton();
@@ -3419,6 +3534,7 @@ async function initSupabaseAuth() {
     saveCurrentUser(currentUser);
     if (currentUser) await Rewards?.refresh();
     if (currentUser) await loadRewardNotifications();
+    await loadStoreVerificationSummaries();
     if (isAdminUser()) void syncManagedAssetsToSupabase();
     if (currentUser) await syncOwnedLocalContentToSupabase();
     updateUserButton();
@@ -3603,8 +3719,126 @@ function formatCurrency(value) {
   return clean ? `${clean} TL` : "";
 }
 
+function formatStorePrice(value) {
+  const clean = String(value || "")
+    .replace(/[^\d,.]/g, "")
+    .replace(/\./g, ",")
+    .replace(/(,.*),/g, "$1");
+  return clean ? `${clean} TL` : "";
+}
+
 function updateListingPhotoPreview() {
   updateImagePreview(modalListingPhotoPreview, modalListingPhoto.value.trim(), { cropZoom: "1", cropX: "50", cropY: "50" });
+}
+
+function storePhotoFileKey(file) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+function addStorePhotoFiles(files) {
+  const existing = new Set(pendingStorePhotoFiles.map(storePhotoFileKey));
+  const accepted = [...files].filter((file) => (
+    ["image/png", "image/jpeg", "image/webp"].includes(file.type)
+    && file.size <= 10 * 1024 * 1024
+    && !existing.has(storePhotoFileKey(file))
+  ));
+  pendingStorePhotoFiles = [...pendingStorePhotoFiles, ...accepted].slice(0, MAX_STORE_PHOTOS);
+  storePhotoFiles.value = "";
+  updateStorePhotoPreview();
+  if ([...files].length > accepted.length) {
+    showToast("Bazı dosyalar tür, boyut, tekrar veya 8 fotoğraf sınırı nedeniyle eklenmedi.");
+  }
+}
+
+function removeStorePhotoFile(index) {
+  const [removed] = pendingStorePhotoFiles.splice(index, 1);
+  const previewUrl = removed && storePhotoPreviewUrls.get(removed);
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  updateStorePhotoPreview();
+}
+
+function resetStorePhotoSelection() {
+  pendingStorePhotoFiles.forEach((file) => {
+    const previewUrl = storePhotoPreviewUrls.get(file);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  });
+  pendingStorePhotoFiles = [];
+  storePhotoFiles.value = "";
+  updateStorePhotoPreview();
+}
+
+function updateStorePhotoPreview() {
+  const files = pendingStorePhotoFiles;
+  storePhotoPreview.innerHTML = "";
+  storePhotoPreview.classList.toggle("is-empty", files.length === 0);
+  storePhotoCount.textContent = `${files.length} / ${MAX_STORE_PHOTOS}`;
+  storePhotoStatus.textContent = files.length
+    ? `${files.length} fotoğraf seçildi. İlk fotoğraf otomatik kapak olacak.`
+    : "Henüz fotoğraf seçilmedi.";
+  if (!files.length) {
+    storePhotoPreview.innerHTML = `
+      <div class="store-evidence__empty">
+        <span class="store-evidence__icon" aria-hidden="true"></span>
+        <strong>Fotoğraf önizlemesi</strong>
+        <small>Seçtiğin fotoğraflar burada kaydırmalı görünür.</small>
+      </div>
+    `;
+    return;
+  }
+  files.forEach((file, index) => {
+    if (!storePhotoPreviewUrls.has(file)) storePhotoPreviewUrls.set(file, URL.createObjectURL(file));
+    const preview = document.createElement("div");
+    preview.className = `store-photo-preview__item ${index === 0 ? "is-cover" : ""}`;
+    const image = document.createElement("img");
+    image.alt = index === 0 ? "Kapak fotoğrafı önizlemesi" : `${index + 1}. fotoğraf önizlemesi`;
+    image.loading = "lazy";
+    image.src = storePhotoPreviewUrls.get(file);
+    preview.appendChild(image);
+    const label = document.createElement("span");
+    label.textContent = index === 0 ? "Kapak" : `${index + 1} / ${files.length}`;
+    preview.appendChild(label);
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "store-photo-preview__remove";
+    removeButton.setAttribute("aria-label", `${index + 1}. fotoğrafı kaldır`);
+    removeButton.textContent = "×";
+    removeButton.addEventListener("click", () => removeStorePhotoFile(index));
+    preview.appendChild(removeButton);
+    storePhotoPreview.appendChild(preview);
+  });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => resolve(""));
+    reader.readAsDataURL(file);
+  });
+}
+
+function safeStorageFileName(file, index) {
+  const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  return `${String(index + 1).padStart(2, "0")}-${crypto.randomUUID()}.${extension}`;
+}
+
+async function prepareStorePhotoUrls(recordId) {
+  if (!pendingStorePhotoFiles.length) return [];
+  if (!supabaseClient) {
+    return (await Promise.all(pendingStorePhotoFiles.map(fileToDataUrl))).filter(Boolean);
+  }
+  const uploaded = [];
+  for (let index = 0; index < pendingStorePhotoFiles.length; index += 1) {
+    const file = pendingStorePhotoFiles[index];
+    const path = `radar-notes/${currentUser.id}/${recordId}/${safeStorageFileName(file, index)}`;
+    const { error } = await supabaseClient.storage
+      .from(ASSET_BUCKET)
+      .upload(path, file, { upsert: false, contentType: file.type, cacheControl: "31536000" });
+    if (error) throw error;
+    const { data } = supabaseClient.storage.from(ASSET_BUCKET).getPublicUrl(path);
+    if (data?.publicUrl) uploaded.push(data.publicUrl);
+  }
+  return uploaded;
 }
 
 function ownerGarageLabel(owner) {
@@ -3640,26 +3874,246 @@ function storeRewardPreview(item) {
   return Number(Rewards.RULES[hasPhoto ? "radar_photo" : "radar_text"]?.points || 0);
 }
 
+function storeVerificationSummary(item) {
+  const remote = storeVerificationSummaries[String(item.id)];
+  if (remote) return remote;
+  const votes = item.verifications || {};
+  const expiresAt = item.expiresAt || new Date(new Date(item.createdAt || Date.now()).getTime() + 8 * 60 * 60 * 1000).toISOString();
+  const totalVotes = Number(votes.correct || 0) + Number(votes.gone || 0) + Number(votes.wrong || 0);
+  let status = item.verificationStatus || "pending";
+  if (status === "pending" && new Date(expiresAt).getTime() <= Date.now()) status = "expired";
+  return {
+    status,
+    correct_count: Number(votes.correct || 0),
+    gone_count: Number(votes.gone || 0),
+    wrong_count: Number(votes.wrong || 0),
+    total_votes: totalVotes,
+    current_vote: currentUser ? item.verificationUsers?.[currentUser.id] || "" : "",
+    expires_at: expiresAt,
+    last_activity_at: item.updatedAt || item.createdAt || new Date().toISOString()
+  };
+}
+
+function storeVerificationStatus(status) {
+  return {
+    pending: { label: "Doğrulama bekliyor", className: "pending" },
+    verified: { label: "Doğrulandı", className: "verified" },
+    expired: { label: "Süresi doldu", className: "expired" },
+    disputed: { label: "İtirazlı bilgi", className: "disputed" }
+  }[status] || { label: "Doğrulama bekliyor", className: "pending" };
+}
+
+function storeTrustScore(item, summary) {
+  const base = /foto/i.test(item.confidence || "") ? 68 : /gözle/i.test(item.confidence || "") ? 52 : 34;
+  let score = base
+    + Number(summary.correct_count || 0) * 12
+    - Number(summary.gone_count || 0) * 9
+    - Number(summary.wrong_count || 0) * 15;
+  if (summary.status === "verified") score = Math.max(score, 90);
+  if (summary.status === "expired") score = Math.min(score, 38);
+  if (summary.status === "disputed") score = Math.min(score, 14);
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function storePhotos(item = {}) {
+  const remotePhotos = radarNotePhotos[String(item.id)] || [];
+  const candidates = [
+    ...remotePhotos,
+    ...(Array.isArray(item.photos) ? item.photos : []),
+    item.photo
+  ];
+  return [...new Set(candidates.map((photo) => String(photo || "").trim()).filter(Boolean))];
+}
+
+function renderStoreEvidence(media, item) {
+  media.classList.add("store-evidence");
+  const photos = storePhotos(item);
+  if (!photos.length) {
+    media.innerHTML = `
+      <div class="store-evidence__empty">
+        <span class="store-evidence__icon" aria-hidden="true"></span>
+        <strong>Fotoğraf/kanıt yok</strong>
+        <small>Bu bildirim metin bilgisiyle paylaşıldı.</small>
+      </div>
+    `;
+    return;
+  }
+  const image = document.createElement("img");
+  image.alt = `${item.store} raf kanıtı`;
+  image.loading = "lazy";
+  setManagedImageSource(image, photos[0]);
+  media.appendChild(image);
+  if (photos.length > 1) {
+    const badge = document.createElement("span");
+    badge.className = "store-photo-count-badge";
+    badge.textContent = `${photos.length} fotoğraf`;
+    media.appendChild(badge);
+  }
+}
+
+function addStoreCardSummary(card, item) {
+  const summary = storeVerificationSummary(item);
+  const trustScore = storeTrustScore(item, summary);
+  const status = storeVerificationStatus(summary.status);
+  const panel = document.createElement("div");
+  panel.className = "store-card-summary";
+  panel.innerHTML = `
+    <div class="store-card-summary__score">
+      <div>
+        <span>Güven skoru</span>
+        <strong>${trustScore}<small>/100</small></strong>
+      </div>
+      <span class="store-status-badge store-status-badge--${status.className}">${status.label}</span>
+    </div>
+    <div class="store-trust-bar" style="--trust:${trustScore}%" aria-label="Güven skoru ${trustScore}/100"><i></i></div>
+    <button class="store-detail-button" type="button">
+      <span>Detayları gör</span>
+      <i aria-hidden="true">→</i>
+    </button>
+  `;
+  panel.querySelector(".store-detail-button").addEventListener("click", (event) => {
+    event.stopPropagation();
+    openStoreDetail(item);
+  });
+  card.appendChild(panel);
+}
+
+function renderStoreDetailGallery(item) {
+  storeDetailGallery.innerHTML = "";
+  const photos = storePhotos(item);
+  if (!photos.length) {
+    storeDetailGallery.innerHTML = `
+      <div class="store-evidence__empty store-detail__empty">
+        <span class="store-evidence__icon" aria-hidden="true"></span>
+        <strong>Fotoğraf/kanıt yok</strong>
+        <small>Bu bildirim metin bilgisiyle paylaşıldı.</small>
+      </div>
+    `;
+    return;
+  }
+  photos.forEach((photo, index) => {
+    const figure = document.createElement("figure");
+    figure.className = `store-detail__photo ${index === 0 ? "is-cover" : ""}`;
+    const image = document.createElement("img");
+    image.alt = `${item.store} kanıt fotoğrafı ${index + 1}`;
+    image.loading = index === 0 ? "eager" : "lazy";
+    setManagedImageSource(image, photo);
+    figure.appendChild(image);
+    figure.tabIndex = 0;
+    figure.setAttribute("role", "button");
+    figure.setAttribute("aria-label", `${index + 1}. fotoğrafı büyüt`);
+    figure.addEventListener("click", () => openStorePhotoLightbox(photo));
+    figure.addEventListener("keydown", (event) => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      openStorePhotoLightbox(photo);
+    });
+    storeDetailGallery.appendChild(figure);
+  });
+}
+
+function openStorePhotoLightbox(photo) {
+  setManagedImageSource(storePhotoLightboxImage, photo);
+  storePhotoLightbox.classList.add("is-visible");
+  storePhotoLightbox.setAttribute("aria-hidden", "false");
+}
+
+function closeStorePhotoLightbox() {
+  storePhotoLightbox.classList.remove("is-visible");
+  storePhotoLightbox.setAttribute("aria-hidden", "true");
+  storePhotoLightboxImage.removeAttribute("src");
+}
+
+function addStoreDetailFact(label, value) {
+  if (!value) return;
+  const fact = document.createElement("div");
+  fact.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
+  storeDetailFacts.appendChild(fact);
+}
+
+function openStoreDetail(item) {
+  currentStoreDetail = item;
+  const summary = storeVerificationSummary(item);
+  const status = storeVerificationStatus(summary.status);
+  renderStoreDetailGallery(item);
+  storeDetailTitle.textContent = item.store || "Mağaza bildirimi";
+  storeDetailSubtitle.textContent = [locationLabel(item), freshnessLabel(item)].filter(Boolean).join(" · ");
+  storeDetailStatus.innerHTML = `<span class="store-status-badge store-status-badge--${status.className}">${status.label}</span>`;
+  storeDetailFacts.innerHTML = "";
+  addStoreDetailFact("Şehir", item.city);
+  addStoreDetailFact("Bölge / AVM", item.area);
+  addStoreDetailFact("Raf / kat", item.spot);
+  addStoreDetailFact("Fiyat", item.price);
+  addStoreDetailFact("Raf durumu", item.status);
+  addStoreDetailFact("Güven tipi", item.confidence);
+  addStoreDetailFact("Bildiren", `@${item.reporterUsername || item.reporter || "anonim"}`);
+  addStoreDetailFact("Bildirim tarihi", formatDateTime(item.createdAt || item.date) || "Bilinmiyor");
+  addStoreDetailFact("Son güncelleme", formatDateTime(item.updatedAt || item.createdAt || item.date) || "Bilinmiyor");
+  storeDetailModels.textContent = item.models || "Model bilgisi eklenmedi.";
+  storeDetailVerification.innerHTML = "";
+  addStoreRewardPanel(storeDetailVerification, item);
+  storeDetailModal.classList.add("is-visible");
+  storeDetailModal.setAttribute("aria-hidden", "false");
+}
+
+function closeStoreDetail() {
+  currentStoreDetail = null;
+  storeDetailModal.classList.remove("is-visible");
+  storeDetailModal.setAttribute("aria-hidden", "true");
+}
+
 function addStoreRewardPanel(card, item) {
   const panel = document.createElement("div");
   panel.className = "store-reward-panel";
   const points = storeRewardPreview(item);
-  const votes = item.verifications || { correct: 0, gone: 0, wrong: 0 };
-  const currentVote = currentUser ? item.verificationUsers?.[currentUser.id] : "";
+  const summary = storeVerificationSummary(item);
+  const currentVote = summary.current_vote || "";
   const isOwnReport = isOwnedByCurrentUser("stores", item);
-  const evidenceLabel = item.confidence === "Fotoğraflı" ? "Fotoğraflı kanıt var" : "Kanıt puanı";
+  const voteLocked = Boolean(!currentUser || isOwnReport || currentVote || summary.status !== "pending");
+  const status = storeVerificationStatus(summary.status);
+  const trustScore = storeTrustScore(item, summary);
+  const evidenceLabel = storePhotos(item).length ? "Fotoğraflı kanıt var" : "Metin bildirimi";
+  const hint = !currentUser
+    ? "Oy vermek için giriş yapmalısın."
+    : isOwnReport
+      ? "Kendi radar notuna oy veremezsin."
+      : currentVote
+        ? "Oyun kaydedildi; diğer seçenekler kilitlendi."
+        : summary.status !== "pending"
+          ? "Bu radar notunun doğrulama süreci kapandı."
+          : "Aynı nota yalnızca bir kez oy verebilirsin.";
   panel.innerHTML = `
-    <div class="store-reward-panel__score">
-      <span>Kanıt puanı</span>
-      <strong>${points > 0 ? `+${points}` : "0"}</strong>
-      <small>${evidenceLabel}</small>
+    <div class="store-verification-head">
+      <span class="store-status-badge store-status-badge--${status.className}">${status.label}</span>
+      <div class="store-trust" style="--trust:${trustScore}%">
+        <span>Güven skoru</span>
+        <strong>${trustScore}<small>/100</small></strong>
+      </div>
+    </div>
+    <div class="store-trust-bar" style="--trust:${trustScore}%" aria-label="Güven skoru ${trustScore}/100"><i></i></div>
+    <div class="store-verification-stats">
+      <span><strong>${Number(summary.total_votes || 0)}</strong> doğrulama</span>
+      <span><strong>${points > 0 ? `+${points}` : "0"}</strong> kanıt puanı</span>
+      <span><strong>${evidenceLabel}</strong></span>
     </div>
     <div class="store-verify-actions">
-      <button type="button" data-store-vote="correct" ${isOwnReport || currentVote ? "disabled" : ""}>Hâlâ var <em>${votes.correct || 0}</em></button>
-      <button type="button" data-store-vote="gone" ${isOwnReport || currentVote ? "disabled" : ""}>Artık kalmadı <em>${votes.gone || 0}</em></button>
-      <button type="button" data-store-vote="wrong" ${isOwnReport || currentVote ? "disabled" : ""}>Yanlış bilgi <em>${votes.wrong || 0}</em></button>
+      <button type="button" data-store-vote="correct" class="${currentVote === "correct" ? "is-selected" : ""}" aria-pressed="${currentVote === "correct"}" ${voteLocked ? "disabled" : ""}>
+        <span class="store-vote-icon" aria-hidden="true">✓</span>
+        <span class="store-vote-copy"><strong>Hâlâ var</strong><small>Raf bilgisi güncel</small></span>
+        <em>${Number(summary.correct_count || 0)}</em>
+      </button>
+      <button type="button" data-store-vote="gone" class="${currentVote === "gone" ? "is-selected" : ""}" aria-pressed="${currentVote === "gone"}" ${voteLocked ? "disabled" : ""}>
+        <span class="store-vote-icon" aria-hidden="true">−</span>
+        <span class="store-vote-copy"><strong>Artık kalmadı</strong><small>Stok tükenmiş</small></span>
+        <em>${Number(summary.gone_count || 0)}</em>
+      </button>
+      <button type="button" data-store-vote="wrong" class="${currentVote === "wrong" ? "is-selected" : ""}" aria-pressed="${currentVote === "wrong"}" ${voteLocked ? "disabled" : ""}>
+        <span class="store-vote-icon" aria-hidden="true">!</span>
+        <span class="store-vote-copy"><strong>Yanlış bilgi</strong><small>Bildirim hatalı</small></span>
+        <em>${Number(summary.wrong_count || 0)}</em>
+      </button>
     </div>
-    ${isOwnReport ? '<small class="store-vote-hint">Kendi radar notuna oy veremezsin.</small>' : currentVote ? '<small class="store-vote-hint">Bu radar notunu doğruladın.</small>' : ""}
+    <small class="store-vote-hint">${hint}</small>
   `;
   panel.querySelectorAll("[data-store-vote]").forEach((button) => {
     button.addEventListener("click", () => voteStoreReport(item.id, button.dataset.storeVote));
@@ -3684,27 +4138,45 @@ function voteStoreReport(storeId, vote) {
         p_store_report_id: String(storeId),
         p_vote: vote
       });
-      if (error || data?.reason === "duplicate") {
-        showToast(data?.reason === "duplicate" ? "Aynı radar notuna yalnızca bir kez oy verebilirsin." : "Doğrulama kaydedilemedi.");
+      if (error || data?.awarded === false) {
+        const reasonMessage = {
+          duplicate: "Aynı radar notuna yalnızca bir kez oy verebilirsin.",
+          self_vote: "Kendi radar notuna oy veremezsin.",
+          expired: "Bu radar notunun sekiz saatlik doğrulama süresi doldu.",
+          closed: "Bu radar notunun doğrulama süreci kapandı."
+        }[data?.reason];
+        showToast(reasonMessage || "Doğrulama kaydedilemedi.");
         return;
       }
       await Rewards?.refresh();
-    }
-    state.stores = state.stores.map((store) => {
-      if (store.id !== storeId) return store;
-      const verifications = { correct: 0, gone: 0, wrong: 0, ...(store.verifications || {}) };
-      verifications[vote] += 1;
-      return { ...store, verifications, verificationUsers: { ...(store.verificationUsers || {}), [currentUser.id]: vote } };
-    });
-    if (!supabaseClient) {
+      await loadStoreVerificationSummaries();
+      await loadRewardNotifications();
+      showToast("Doğrulaman kaydedildi.");
+    } else {
+      state.stores = state.stores.map((store) => {
+        if (store.id !== storeId) return store;
+        const verifications = { correct: 0, gone: 0, wrong: 0, ...(store.verifications || {}) };
+        verifications[vote] += 1;
+        let verificationStatus = store.verificationStatus || "pending";
+        if (verifications.wrong >= 3 && verifications.wrong >= verifications.correct && verifications.wrong >= verifications.gone) verificationStatus = "disputed";
+        else if (verifications.gone >= 3 && verifications.gone >= verifications.correct) verificationStatus = "expired";
+        else if (verifications.correct >= 3) verificationStatus = "verified";
+        return {
+          ...store,
+          verificationStatus,
+          verifications,
+          updatedAt: new Date().toISOString(),
+          verificationUsers: { ...(store.verificationUsers || {}), [currentUser.id]: vote }
+        };
+      });
       const rewardType = vote === "correct" ? "vote_correct" : vote === "gone" ? "vote_gone" : "vote_wrong";
       await awardReward(rewardType, { storeId, targetKey: storeId });
-    } else {
-      showToast("Doğrulaman kaydedildi.");
+      saveState();
     }
-    saveState();
-    void syncPublicRecord("stores", state.stores.find((item) => item.id === storeId));
     render();
+    if (currentStoreDetail?.id === storeId) {
+      openStoreDetail(state.stores.find((store) => store.id === storeId) || currentStoreDetail);
+    }
   });
 }
 
@@ -4582,10 +5054,14 @@ function stopCarEdit() {
   carForm.querySelector("h2").textContent = "Araba ekle";
 }
 
-function storeFormToObject(form) {
+function storeFormToObject(form, photos = []) {
   const entry = formToObject(form);
   const namedPreset = STORE_NAME_REQUIRED_PRESETS.includes(entry.storePreset);
   entry.store = namedPreset ? `${entry.storePreset}: ${entry.store.trim()}` : entry.storePreset;
+  entry.price = formatStorePrice(entry.price);
+  entry.photos = photos;
+  entry.photo = photos[0] || "";
+  if (photos.length) entry.confidence = "Fotoğraflı";
   delete entry.storePreset;
   return entry;
 }
@@ -4600,14 +5076,24 @@ function syncOtherStoreField() {
 }
 
 function addEntry(type, entry) {
+  const now = new Date();
   const record = ownedRecord(type, {
     id: crypto.randomUUID(),
     ...entry,
-    ...(type === "stores" ? { date: new Date().toLocaleDateString("tr-TR"), createdAt: new Date().toISOString() } : {})
+    ...(type === "stores" ? {
+      date: now.toLocaleDateString("tr-TR"),
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString(),
+      verificationStatus: "pending"
+    } : {})
   });
   state[type].unshift(record);
   saveState();
-  void syncPublicRecord(type, record).then(() => rewardNewEntry(type, record));
+  void syncPublicRecord(type, record).then(async (synced) => {
+    if (synced && type === "stores") await syncRadarNotePhotos(record);
+    await rewardNewEntry(type, record);
+  });
   render();
 }
 
@@ -4881,6 +5367,15 @@ listingDetailModal.addEventListener("click", (event) => {
   if (event.target === listingDetailModal) closeListingDetailModal();
 });
 
+document.querySelector("#closeStoreDetail").addEventListener("click", closeStoreDetail);
+storeDetailModal.addEventListener("click", (event) => {
+  if (event.target === storeDetailModal) closeStoreDetail();
+});
+document.querySelector("#closeStorePhotoLightbox").addEventListener("click", closeStorePhotoLightbox);
+storePhotoLightbox.addEventListener("click", (event) => {
+  if (event.target === storePhotoLightbox) closeStorePhotoLightbox();
+});
+
 closeMessageModalButton.addEventListener("click", closeMessageModal);
 messagesTab.addEventListener("click", () => setNotificationTab("messages"));
 commentsTab.addEventListener("click", () => setNotificationTab("comments"));
@@ -4980,14 +5475,45 @@ document.querySelector("#wishForm").addEventListener("submit", (event) => {
 
 document.querySelector("#storeForm").addEventListener("submit", (event) => {
   event.preventDefault();
-  requireAuth(() => {
-    addEntry("stores", storeFormToObject(event.currentTarget));
-    event.currentTarget.reset();
-    syncOtherStoreField();
+  requireAuth(async () => {
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.textContent = pendingStorePhotoFiles.length ? "Fotoğraflar yükleniyor..." : "Radar notu ekleniyor...";
+    try {
+      const id = crypto.randomUUID();
+      const photos = await prepareStorePhotoUrls(id);
+      addEntry("stores", { ...storeFormToObject(event.currentTarget, photos), id });
+      event.currentTarget.reset();
+      resetStorePhotoSelection();
+      syncOtherStoreField();
+    } catch (error) {
+      console.warn("Radar fotoğrafları yüklenemedi:", error.message);
+      showToast("Fotoğraflar yüklenemedi. Çoklu fotoğraf SQL dosyasını çalıştırıp tekrar dene.");
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Hunt Radar notu ekle";
+    }
   });
 });
 
 storePreset.addEventListener("change", syncOtherStoreField);
+storePrice.addEventListener("input", () => {
+  storePrice.value = storePrice.value.replace(/[^\d,.]/g, "");
+});
+storePhotoFiles.addEventListener("change", (event) => addStorePhotoFiles(event.currentTarget.files || []));
+["dragenter", "dragover"].forEach((eventName) => {
+  storePhotoPicker.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    storePhotoPicker.classList.add("is-dragging");
+  });
+});
+["dragleave", "drop"].forEach((eventName) => {
+  storePhotoPicker.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    storePhotoPicker.classList.remove("is-dragging");
+  });
+});
+storePhotoPicker.addEventListener("drop", (event) => addStorePhotoFiles(event.dataTransfer?.files || []));
 
 searchInput.addEventListener("input", render);
 
@@ -5014,6 +5540,7 @@ ensureDemoCommentNotification();
 updateUserButton();
 syncAuthMode();
 updatePhotoPreview();
+updateStorePhotoPreview();
 syncMarketFields();
 render();
 syncOtherStoreField();

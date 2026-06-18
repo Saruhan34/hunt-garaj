@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=74" />
+    <link rel="stylesheet" href="./styles.css?v=84" />
   </head>
   <body>
     <header class="hero">
@@ -544,7 +544,10 @@
             <div class="grid-2">
               <div class="field">
                 <label for="storePrice">Fiyat</label>
-                <input id="storePrice" name="price" placeholder="89,90 TL" />
+                <div class="currency-input">
+                  <input id="storePrice" name="price" inputmode="decimal" placeholder="89,90" />
+                  <span>TL</span>
+                </div>
               </div>
               <div class="field">
                 <label for="storeStatus">Raf durumu</label>
@@ -559,7 +562,7 @@
                 </select>
               </div>
             </div>
-            <div class="grid-2">
+            <div>
               <div class="field">
                 <label for="storeConfidence">Güven</label>
                 <select id="storeConfidence" name="confidence">
@@ -568,12 +571,30 @@
                   <option>Duyum</option>
                 </select>
               </div>
-              <div class="field">
-                <label for="storeReporter">Kim gördü?</label>
-                <select id="storeReporter" name="reporter">
-                  <option>Saruhan</option>
-                  <option>Ali</option>
-                </select>
+            </div>
+            <div class="store-proof-field">
+              <div class="store-photo-upload">
+                <div class="store-photo-upload__head">
+                  <div>
+                    <strong>Fotoğraf / kanıt</strong>
+                    <span>En fazla 8 fotoğraf · ilk seçilen kapak olur</span>
+                  </div>
+                  <span class="store-photo-upload__count" id="storePhotoCount">0 / 8</span>
+                </div>
+                <input class="store-photo-file-input" id="storePhotoFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+                <label class="store-photo-picker" for="storePhotoFiles">
+                  <span class="store-photo-picker__icon" aria-hidden="true"></span>
+                  <strong>Galeriden veya dosyalardan seç</strong>
+                  <small>JPG, PNG veya WEBP · fotoğraf başına en fazla 10 MB</small>
+                </label>
+                <p class="store-photo-upload__status" id="storePhotoStatus">Henüz fotoğraf seçilmedi.</p>
+              </div>
+              <div class="store-photo-preview is-empty" id="storePhotoPreview">
+                <div class="store-evidence__empty">
+                  <span class="store-evidence__icon" aria-hidden="true"></span>
+                  <strong>Fotoğraf önizlemesi</strong>
+                  <small>Seçtiğin fotoğraflar burada kaydırmalı görünür.</small>
+                </div>
               </div>
             </div>
             <button class="button button--primary" type="submit">Hunt Radar notu ekle</button>
@@ -1131,6 +1152,34 @@
       </section>
     </div>
 
+    <div class="store-detail-modal" id="storeDetailModal" aria-hidden="true">
+      <section class="store-detail-modal__panel" role="dialog" aria-modal="true" aria-labelledby="storeDetailTitle">
+        <button class="delete-button store-detail__close" id="closeStoreDetail" type="button" aria-label="Pencereyi kapat">×</button>
+        <div class="store-detail__gallery" id="storeDetailGallery"></div>
+        <div class="store-detail__body">
+          <div class="store-detail__heading">
+            <div>
+              <p class="eyebrow">Hunt Radar detayı</p>
+              <h2 id="storeDetailTitle">Mağaza bildirimi</h2>
+              <p class="view-copy" id="storeDetailSubtitle"></p>
+            </div>
+            <div id="storeDetailStatus"></div>
+          </div>
+          <div class="store-detail__facts" id="storeDetailFacts"></div>
+          <section class="store-detail__section">
+            <span class="store-detail__label">Görülen modeller</span>
+            <p class="store-detail__models" id="storeDetailModels"></p>
+          </section>
+          <div id="storeDetailVerification"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="store-photo-lightbox" id="storePhotoLightbox" aria-hidden="true">
+      <button class="delete-button store-photo-lightbox__close" id="closeStorePhotoLightbox" type="button" aria-label="Fotoğraf önizlemesini kapat">×</button>
+      <img id="storePhotoLightboxImage" alt="Radar kanıtı büyük önizleme" />
+    </div>
+
     <div class="market-modal message-modal" id="messageModal" aria-hidden="true">
       <section class="market-modal__panel message-modal__panel" role="dialog" aria-modal="true" aria-labelledby="messageModalTitle">
         <div class="section-heading">
@@ -1180,8 +1229,8 @@
     </template>
 
     <script src="./catalog-2026.js?v=7"></script>
-    <script src="./reward-service.js?v=8"></script>
+    <script src="./reward-service.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=94"></script>
+    <script src="./app.js?v=100"></script>
   </body>
 </html>
