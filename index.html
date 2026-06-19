@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=87" />
+    <link rel="stylesheet" href="./styles.css?v=88" />
   </head>
   <body>
     <header class="hero">
@@ -490,114 +490,173 @@
             <button class="button button--primary" type="submit">İstek Listesi'ne ekle</button>
           </form>
 
-          <form class="entry-form" id="storeForm" data-form="stores">
-            <h2>Hunt Radar notu ekle</h2>
-            <div class="grid-2">
-              <div class="field">
-                <label for="storePreset">Mağaza</label>
-                <select id="storePreset" name="storePreset">
-                  <option>Toyzz Shop</option>
-                  <option>LC Waikiki</option>
-                  <option>D&R</option>
-                  <option>Migros</option>
-                  <option>CarrefourSA</option>
-                  <option>Armağan Oyuncak</option>
-                  <option>Ebebek</option>
-                  <option>Joker</option>
-                  <option>Rossmann</option>
-                  <option>Kırtasiye</option>
-                  <option>Oyuncakçı</option>
-                  <option>Diğer</option>
-                </select>
+          <form class="entry-form store-entry-form" id="storeForm" data-form="stores" novalidate>
+            <header class="store-form-header">
+              <span class="store-form-header__mark" aria-hidden="true"></span>
+              <div>
+                <p>Topluluk radarı</p>
+                <h2>Radar notu ekle</h2>
+                <span>Raf bilgisini kısa, güncel ve doğrulanabilir şekilde paylaş.</span>
               </div>
-              <div class="field field--other-store" id="otherStoreField">
-                <label for="storeName">Mağaza adı</label>
-                <input id="storeName" name="store" placeholder="Örn. Moda Kırtasiye" />
+            </header>
+
+            <div class="store-auth-notice" id="storeAuthNotice">
+              <span aria-hidden="true">HR</span>
+              <div>
+                <strong>Radar notu eklemek için giriş yapmalısın</strong>
+                <small>Bilgileri inceleyebilir, paylaşmak için hesabına giriş yapabilirsin.</small>
               </div>
-              <div class="field">
-                <label for="storeCity">Şehir</label>
-                <select id="storeCity" name="city">
-                  <option>İstanbul</option>
-                  <option>Ankara</option>
-                  <option>İzmir</option>
-                  <option>Bursa</option>
-                  <option>Antalya</option>
-                  <option>Kocaeli</option>
-                  <option>Diğer</option>
-                </select>
-              </div>
+              <button type="button" id="storeAuthLogin">Giriş yap</button>
             </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="storeArea">Bölge / AVM</label>
-                <input id="storeArea" name="area" placeholder="Akasya, Kadıköy, Emaar" />
+
+            <section class="store-form-section">
+              <div class="store-form-section__head">
+                <span>01</span>
+                <div>
+                  <h3>Konum bilgisi</h3>
+                  <p>Mağazayı ve rafın bulunduğu noktayı belirt.</p>
+                </div>
               </div>
-              <div class="field">
-                <label for="storeSpot">Raf / kat notu</label>
-                <input id="storeSpot" name="spot" placeholder="Oyuncak rafı, kasa önü" />
-              </div>
-            </div>
-            <div class="field">
-              <label for="storeModels">Görülen modeller</label>
-              <textarea id="storeModels" name="models" required rows="3" placeholder="Mazda RX-7, Bone Shaker, Civic Custom"></textarea>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="storePrice">Fiyat</label>
-                <div class="currency-input">
-                  <input id="storePrice" name="price" inputmode="decimal" placeholder="89,90" />
-                  <span>TL</span>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="storePreset">Mağaza</label>
+                  <select id="storePreset" name="storePreset">
+                    <option>Toyzz Shop</option>
+                    <option>LC Waikiki</option>
+                    <option>D&R</option>
+                    <option>Migros</option>
+                    <option>CarrefourSA</option>
+                    <option>Armağan Oyuncak</option>
+                    <option>Ebebek</option>
+                    <option>Joker</option>
+                    <option>Rossmann</option>
+                    <option>Kırtasiye</option>
+                    <option>Oyuncakçı</option>
+                    <option>Diğer</option>
+                  </select>
+                </div>
+                <div class="field field--other-store" id="otherStoreField">
+                  <label for="storeName">Mağaza adı</label>
+                  <input id="storeName" name="store" placeholder="Örn. Moda Kırtasiye" aria-describedby="storeNameError" />
+                  <small class="field-error" id="storeNameError"></small>
+                </div>
+                <div class="field">
+                  <label for="storeCity">Şehir</label>
+                  <select id="storeCity" name="city">
+                    <option>İstanbul</option>
+                    <option>Ankara</option>
+                    <option>İzmir</option>
+                    <option>Bursa</option>
+                    <option>Antalya</option>
+                    <option>Kocaeli</option>
+                    <option>Diğer</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="storeArea">Bölge / AVM</label>
+                  <input id="storeArea" name="area" placeholder="Akasya, Kadıköy, Emaar" />
                 </div>
               </div>
               <div class="field">
-                <label for="storeStatus">Raf durumu</label>
-                <select id="storeStatus" name="status">
-                  <option>Yeni sevkiyat</option>
-                  <option>Premium var</option>
-                  <option>Az stok</option>
-                  <option>Boş</option>
-                  <option>TH görüldü</option>
-                  <option>STH görüldü</option>
-                  <option>Bakmaya değmez</option>
-                </select>
+                <label for="storeSpot">Raf / kat notu</label>
+                <input id="storeSpot" name="spot" placeholder="Oyuncak rafı, kasa önü veya üst kat" />
               </div>
-            </div>
-            <div>
+            </section>
+
+            <section class="store-form-section">
+              <div class="store-form-section__head">
+                <span>02</span>
+                <div>
+                  <h3>Araç / raf bilgisi</h3>
+                  <p>Gördüğün modelleri ve rafın güncel durumunu yaz.</p>
+                </div>
+              </div>
               <div class="field">
-                <label for="storeConfidence">Güven</label>
+                <label for="storeModels">Görülen modeller <b>*</b></label>
+                <textarea id="storeModels" name="models" required rows="3" placeholder="Örn. Mazda RX-7, Bone Shaker, Civic Custom" aria-describedby="storeModelsError"></textarea>
+                <small class="field-error" id="storeModelsError"></small>
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="storePrice">Fiyat</label>
+                  <div class="currency-input">
+                    <input id="storePrice" name="price" inputmode="decimal" placeholder="89,90" />
+                    <span>TL</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="storeStatus">Raf durumu</label>
+                  <select id="storeStatus" name="status">
+                    <option>Yeni sevkiyat</option>
+                    <option>Premium var</option>
+                    <option>Az stok</option>
+                    <option>Boş</option>
+                    <option>TH görüldü</option>
+                    <option>STH görüldü</option>
+                    <option>Bakmaya değmez</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="store-form-section store-form-section--photo">
+              <div class="store-form-section__head">
+                <span>03</span>
+                <div>
+                  <h3>Fotoğraf kanıtı</h3>
+                  <p>İlk seçilen fotoğraf kapak olur; en fazla 8 görsel eklenebilir.</p>
+                </div>
+              </div>
+              <div class="field">
+                <label for="storeConfidence">Güven tipi</label>
                 <select id="storeConfidence" name="confidence">
                   <option>Fotoğraflı</option>
                   <option>Gözle görüldü</option>
                   <option>Duyum</option>
                 </select>
               </div>
-            </div>
-            <div class="store-proof-field">
-              <div class="store-photo-upload">
-                <div class="store-photo-upload__head">
-                  <div>
-                    <strong>Fotoğraf / kanıt</strong>
-                    <span>En fazla 8 fotoğraf · ilk seçilen kapak olur</span>
+              <div class="store-proof-field">
+                <div class="store-photo-upload">
+                  <div class="store-photo-upload__head">
+                    <div>
+                      <strong>Raf fotoğrafları</strong>
+                      <span>JPG, PNG veya WEBP · fotoğraf başına 10 MB</span>
+                    </div>
+                    <span class="store-photo-upload__count" id="storePhotoCount">0 / 8</span>
                   </div>
-                  <span class="store-photo-upload__count" id="storePhotoCount">0 / 8</span>
+                  <input class="store-photo-file-input" id="storePhotoFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+                  <label class="store-photo-picker" for="storePhotoFiles">
+                    <span class="store-photo-picker__icon" aria-hidden="true"></span>
+                    <span>
+                      <strong>Fotoğraf seç</strong>
+                      <small>Galeriden veya dosyalardan birden fazla görsel seçebilirsin</small>
+                    </span>
+                  </label>
+                  <p class="store-photo-upload__status" id="storePhotoStatus">Henüz fotoğraf seçilmedi.</p>
                 </div>
-                <input class="store-photo-file-input" id="storePhotoFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-                <label class="store-photo-picker" for="storePhotoFiles">
-                  <span class="store-photo-picker__icon" aria-hidden="true"></span>
-                  <strong>Galeriden veya dosyalardan seç</strong>
-                  <small>JPG, PNG veya WEBP · fotoğraf başına en fazla 10 MB</small>
-                </label>
-                <p class="store-photo-upload__status" id="storePhotoStatus">Henüz fotoğraf seçilmedi.</p>
+                <div class="store-photo-preview is-empty" id="storePhotoPreview"></div>
               </div>
-              <div class="store-photo-preview is-empty" id="storePhotoPreview">
-                <div class="store-evidence__empty">
-                  <span class="store-evidence__icon" aria-hidden="true"></span>
-                  <strong>Fotoğraf önizlemesi</strong>
-                  <small>Seçtiğin fotoğraflar burada kaydırmalı görünür.</small>
+            </section>
+
+            <section class="store-form-section">
+              <div class="store-form-section__head">
+                <span>04</span>
+                <div>
+                  <h3>Ek notlar</h3>
+                  <p>Topluluğun işine yarayacak kısa bir ayrıntı ekleyebilirsin.</p>
                 </div>
               </div>
-            </div>
-            <button class="button button--primary" type="submit">Hunt Radar notu ekle</button>
+              <div class="field">
+                <label for="storeNotes">Not <em>İsteğe bağlı</em></label>
+                <textarea id="storeNotes" name="notes" rows="2" placeholder="Örn. Sevkiyat yeni açıldı, alt rafta birkaç kutu daha var."></textarea>
+              </div>
+            </section>
+
+            <button class="store-submit-button" type="submit">
+              <span class="store-submit__spinner" aria-hidden="true"></span>
+              <span class="store-submit__label">Radar notu ekle</span>
+              <span class="store-submit__arrow" aria-hidden="true">→</span>
+            </button>
           </form>
           <section class="entry-form market-helper" data-form="market">
             <h2>Pazar vitrini</h2>
@@ -1232,6 +1291,6 @@
     <script src="./catalog-2026.js?v=7"></script>
     <script src="./reward-service.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=104"></script>
+    <script src="./app.js?v=105"></script>
   </body>
 </html>

@@ -582,6 +582,9 @@ const storePhotoCount = document.querySelector("#storePhotoCount");
 const storePhotoStatus = document.querySelector("#storePhotoStatus");
 const storePhotoPreview = document.querySelector("#storePhotoPreview");
 const storePhotoPicker = document.querySelector(".store-photo-picker");
+const storeForm = document.querySelector("#storeForm");
+const storeAuthNotice = document.querySelector("#storeAuthNotice");
+const storeAuthLogin = document.querySelector("#storeAuthLogin");
 const STORE_NAME_REQUIRED_PRESETS = ["Kırtasiye", "Oyuncakçı", "Diğer"];
 const carForm = document.querySelector("#carForm");
 const carSubmitButton = document.querySelector("#carSubmitButton");
@@ -3831,6 +3834,12 @@ function updateUserButton() {
   accountLogout.disabled = !currentUser;
   openProfileSettings.textContent = currentUser ? "Profil bilgileri" : "Giriş yap / kayıt ol";
   syncAdminVisibility();
+  syncStoreFormAuthState();
+}
+
+function syncStoreFormAuthState() {
+  if (!storeAuthNotice) return;
+  storeAuthNotice.classList.toggle("is-hidden", Boolean(currentUser));
 }
 
 function userInitials(value) {
@@ -4028,13 +4037,6 @@ function updateStorePhotoPreview() {
     ? `${files.length} fotoğraf seçildi. İlk fotoğraf otomatik kapak olacak.`
     : "Henüz fotoğraf seçilmedi.";
   if (!files.length) {
-    storePhotoPreview.innerHTML = `
-      <div class="store-evidence__empty">
-        <span class="store-evidence__icon" aria-hidden="true"></span>
-        <strong>Fotoğraf önizlemesi</strong>
-        <small>Seçtiğin fotoğraflar burada kaydırmalı görünür.</small>
-      </div>
-    `;
     return;
   }
   files.forEach((file, index) => {
@@ -5402,6 +5404,51 @@ function syncOtherStoreField() {
   storeName.required = needsName;
   if (!needsName) {
     storeName.value = "";
+    clearStoreFieldError(storeName);
+  }
+}
+
+function clearStoreFieldError(field) {
+  if (!field) return;
+  field.classList.remove("is-invalid");
+  field.removeAttribute("aria-invalid");
+  const error = field.closest(".field")?.querySelector(".field-error");
+  if (error) error.textContent = "";
+}
+
+function setStoreFieldError(field, message) {
+  field.classList.add("is-invalid");
+  field.setAttribute("aria-invalid", "true");
+  const error = field.closest(".field")?.querySelector(".field-error");
+  if (error) error.textContent = message;
+}
+
+function validateStoreForm(form) {
+  const requiredFields = [...form.querySelectorAll("[required]")].filter((field) => !field.disabled);
+  requiredFields.forEach(clearStoreFieldError);
+  const invalid = requiredFields.filter((field) => !String(field.value || "").trim());
+  invalid.forEach((field) => {
+    const message = field === storeName
+      ? "Mağaza adını yazmalısın."
+      : "Görülen en az bir model veya raf bilgisini yazmalısın.";
+    setStoreFieldError(field, message);
+  });
+  if (invalid.length) {
+    invalid[0].focus();
+    showToast("Lütfen zorunlu alanları kontrol et.");
+    return false;
+  }
+  return true;
+}
+
+function setStoreSubmitLoading(button, loading, hasPhotos = false) {
+  button.disabled = loading;
+  button.classList.toggle("is-loading", loading);
+  const label = button.querySelector(".store-submit__label");
+  if (label) {
+    label.textContent = loading
+      ? (hasPhotos ? "Fotoğraflar yükleniyor..." : "Radar notu ekleniyor...")
+      : "Radar notu ekle";
   }
 }
 
@@ -5816,10 +5863,10 @@ document.querySelector("#wishForm").addEventListener("submit", (event) => {
 document.querySelector("#storeForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.currentTarget;
+  if (!validateStoreForm(form)) return;
   requireAuth(async () => {
     const submitButton = form.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.textContent = pendingStorePhotoFiles.length ? "Fotoğraflar yükleniyor..." : "Radar notu ekleniyor...";
+    setStoreSubmitLoading(submitButton, true, pendingStorePhotoFiles.length > 0);
     try {
       const id = crypto.randomUUID();
       const photos = await prepareStorePhotoUrls(id);
@@ -5827,17 +5874,26 @@ document.querySelector("#storeForm").addEventListener("submit", (event) => {
       form.reset();
       resetStorePhotoSelection();
       syncOtherStoreField();
+      form.querySelectorAll(".is-invalid").forEach(clearStoreFieldError);
+      showToast("Radar notun başarıyla eklendi.");
     } catch (error) {
-      console.warn("Radar fotoğrafları yüklenemedi:", error.message);
+      console.error("Radar notu kaydedilemedi:", error);
       showToast("Radar notu kaydedilemedi. Lütfen tekrar dene.");
     } finally {
-      submitButton.disabled = false;
-      submitButton.textContent = "Hunt Radar notu ekle";
+      setStoreSubmitLoading(submitButton, false);
     }
   });
 });
 
-storePreset.addEventListener("change", syncOtherStoreField);
+storePreset.addEventListener("change", () => {
+  syncOtherStoreField();
+  clearStoreFieldError(storeName);
+});
+storeForm.querySelectorAll("input, textarea, select").forEach((field) => {
+  field.addEventListener("input", () => clearStoreFieldError(field));
+  field.addEventListener("change", () => clearStoreFieldError(field));
+});
+storeAuthLogin.addEventListener("click", () => openAuthModal("login", "Radar notu paylaşmak için hesabına giriş yap."));
 storePrice.addEventListener("input", () => {
   storePrice.value = storePrice.value.replace(/[^\d,.]/g, "");
 });
