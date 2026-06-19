@@ -9,6 +9,7 @@ const SITE_SETTINGS_KEY = "hunt-radar-site-config";
 const CONTENT_TABLE = "content_records";
 const RADAR_PHOTO_TABLE = "radar_note_photos";
 const MAX_STORE_PHOTOS = 8;
+const STORE_PAGE_SIZE = 12;
 const ASSET_BUCKET = "hunt-radar-assets";
 const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
 const MANAGED_ASSET_PATHS = [
@@ -394,6 +395,14 @@ let activeLeaderboardPeriod = "daily";
 let storeVerificationSummaries = {};
 let radarNotePhotos = {};
 let pendingStorePhotoFiles = [];
+let remoteStorePageItems = [];
+let storeCurrentPage = 1;
+let storeTotalCount = 0;
+let storeTotalPages = 1;
+let storePageLoading = false;
+let storePageRequestId = 0;
+let storeStatusCounts = Object.fromEntries(["Tümü", ...STORE_STATUSES].map((status) => [status, 0]));
+let storeSearchTimer = 0;
 const storePhotoPreviewUrls = new WeakMap();
 let marketPickMode = false;
 let editingCarId = null;
@@ -448,6 +457,7 @@ const globalSearchForm = document.querySelector("#globalSearchForm");
 const globalSearchInput = document.querySelector("#globalSearchInput");
 const searchInput = document.querySelector("#searchInput");
 const radarFilters = document.querySelector("#radarFilters");
+const radarPagination = document.querySelector("#radarPagination");
 const marketPanelFilters = document.querySelector("#marketPanelFilters");
 const userButton = document.querySelector("#userButton");
 const userButtonText = document.querySelector("#userButtonText");
@@ -1044,12 +1054,13 @@ async function loadPublicContentFromSupabase() {
   if (!supabaseClient) return;
   const { data, error } = await supabaseClient
     .from(CONTENT_TABLE)
-    .select("id, content_type, owner_id, owner_username, data, created_at, updated_at");
+    .select("id, content_type, owner_id, owner_username, data, created_at, updated_at")
+    .neq("content_type", "stores");
   if (error) {
     if (error.code !== "42P01") console.warn("Supabase içerikleri okunamadı:", error.message);
     return;
   }
-  const supported = ["collection", "wishlist", "stores", "market", "comments"];
+  const supported = ["collection", "wishlist", "market", "comments"];
   supported.forEach((type) => {
     const remote = (data || [])
       .filter((row) => row.content_type === type)
@@ -1060,6 +1071,123 @@ async function loadPublicContentFromSupabase() {
     state[type] = [...merged.values()];
   });
   saveState();
+}
+
+function storeSearchTerm() {
+  return searchInput.value
+    .trim()
+    .replace(/[^\p{L}\p{N}\s@_-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function applyStoreQueryFilters(query, status = activeStoreStatus, search = storeSearchTerm()) {
+  let filtered = query.eq("content_type", "stores");
+  if (status !== "Tümü") {
+    filtered = filtered.contains("data", { status });
+  }
+  if (search) {
+    const pattern = `*${search}*`;
+    filtered = filtered.or([
+      `data->>store.ilike.${pattern}`,
+      `data->>city.ilike.${pattern}`,
+      `data->>area.ilike.${pattern}`,
+      `data->>spot.ilike.${pattern}`,
+      `data->>models.ilike.${pattern}`,
+      `data->>status.ilike.${pattern}`,
+      `data->>confidence.ilike.${pattern}`,
+      `owner_username.ilike.${pattern}`
+    ].join(","));
+  }
+  return filtered;
+}
+
+async function loadStoreStatusCounts(search = storeSearchTerm()) {
+  const statuses = ["Tümü", ...STORE_STATUSES];
+  const results = await Promise.all(statuses.map(async (status) => {
+    let query = supabaseClient
+      .from(CONTENT_TABLE)
+      .select("id", { count: "exact", head: true });
+    query = applyStoreQueryFilters(query, status, search);
+    const { count, error } = await query;
+    if (error) throw error;
+    return [status, Number(count || 0)];
+  }));
+  return Object.fromEntries(results);
+}
+
+function localFilteredStores() {
+  return [...state.stores]
+    .filter(matchesViewFilters)
+    .filter(matchesSearch)
+    .sort((a, b) => marketDateValue(b) - marketDateValue(a));
+}
+
+async function loadStorePage(options = {}) {
+  const requestedPage = Math.max(1, Number(options.page || storeCurrentPage));
+  if (!supabaseClient) {
+    const filtered = localFilteredStores();
+    storeTotalCount = filtered.length;
+    storeTotalPages = Math.max(1, Math.ceil(storeTotalCount / STORE_PAGE_SIZE));
+    storeCurrentPage = Math.min(requestedPage, storeTotalPages);
+    storeStatusCounts = Object.fromEntries(["Tümü", ...STORE_STATUSES].map((status) => [
+      status,
+      status === "Tümü" ? state.stores.length : state.stores.filter((store) => store.status === status).length
+    ]));
+    render();
+    if (options.scroll) scrollToRadarList();
+    return;
+  }
+
+  const requestId = ++storePageRequestId;
+  storePageLoading = true;
+  render();
+
+  try {
+    const from = (requestedPage - 1) * STORE_PAGE_SIZE;
+    const to = from + STORE_PAGE_SIZE - 1;
+    let pageQuery = supabaseClient
+      .from(CONTENT_TABLE)
+      .select("id, content_type, owner_id, owner_username, data, created_at, updated_at", { count: "exact" });
+    pageQuery = applyStoreQueryFilters(pageQuery)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    const [pageResult, counts] = await Promise.all([
+      pageQuery,
+      loadStoreStatusCounts()
+    ]);
+    if (pageResult.error) throw pageResult.error;
+    if (requestId !== storePageRequestId) return;
+
+    const total = Number(pageResult.count || 0);
+    const totalPages = Math.max(1, Math.ceil(total / STORE_PAGE_SIZE));
+    if (requestedPage > totalPages && total > 0) {
+      storePageLoading = false;
+      await loadStorePage({ ...options, page: totalPages });
+      return;
+    }
+
+    remoteStorePageItems = (pageResult.data || []).map((row) => ownedRemoteRecord("stores", row));
+    storeCurrentPage = Math.min(requestedPage, totalPages);
+    storeTotalCount = total;
+    storeTotalPages = totalPages;
+    storeStatusCounts = counts;
+  } catch (error) {
+    if (requestId !== storePageRequestId) return;
+    console.error("Radar notları sayfalanırken Supabase hatası:", error);
+    showToast("Radar notları yüklenemedi. Lütfen tekrar dene.");
+  } finally {
+    if (requestId === storePageRequestId) {
+      storePageLoading = false;
+      render();
+      if (options.scroll) scrollToRadarList();
+    }
+  }
+}
+
+function scrollToRadarList() {
+  document.querySelector(".list-zone")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function loadRadarNotePhotosFromSupabase() {
@@ -1185,27 +1313,138 @@ function getActiveList() {
     return allMarketListings();
   }
 
+  if (activeView === "stores" && supabaseClient) {
+    return remoteStorePageItems;
+  }
+
   return state[activeView] || [];
 }
 
 function render() {
   syncAppShell();
-  const list = sortActiveList(getActiveList().filter(matchesViewFilters).filter(matchesSearch));
+  const isRemoteStoreList = activeView === "stores" && Boolean(supabaseClient);
+  const filteredList = isRemoteStoreList
+    ? getActiveList()
+    : getActiveList().filter(matchesViewFilters).filter(matchesSearch);
+  let list = sortActiveList(filteredList);
+  if (activeView === "stores" && !supabaseClient) {
+    const from = (storeCurrentPage - 1) * STORE_PAGE_SIZE;
+    list = list.slice(from, from + STORE_PAGE_SIZE);
+  }
   cards.innerHTML = "";
   listTitle.textContent = viewTitles[activeView] || viewTitles.collection;
   viewCopy.textContent = viewCopies[activeView] || "";
-  visibleCount.textContent = `${list.length} kayıt`;
-  emptyState.classList.toggle("is-visible", list.length === 0);
+  visibleCount.textContent = activeView === "stores" ? `${storeTotalCount} kayıt` : `${list.length} kayıt`;
+  emptyState.textContent = activeView === "stores"
+    ? "Bu filtrelerle eşleşen radar notu bulunamadı."
+    : "Henüz kayıt yok.";
+  emptyState.classList.toggle("is-visible", !storePageLoading && list.length === 0);
   renderListFilters();
 
-  list.forEach((item) => {
-    cards.appendChild(createCard(item));
-  });
+  if (activeView === "stores" && storePageLoading) {
+    renderStoreLoadingCards();
+  } else {
+    list.forEach((item) => {
+      cards.appendChild(createCard(item));
+    });
+  }
+  renderStorePagination();
 
   updateMetrics();
   renderLeaderboard();
   renderRewardCenter();
   updateUserButton();
+}
+
+function renderStoreLoadingCards() {
+  Array.from({ length: 6 }, (_, index) => {
+    const skeleton = document.createElement("article");
+    skeleton.className = "store-card store-card--loading";
+    skeleton.setAttribute("aria-hidden", "true");
+    skeleton.innerHTML = `
+      <span class="store-loading-line store-loading-line--media"></span>
+      <span class="store-loading-line store-loading-line--title"></span>
+      <span class="store-loading-line store-loading-line--meta"></span>
+      <span class="store-loading-line store-loading-line--copy"></span>
+    `;
+    skeleton.style.setProperty("--loading-delay", `${index * 70}ms`);
+    cards.appendChild(skeleton);
+  });
+}
+
+function paginationItems(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const pages = new Set([1, total, current - 1, current, current + 1]);
+  if (current <= 3) pages.add(2), pages.add(3);
+  if (current >= total - 2) pages.add(total - 1), pages.add(total - 2);
+  const sorted = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b);
+  const items = [];
+  sorted.forEach((page, index) => {
+    if (index && page - sorted[index - 1] > 1) items.push("ellipsis");
+    items.push(page);
+  });
+  return items;
+}
+
+function createPaginationButton(label, page, options = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = options.className || "";
+  button.textContent = label;
+  button.disabled = storePageLoading || options.disabled;
+  if (options.active) {
+    button.classList.add("is-active");
+    button.setAttribute("aria-current", "page");
+  }
+  button.addEventListener("click", () => loadStorePage({ page, scroll: true }));
+  return button;
+}
+
+function renderStorePagination() {
+  radarPagination.innerHTML = "";
+  const isVisible = activeView === "stores" && (storeTotalCount > 0 || storePageLoading);
+  radarPagination.classList.toggle("is-visible", isVisible);
+  radarPagination.classList.toggle("is-loading", storePageLoading);
+  if (!isVisible) return;
+
+  const desktop = document.createElement("div");
+  desktop.className = "radar-pagination__desktop";
+  desktop.append(
+    createPaginationButton("İlk", 1, { disabled: storeCurrentPage <= 1 }),
+    createPaginationButton("Önceki", Math.max(1, storeCurrentPage - 1), { disabled: storeCurrentPage <= 1 })
+  );
+  paginationItems(storeCurrentPage, storeTotalPages).forEach((item) => {
+    if (item === "ellipsis") {
+      const ellipsis = document.createElement("span");
+      ellipsis.className = "radar-pagination__ellipsis";
+      ellipsis.textContent = "…";
+      desktop.appendChild(ellipsis);
+      return;
+    }
+    desktop.appendChild(createPaginationButton(String(item), item, {
+      active: item === storeCurrentPage,
+      className: "radar-pagination__number"
+    }));
+  });
+  desktop.append(
+    createPaginationButton("Sonraki", Math.min(storeTotalPages, storeCurrentPage + 1), { disabled: storeCurrentPage >= storeTotalPages }),
+    createPaginationButton("En Son", storeTotalPages, { disabled: storeCurrentPage >= storeTotalPages })
+  );
+
+  const mobile = document.createElement("div");
+  mobile.className = "radar-pagination__mobile";
+  mobile.append(
+    createPaginationButton("Önceki", Math.max(1, storeCurrentPage - 1), { disabled: storeCurrentPage <= 1 })
+  );
+  const mobileStatus = document.createElement("span");
+  mobileStatus.className = "radar-pagination__status";
+  mobileStatus.textContent = `Sayfa ${storeCurrentPage} / ${storeTotalPages}`;
+  mobile.appendChild(mobileStatus);
+  mobile.append(
+    createPaginationButton("Sonraki", Math.min(storeTotalPages, storeCurrentPage + 1), { disabled: storeCurrentPage >= storeTotalPages })
+  );
+
+  radarPagination.append(desktop, mobile);
 }
 
 function syncAppShell() {
@@ -1352,6 +1591,11 @@ function createCard(item) {
     if (!deleted) return;
     if (activeView === "market" && item.listingSource === "market") {
       state.market = state.market.filter((entry) => entry.id !== item.id);
+    } else if (activeView === "stores" && supabaseClient) {
+      remoteStorePageItems = remoteStorePageItems.filter((entry) => entry.id !== item.id);
+      storeTotalCount = Math.max(0, storeTotalCount - 1);
+      await loadStorePage({ page: storeCurrentPage });
+      return;
     } else {
       const targetView = activeView === "market" ? "collection" : activeView;
       state[targetView] = state[targetView].filter((entry) => entry.id !== item.id);
@@ -1448,15 +1692,18 @@ function renderListFilters() {
   if (!shouldShow) return;
 
   ["Tümü", ...STORE_STATUSES].forEach((status) => {
-    const count = status === "Tümü" ? state.stores.length : state.stores.filter((store) => store.status === status).length;
+    const count = storeStatusCounts[status] || 0;
     const button = document.createElement("button");
     button.type = "button";
     button.className = `radar-filter radar-filter--${statusTone[status] || "neutral"}`;
     button.classList.toggle("is-active", activeStoreStatus === status);
     button.textContent = `${status} ${count}`;
+    button.disabled = storePageLoading;
     button.addEventListener("click", () => {
+      if (activeStoreStatus === status) return;
       activeStoreStatus = status;
-      render();
+      storeCurrentPage = 1;
+      void loadStorePage({ page: 1 });
     });
     radarFilters.appendChild(button);
   });
@@ -1573,6 +1820,9 @@ function marketPriceBounds(marketCars) {
 }
 
 function sortActiveList(list) {
+  if (activeView === "stores") {
+    return [...list].sort((a, b) => marketDateValue(b) - marketDateValue(a));
+  }
   if (activeView !== "market") return list;
   return [...list].sort((a, b) => {
     if (activeMarketSort === "Ucuzdan pahalıya") {
@@ -3497,6 +3747,7 @@ async function initSupabaseAuth() {
   await loadSiteConfigFromSupabase();
   await loadRewardSettingsFromSupabase();
   await loadPublicContentFromSupabase();
+  await loadStorePage({ page: 1 });
   await loadRadarNotePhotosFromSupabase();
   await loadStoreVerificationSummaries();
   render();
@@ -4123,7 +4374,7 @@ function addStoreRewardPanel(card, item) {
 
 function voteStoreReport(storeId, vote) {
   requireAuth(async () => {
-    const selectedStore = state.stores.find((item) => item.id === storeId);
+    const selectedStore = [...remoteStorePageItems, ...state.stores].find((item) => item.id === storeId);
     if (!selectedStore) return;
     if (isOwnedByCurrentUser("stores", selectedStore)) {
       showToast("Kendi radar notuna oy veremezsin.");
@@ -4175,7 +4426,7 @@ function voteStoreReport(storeId, vote) {
     }
     render();
     if (currentStoreDetail?.id === storeId) {
-      openStoreDetail(state.stores.find((store) => store.id === storeId) || currentStoreDetail);
+      openStoreDetail([...remoteStorePageItems, ...state.stores].find((store) => store.id === storeId) || currentStoreDetail);
     }
   });
 }
@@ -5093,6 +5344,10 @@ function addEntry(type, entry) {
   void syncPublicRecord(type, record).then(async (synced) => {
     if (synced && type === "stores") await syncRadarNotePhotos(record);
     await rewardNewEntry(type, record);
+    if (synced && type === "stores") {
+      storeCurrentPage = 1;
+      await loadStorePage({ page: 1 });
+    }
   });
   render();
 }
@@ -5126,6 +5381,7 @@ async function rewardNewEntry(type, record) {
 }
 
 function setActiveView(view, options = {}) {
+  const enteringStores = view === "stores" && activeView !== "stores";
   activeView = view;
 
   if (options.clearSearch) {
@@ -5164,6 +5420,11 @@ function setActiveView(view, options = {}) {
   });
 
   render();
+
+  if (enteringStores) {
+    storeCurrentPage = 1;
+    void loadStorePage({ page: 1 });
+  }
 
   if (options.scroll) {
     const target = activeView === "home"
@@ -5516,7 +5777,20 @@ storePhotoFiles.addEventListener("change", (event) => addStorePhotoFiles(event.c
 });
 storePhotoPicker.addEventListener("drop", (event) => addStorePhotoFiles(event.dataTransfer?.files || []));
 
-searchInput.addEventListener("input", render);
+searchInput.addEventListener("input", () => {
+  if (activeView !== "stores") {
+    render();
+    return;
+  }
+  window.clearTimeout(storeSearchTimer);
+  storePageRequestId += 1;
+  storeCurrentPage = 1;
+  storePageLoading = true;
+  render();
+  storeSearchTimer = window.setTimeout(() => {
+    void loadStorePage({ page: 1 });
+  }, 280);
+});
 
 document.querySelector("#resetData").addEventListener("click", () => {
   const accepted = confirm("Tüm kayıtlar silinip örnek verilere dönülsün mü?");
