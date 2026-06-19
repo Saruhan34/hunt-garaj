@@ -3499,12 +3499,17 @@ textarea:focus {
 .store-verify-actions button.is-selected,
 .store-verify-actions button.is-selected:disabled {
   opacity: 1;
-  border-color: var(--vote-accent);
-  background:
-    radial-gradient(circle at 12% 10%, var(--vote-soft), transparent 55%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025));
+  border-color: color-mix(in srgb, var(--vote-accent) 62%, transparent);
+  background: color-mix(in srgb, var(--vote-soft) 54%, #20262d);
   color: var(--vote-text);
-  box-shadow: 0 0 0 2px var(--vote-soft), 0 14px 32px rgba(0, 0, 0, 0.34);
+  box-shadow: inset 3px 0 0 var(--vote-accent);
+}
+
+.store-verify-actions button.is-selected em {
+  border-color: color-mix(in srgb, var(--vote-accent) 48%, transparent);
+  background: var(--vote-soft);
+  color: var(--vote-text);
+  box-shadow: none;
 }
 
 .store-vote-icon {
@@ -3558,6 +3563,18 @@ textarea:focus {
   color: #d7b86b;
   font-size: 0.74rem;
   font-weight: 800;
+}
+
+.store-vote-hint.is-confirmed {
+  color: #dce3e6;
+}
+
+.store-vote-hint.is-confirmed b {
+  color: #f5c451;
+}
+
+.store-vote-hint.is-confirmed span {
+  color: #8ea0a8;
 }
 
 .reward-system-policy {

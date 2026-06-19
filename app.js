@@ -10,6 +10,7 @@ const CONTENT_TABLE = "content_records";
 const RADAR_PHOTO_TABLE = "radar_note_photos";
 const MAX_STORE_PHOTOS = 8;
 const STORE_PAGE_SIZE = 12;
+const STORE_VOTE_CACHE_KEY = "hunt-radar-my-votes-v1";
 const ASSET_BUCKET = "hunt-radar-assets";
 const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
 const MANAGED_ASSET_PATHS = [
@@ -4127,7 +4128,24 @@ function storeRewardPreview(item) {
 
 function storeVerificationSummary(item) {
   const remote = storeVerificationSummaries[String(item.id)];
-  if (remote) return remote;
+  if (remote) {
+    const currentVote = remote.current_vote || cachedStoreVote(item.id) || "";
+    const summary = {
+      ...remote,
+      current_vote: currentVote,
+      correct_count: Number(remote.correct_count || 0),
+      gone_count: Number(remote.gone_count || 0),
+      wrong_count: Number(remote.wrong_count || 0)
+    };
+    if (currentVote && summary[`${currentVote}_count`] < 1) {
+      summary[`${currentVote}_count`] = 1;
+    }
+    summary.total_votes = Math.max(
+      Number(remote.total_votes || 0),
+      summary.correct_count + summary.gone_count + summary.wrong_count
+    );
+    return summary;
+  }
   const votes = item.verifications || {};
   const expiresAt = item.expiresAt || new Date(new Date(item.createdAt || Date.now()).getTime() + 8 * 60 * 60 * 1000).toISOString();
   const totalVotes = Number(votes.correct || 0) + Number(votes.gone || 0) + Number(votes.wrong || 0);
@@ -4139,10 +4157,63 @@ function storeVerificationSummary(item) {
     gone_count: Number(votes.gone || 0),
     wrong_count: Number(votes.wrong || 0),
     total_votes: totalVotes,
-    current_vote: currentUser ? item.verificationUsers?.[currentUser.id] || "" : "",
+    current_vote: currentUser ? cachedStoreVote(item.id) || item.verificationUsers?.[currentUser.id] || "" : "",
     expires_at: expiresAt,
     last_activity_at: item.updatedAt || item.createdAt || new Date().toISOString()
   };
+}
+
+function storeVoteLabels(vote) {
+  return {
+    correct: { title: "Hâlâ var", detail: "Raf bilgisi güncel", icon: "✓" },
+    gone: { title: "Artık kalmadı", detail: "Stok tükenmiş", icon: "−" },
+    wrong: { title: "Yanlış bilgi", detail: "Bildirim hatalı", icon: "!" }
+  }[vote] || { title: "", detail: "", icon: "✓" };
+}
+
+function loadCachedStoreVotes() {
+  try {
+    return JSON.parse(localStorage.getItem(STORE_VOTE_CACHE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function cachedStoreVote(storeId) {
+  if (!currentUser) return "";
+  return loadCachedStoreVotes()[`${currentUser.id}:${storeId}`] || "";
+}
+
+function cacheStoreVote(storeId, vote) {
+  if (!currentUser || !vote) return;
+  const votes = loadCachedStoreVotes();
+  votes[`${currentUser.id}:${storeId}`] = vote;
+  localStorage.setItem(STORE_VOTE_CACHE_KEY, JSON.stringify(votes));
+}
+
+function applyStoreVoteResult(storeId, vote, result = {}) {
+  const previous = storeVerificationSummaries[String(storeId)] || {};
+  const counts = result.counts || {};
+  const correctCount = Number(counts.correct ?? previous.correct_count ?? 0);
+  const goneCount = Number(counts.gone ?? previous.gone_count ?? 0);
+  const wrongCount = Number(counts.wrong ?? previous.wrong_count ?? 0);
+  const consensusStatus = {
+    correct: "verified",
+    gone: "expired",
+    wrong: "disputed"
+  }[result.consensus] || previous.status || "pending";
+  storeVerificationSummaries[String(storeId)] = {
+    ...previous,
+    store_report_id: String(storeId),
+    status: consensusStatus,
+    correct_count: correctCount,
+    gone_count: goneCount,
+    wrong_count: wrongCount,
+    total_votes: correctCount + goneCount + wrongCount,
+    current_vote: vote,
+    last_activity_at: new Date().toISOString()
+  };
+  cacheStoreVote(storeId, vote);
 }
 
 function storeVerificationStatus(status) {
@@ -4324,6 +4395,7 @@ function addStoreRewardPanel(card, item) {
   const status = storeVerificationStatus(summary.status);
   const trustScore = storeTrustScore(item, summary);
   const evidenceLabel = storePhotos(item).length ? "Fotoğraflı kanıt var" : "Metin bildirimi";
+  const voteLabel = storeVoteLabels(currentVote);
   const hint = !currentUser
     ? "Oy vermek için giriş yapmalısın."
     : isOwnReport
@@ -4364,7 +4436,9 @@ function addStoreRewardPanel(card, item) {
         <em>${Number(summary.wrong_count || 0)}</em>
       </button>
     </div>
-    <small class="store-vote-hint">${hint}</small>
+    <small class="store-vote-hint ${currentVote ? "is-confirmed" : ""}">
+      ${currentVote ? `<b>Seçimin:</b> ${voteLabel.title} <span>· Kaydedildi</span>` : hint}
+    </small>
   `;
   panel.querySelectorAll("[data-store-vote]").forEach((button) => {
     button.addEventListener("click", () => voteStoreReport(item.id, button.dataset.storeVote));
@@ -4399,10 +4473,15 @@ function voteStoreReport(storeId, vote) {
         showToast(reasonMessage || "Doğrulama kaydedilemedi.");
         return;
       }
+      applyStoreVoteResult(storeId, vote, data);
+      render();
+      if (currentStoreDetail?.id === storeId) {
+        openStoreDetail(selectedStore);
+      }
       await Rewards?.refresh();
       await loadStoreVerificationSummaries();
       await loadRewardNotifications();
-      showToast("Doğrulaman kaydedildi.");
+      showToast(`${storeVoteLabels(vote).title} oyun kaydedildi.`);
     } else {
       state.stores = state.stores.map((store) => {
         if (store.id !== storeId) return store;
