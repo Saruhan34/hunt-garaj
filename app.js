@@ -5475,20 +5475,21 @@ document.querySelector("#wishForm").addEventListener("submit", (event) => {
 
 document.querySelector("#storeForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
   requireAuth(async () => {
-    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
     submitButton.textContent = pendingStorePhotoFiles.length ? "Fotoğraflar yükleniyor..." : "Radar notu ekleniyor...";
     try {
       const id = crypto.randomUUID();
       const photos = await prepareStorePhotoUrls(id);
-      addEntry("stores", { ...storeFormToObject(event.currentTarget, photos), id });
-      event.currentTarget.reset();
+      addEntry("stores", { ...storeFormToObject(form, photos), id });
+      form.reset();
       resetStorePhotoSelection();
       syncOtherStoreField();
     } catch (error) {
       console.warn("Radar fotoğrafları yüklenemedi:", error.message);
-      showToast("Fotoğraflar yüklenemedi. Çoklu fotoğraf SQL dosyasını çalıştırıp tekrar dene.");
+      showToast("Radar notu kaydedilemedi. Lütfen tekrar dene.");
     } finally {
       submitButton.disabled = false;
       submitButton.textContent = "Hunt Radar notu ekle";
