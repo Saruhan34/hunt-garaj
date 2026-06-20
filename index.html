@@ -4,15 +4,49 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=88" />
+    <link rel="stylesheet" href="./styles.css?v=113" />
   </head>
-  <body>
+  <body class="dashboard-shell">
+    <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
+    <aside class="dashboard-sidebar" id="dashboardSidebar" aria-label="Ana menü">
+      <a class="dashboard-sidebar__brand" href="#/ana-sayfa" aria-label="Hunt Radar ana sayfa">
+        <span class="brand__mark" aria-hidden="true">
+          <span class="brand__mark-core">HR</span>
+          <span class="brand__mark-car"></span>
+        </span>
+        <span>
+          <strong>Hunt Radar</strong>
+          <small>Koleksiyon merkezi</small>
+        </span>
+      </a>
+      <nav class="dashboard-sidebar__nav">
+        <span class="dashboard-sidebar__label">Menü</span>
+        <button type="button" data-route-view="home"><i aria-hidden="true">⌂</i><span>Ana Sayfa</span></button>
+        <button type="button" data-route-view="stores"><i aria-hidden="true">⌁</i><span>Hunt Radar</span></button>
+        <button type="button" data-route-view="market"><i aria-hidden="true">₺</i><span>Pazar</span></button>
+        <button type="button" data-route-view="collection"><i aria-hidden="true">◇</i><span>Garaj</span></button>
+        <button type="button" data-route-view="wishlist"><i aria-hidden="true">☆</i><span>İstek Listesi</span></button>
+        <button type="button" data-route-view="community"><i aria-hidden="true">◌</i><span>Topluluk</span></button>
+        <button type="button" data-route-view="rewards"><i aria-hidden="true">◆</i><span>Radar Puanı</span></button>
+        <button class="dashboard-sidebar__admin is-hidden" id="dashboardAdminLink" type="button" data-route-view="admin">
+          <i aria-hidden="true">⚙</i><span>Admin Paneli</span>
+        </button>
+      </nav>
+      <div class="dashboard-sidebar__footer">
+        <span class="dashboard-sidebar__pulse" aria-hidden="true"></span>
+        <div><strong>Sistem aktif</strong><small>Radar ağı çevrimiçi</small></div>
+      </div>
+    </aside>
+
     <header class="hero">
       <div class="hero__shade"></div>
       <div class="hero__radar-orbit" aria-hidden="true"></div>
       <div class="hero__scanline" aria-hidden="true"></div>
       <nav class="topbar" aria-label="Ana gezinme">
-        <a class="brand" href="#garaj" aria-label="Hunt Radar ana sayfa">
+        <button class="dashboard-menu-toggle" id="dashboardMenuToggle" type="button" aria-label="Menüyü aç" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <a class="brand" href="#/ana-sayfa" aria-label="Hunt Radar ana sayfa">
           <span class="brand__mark" aria-hidden="true">
             <span class="brand__mark-core">HR</span>
             <span class="brand__mark-car"></span>
@@ -22,6 +56,10 @@
             <span>Radar</span>
           </span>
         </a>
+        <div class="dashboard-page-identity">
+          <small>Hunt Radar Dashboard</small>
+          <strong id="dashboardPageTitle">Ana Sayfa</strong>
+        </div>
         <div class="top-module-nav" aria-label="Modül navigasyonu">
           <button type="button" data-view="home">Ana Sayfa</button>
           <button type="button" data-view="collection">Garaj</button>
@@ -45,7 +83,11 @@
           <div class="account-shell">
             <button class="user-button" id="userButton" type="button" aria-expanded="false" aria-controls="accountMenu">
               <span class="user-button__avatar" id="userAvatar">HR</span>
-              <span id="userButtonText">Giriş yap</span>
+              <span class="user-button__identity">
+                <strong id="userButtonText">Giriş Yap / Hesap Oluştur</strong>
+                <small id="userButtonMeta">Misafir hesap</small>
+              </span>
+              <span class="user-button__chevron" aria-hidden="true"></span>
             </button>
             <section class="account-menu" id="accountMenu" aria-label="Hesap menüsü">
               <div class="account-menu__hero">
@@ -56,18 +98,20 @@
                   <p id="accountMenuEmail">Pazar ilanı için giriş yap.</p>
                 </div>
               </div>
+              <div class="account-menu__rank" id="accountMenuRank">Misafir hesap</div>
               <div class="account-menu__stats">
                 <span><strong id="accountListingCount">0</strong> ilan</span>
                 <span><strong id="accountCollectionCount">0</strong> araç</span>
               </div>
-              <button class="account-menu__action" id="openProfileSettings" type="button">Profil bilgileri</button>
-              <button class="account-menu__action account-menu__action--message" id="openInbox" type="button">
-                Bildirimler
-                <span class="message-count" id="accountMessageCount">0</span>
-              </button>
-              <button class="account-menu__action" id="exportData" type="button">Verileri indir</button>
-              <button class="account-menu__action" id="resetData" type="button">Örnek verilere dön</button>
-              <button class="account-menu__action account-menu__action--danger" id="accountLogout" type="button">Oturumu kapat</button>
+              <div class="account-menu__primary-actions">
+                <button class="account-menu__action" id="openProfileSettings" type="button"><span>Profilim</span><i>→</i></button>
+                <button class="account-menu__action" id="openAccountSettings" type="button"><span>Ayarlar</span><i>→</i></button>
+                <button class="account-menu__action" id="openAccountBadges" type="button"><span>Rozetlerim</span><i>→</i></button>
+                <button class="account-menu__action account-menu__action--danger" id="accountLogout" type="button"><span>Çıkış Yap</span><i>↗</i></button>
+              </div>
+              <div hidden>
+                <button id="openInbox" type="button"><span id="accountMessageCount">0</span></button>
+              </div>
             </section>
           </div>
         </div>
@@ -213,12 +257,27 @@
         </div>
       </section>
 
+      <section class="dashboard-view-header app-module-only" id="dashboardViewHeader" aria-labelledby="dashboardViewHeading">
+        <div class="dashboard-view-header__identity">
+          <span class="dashboard-view-header__icon" id="dashboardViewIcon" aria-hidden="true">◇</span>
+          <div>
+            <p class="eyebrow" id="dashboardViewEyebrow">Koleksiyon merkezi</p>
+            <h2 id="dashboardViewHeading">Garaj</h2>
+            <p id="dashboardViewDescription">Koleksiyonundaki araçları tek merkezden yönet.</p>
+          </div>
+        </div>
+        <div class="dashboard-view-header__actions">
+          <button class="button button--ghost is-hidden" id="dashboardSecondaryAction" type="button"></button>
+          <button class="button button--primary" id="dashboardPrimaryAction" type="button"></button>
+        </div>
+      </section>
+
       <section class="community-module app-module-only" id="communityModule" aria-label="Forum ve topluluk">
         <div class="section-heading">
           <div>
             <p class="eyebrow">Forum / Topluluk</p>
             <h2>Topluluk</h2>
-            <p class="view-copy">Mock konular, yorumlar ve rehber yazıları. Gerçek üyelik altyapısıyla büyütülecek alan.</p>
+            <p class="view-copy">Koleksiyon sohbetlerini, mağaza deneyimlerini ve av rehberlerini toplulukla paylaş.</p>
           </div>
         </div>
         <div class="community-grid">
@@ -243,6 +302,30 @@
             <button type="button" data-leaderboard-period="all">Tüm zamanlar</button>
           </div>
         </div>
+        <section class="reward-user-overview" id="rewardUserOverview" aria-label="Kullanıcı puan özeti">
+          <div class="reward-user-overview__identity">
+            <span class="reward-user-overview__avatar" id="rewardOverviewAvatar">HR</span>
+            <div>
+              <p class="eyebrow">Senin radar durumun</p>
+              <h3 id="rewardOverviewUsername">Giriş yaparak puanlarını takip et</h3>
+              <span id="rewardOverviewRank">Rank ve rozet bilgilerin burada görünür.</span>
+            </div>
+          </div>
+          <div class="reward-user-overview__score">
+            <strong id="rewardOverviewPoints">0</strong>
+            <span>Radar Puanı</span>
+          </div>
+          <div class="reward-user-overview__progress">
+            <div><span id="rewardOverviewProgressLabel">Rank ilerlemesi</span><strong id="rewardOverviewProgressValue">0%</strong></div>
+            <span><i id="rewardOverviewProgressFill"></i></span>
+          </div>
+          <div class="reward-user-overview__stats">
+            <span><strong id="rewardOverviewReports">0</strong> radar katkısı</span>
+            <span><strong id="rewardOverviewVerification">0</strong> doğrulama</span>
+            <span><strong id="rewardOverviewBadges">0</strong> rozet</span>
+          </div>
+          <button class="button button--ghost" id="rewardOverviewLogin" type="button">Giriş Yap</button>
+        </section>
         <div class="reward-podium" id="rewardPodium"></div>
         <div class="reward-system-policy">
           <strong>Adil oyun koruması</strong>
@@ -490,7 +573,18 @@
             <button class="button button--primary" type="submit">İstek Listesi'ne ekle</button>
           </form>
 
-          <form class="entry-form store-entry-form" id="storeForm" data-form="stores" novalidate>
+          <div class="radar-note-modal-backdrop" id="radarNoteModalBackdrop" aria-hidden="true">
+            <section class="radar-note-modal" id="radarNoteModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="radarNoteModalTitle">
+              <header class="radar-note-modal-header">
+                <div>
+                  <span>Yeni radar bildirimi</span>
+                  <strong id="radarNoteModalTitle">Radar Notu Ekle</strong>
+                  <small>Güncel raf bilgisini ve kanıtlarını toplulukla paylaş.</small>
+                </div>
+                <button type="button" id="closeRadarNoteModal" aria-label="Radar notu formunu kapat">×</button>
+              </header>
+              <div class="radar-note-modal-body">
+                <form class="entry-form store-entry-form" id="storeForm" data-form="stores" novalidate>
             <header class="store-form-header">
               <span class="store-form-header__mark" aria-hidden="true"></span>
               <div>
@@ -615,7 +709,7 @@
                   <option>Duyum</option>
                 </select>
               </div>
-              <div class="store-proof-field">
+              <div class="store-proof-field" id="storeProofField">
                 <div class="store-photo-upload">
                   <div class="store-photo-upload__head">
                     <div>
@@ -652,12 +746,18 @@
               </div>
             </section>
 
-            <button class="store-submit-button" type="submit">
-              <span class="store-submit__spinner" aria-hidden="true"></span>
-              <span class="store-submit__label">Radar notu ekle</span>
-              <span class="store-submit__arrow" aria-hidden="true">→</span>
-            </button>
-          </form>
+                </form>
+              </div>
+              <footer class="radar-note-modal-footer">
+                <button class="button button--ghost radar-note-modal-cancel" id="cancelRadarNoteModal" type="button">İptal</button>
+                <button class="store-submit-button" type="submit" form="storeForm">
+                  <span class="store-submit__spinner" aria-hidden="true"></span>
+                  <span class="store-submit__label">Notu paylaş</span>
+                  <span class="store-submit__arrow" aria-hidden="true">→</span>
+                </button>
+              </footer>
+            </section>
+          </div>
           <section class="entry-form market-helper" data-form="market">
             <h2>Pazar vitrini</h2>
             <p class="field-hint">İstersen garajındaki bir arabayı seç, istersen garaja eklemeden doğrudan pazar ilanı oluştur.</p>
@@ -901,7 +1001,10 @@
               <h2 id="listTitle">Garaj</h2>
               <p class="view-copy" id="viewCopy">Garajındaki modelleri profil, seri, renk ve durum bilgisiyle düzenli tut.</p>
             </div>
-            <span class="pill" id="visibleCount">0 kayıt</span>
+            <div class="list-heading-actions">
+              <button class="open-radar-modal" id="openRadarNoteModal" type="button">+ Radar Notu Ekle</button>
+              <span class="pill" id="visibleCount">0 kayıt</span>
+            </div>
           </div>
           <div class="radar-filters" id="radarFilters" aria-label="Liste filtreleri"></div>
           <div class="card-grid" id="cards"></div>
@@ -1291,6 +1394,6 @@
     <script src="./catalog-2026.js?v=7"></script>
     <script src="./reward-service.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=105"></script>
+    <script src="./app.js?v=119"></script>
   </body>
 </html>

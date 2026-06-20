@@ -42,6 +42,69 @@ const supabaseClient = window.supabase
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 const STORE_STATUSES = ["Yeni sevkiyat", "Premium var", "Az stok", "Boş", "TH görüldü", "STH görüldü", "Bakmaya değmez"];
+const STORE_FILTER_CITIES = ["Tümü", "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Kocaeli", "Diğer"];
+const STORE_FILTER_NAMES = ["Tümü", "Toyzz Shop", "LC Waikiki", "D&R", "Migros", "CarrefourSA", "Armağan Oyuncak", "Ebebek", "Joker", "Rossmann", "Kırtasiye", "Oyuncakçı", "Diğer"];
+const STORE_FILTER_EVIDENCE = ["Tümü", "Fotoğraflı", "Gözle görüldü", "Duyum"];
+const DASHBOARD_ROUTES = {
+  home: "ana-sayfa",
+  stores: "hunt-radar",
+  market: "pazar",
+  collection: "garaj",
+  wishlist: "istek-listesi",
+  community: "topluluk",
+  rewards: "radar-puani",
+  admin: "admin"
+};
+const DASHBOARD_VIEW_TITLES = {
+  home: "Ana Sayfa",
+  stores: "Hunt Radar",
+  market: "Pazar",
+  collection: "Garaj",
+  wishlist: "İstek Listesi",
+  community: "Topluluk",
+  rewards: "Radar Puanı",
+  admin: "Admin Paneli"
+};
+const DASHBOARD_VIEW_META = {
+  collection: {
+    eyebrow: "Kişisel koleksiyon",
+    title: "Garaj",
+    description: "Koleksiyonundaki modelleri, varyantları ve pazar durumlarını düzenli biçimde yönet.",
+    icon: "◇",
+    primary: "+ Araç Ekle"
+  },
+  stores: {
+    eyebrow: "Canlı raf ağı",
+    title: "Hunt Radar",
+    description: "Güncel mağaza bildirimlerini filtrele, kanıtları incele ve topluluk doğrulamalarını takip et.",
+    icon: "⌁",
+    primary: "+ Radar Notu Ekle"
+  },
+  market: {
+    eyebrow: "Koleksiyon pazarı",
+    title: "Pazar",
+    description: "Satılık ve takaslık araçları filtrele; kendi ilanlarını güvenli şekilde yönet.",
+    icon: "₺",
+    primary: "+ İlan Ekle",
+    secondary: "Garajdan Seç"
+  },
+  wishlist: {
+    eyebrow: "Av planı",
+    title: "İstek Listesi",
+    description: "Aradığın modelleri öncelik, hedef fiyat ve kişisel notlarla takip et.",
+    icon: "☆",
+    primary: "+ İstek Ekle"
+  },
+  admin: {
+    eyebrow: "Yetkili yönetim",
+    title: "Admin Paneli",
+    description: "Site ayarları, katalog, içerik, kullanıcı ve ödül sistemini tek merkezden yönet.",
+    icon: "⚙"
+  }
+};
+const DASHBOARD_VIEWS_BY_ROUTE = Object.fromEntries(
+  Object.entries(DASHBOARD_ROUTES).map(([view, route]) => [route, view])
+);
 const MARKET_TYPE_FILTERS = ["Tümü", "Satılık", "Takaslık"];
 const MARKET_FAVORITE_FILTERS = ["Tüm ilanlar", "Favorilerim"];
 const MARKET_CONDITION_FILTERS = ["Tümü", "Sıfır / Kartonetli", "Açık", "Hasarlı"];
@@ -383,6 +446,9 @@ const starterData = {
 let state = loadState();
 let activeView = "home";
 let activeStoreStatus = "Tümü";
+let activeStoreCity = "Tümü";
+let activeStoreName = "Tümü";
+let activeStoreEvidence = "Tümü";
 let activeCollectionOwner = "Tümü";
 let activeMarketType = "Tümü";
 let activeMarketFavorite = "Tüm ilanlar";
@@ -419,6 +485,7 @@ let pendingProfileAvatar = null;
 let catalogOverrides = loadCatalogOverrides();
 let users = loadUsers();
 let currentUser = supabaseClient ? null : loadCurrentUser();
+let authInitialized = !supabaseClient;
 let pendingAuthAction = null;
 let rewardNotifications = [];
 Rewards?.connect(supabaseClient, () => currentUser);
@@ -462,6 +529,7 @@ const radarPagination = document.querySelector("#radarPagination");
 const marketPanelFilters = document.querySelector("#marketPanelFilters");
 const userButton = document.querySelector("#userButton");
 const userButtonText = document.querySelector("#userButtonText");
+const userButtonMeta = document.querySelector("#userButtonMeta");
 const userAvatar = document.querySelector("#userAvatar");
 const topMessageButton = document.querySelector("#topMessageButton");
 const topMessageCount = document.querySelector("#topMessageCount");
@@ -471,12 +539,39 @@ const accountMenu = document.querySelector("#accountMenu");
 const accountMenuAvatar = document.querySelector("#accountMenuAvatar");
 const accountMenuName = document.querySelector("#accountMenuName");
 const accountMenuEmail = document.querySelector("#accountMenuEmail");
+const accountMenuRank = document.querySelector("#accountMenuRank");
 const accountListingCount = document.querySelector("#accountListingCount");
 const accountCollectionCount = document.querySelector("#accountCollectionCount");
 const accountMessageCount = document.querySelector("#accountMessageCount");
 const accountLogout = document.querySelector("#accountLogout");
 const openInbox = document.querySelector("#openInbox");
 const openProfileSettings = document.querySelector("#openProfileSettings");
+const openAccountSettings = document.querySelector("#openAccountSettings");
+const openAccountBadges = document.querySelector("#openAccountBadges");
+const dashboardSidebar = document.querySelector("#dashboardSidebar");
+const dashboardSidebarBackdrop = document.querySelector("#dashboardSidebarBackdrop");
+const dashboardMenuToggle = document.querySelector("#dashboardMenuToggle");
+const dashboardAdminLink = document.querySelector("#dashboardAdminLink");
+const dashboardPageTitle = document.querySelector("#dashboardPageTitle");
+const dashboardViewHeader = document.querySelector("#dashboardViewHeader");
+const dashboardViewEyebrow = document.querySelector("#dashboardViewEyebrow");
+const dashboardViewHeading = document.querySelector("#dashboardViewHeading");
+const dashboardViewDescription = document.querySelector("#dashboardViewDescription");
+const dashboardViewIcon = document.querySelector("#dashboardViewIcon");
+const dashboardPrimaryAction = document.querySelector("#dashboardPrimaryAction");
+const dashboardSecondaryAction = document.querySelector("#dashboardSecondaryAction");
+const rewardUserOverview = document.querySelector("#rewardUserOverview");
+const rewardOverviewAvatar = document.querySelector("#rewardOverviewAvatar");
+const rewardOverviewUsername = document.querySelector("#rewardOverviewUsername");
+const rewardOverviewRank = document.querySelector("#rewardOverviewRank");
+const rewardOverviewPoints = document.querySelector("#rewardOverviewPoints");
+const rewardOverviewProgressLabel = document.querySelector("#rewardOverviewProgressLabel");
+const rewardOverviewProgressValue = document.querySelector("#rewardOverviewProgressValue");
+const rewardOverviewProgressFill = document.querySelector("#rewardOverviewProgressFill");
+const rewardOverviewReports = document.querySelector("#rewardOverviewReports");
+const rewardOverviewVerification = document.querySelector("#rewardOverviewVerification");
+const rewardOverviewBadges = document.querySelector("#rewardOverviewBadges");
+const rewardOverviewLogin = document.querySelector("#rewardOverviewLogin");
 const toast = document.querySelector("#toast");
 const authModal = document.querySelector("#authModal");
 const profileModal = document.querySelector("#profileModal");
@@ -582,9 +677,26 @@ const storePhotoCount = document.querySelector("#storePhotoCount");
 const storePhotoStatus = document.querySelector("#storePhotoStatus");
 const storePhotoPreview = document.querySelector("#storePhotoPreview");
 const storePhotoPicker = document.querySelector(".store-photo-picker");
+const storeConfidence = document.querySelector("#storeConfidence");
+const storeProofField = document.querySelector("#storeProofField");
 const storeForm = document.querySelector("#storeForm");
+const storeSubmitButton = document.querySelector('.store-submit-button[form="storeForm"]');
 const storeAuthNotice = document.querySelector("#storeAuthNotice");
 const storeAuthLogin = document.querySelector("#storeAuthLogin");
+const radarNoteModal = document.querySelector("#radarNoteModal");
+const radarNoteModalBackdrop = document.querySelector("#radarNoteModalBackdrop");
+const radarNoteModalBody = radarNoteModal?.querySelector(".radar-note-modal-body");
+const radarNoteModalFooter = radarNoteModal?.querySelector(".radar-note-modal-footer");
+const openRadarNoteModalButton = document.querySelector("#openRadarNoteModal");
+const closeRadarNoteModalButton = document.querySelector("#closeRadarNoteModal");
+const cancelRadarNoteModalButton = document.querySelector("#cancelRadarNoteModal");
+
+// Keep the complete modal overlay outside sticky/grid panels so its flex
+// layout is always calculated against the real browser viewport.
+if (radarNoteModalBackdrop?.parentElement !== document.body) {
+  document.body.appendChild(radarNoteModalBackdrop);
+}
+
 const STORE_NAME_REQUIRED_PRESETS = ["Kırtasiye", "Oyuncakçı", "Diğer"];
 const carForm = document.querySelector("#carForm");
 const carSubmitButton = document.querySelector("#carSubmitButton");
@@ -768,7 +880,6 @@ function saveCurrentUser(user) {
   } else {
     localStorage.removeItem(CURRENT_USER_KEY);
   }
-  if (user) ensureDemoCommentNotification();
   updateUserButton();
 }
 
@@ -858,21 +969,6 @@ function normalizeState(data) {
     createdAt: message.createdAt || new Date().toISOString(),
     readBy: Array.isArray(message.readBy) ? message.readBy : []
   }));
-
-  if (!safe.messages.some((message) => message.id === "demo-message-saruhan34")) {
-    safe.messages.push({
-      id: "demo-message-saruhan34",
-      threadKey: "demo-listing::ali_hotwheels|saruhan34",
-      listingKey: "demo-listing",
-      listingTitle: "Ferrari F40 Competizione",
-      participants: ["saruhan34", "ali_hotwheels"],
-      fromUsername: "ali_hotwheels",
-      toUsername: "saruhan34",
-      text: "Selam @saruhan34, F40 ilanı hala duruyor mu? Takas düşünür müsün?",
-      createdAt: new Date().toISOString(),
-      readBy: ["ali_hotwheels"]
-    });
-  }
 
   return safe;
 }
@@ -1089,6 +1185,17 @@ function applyStoreQueryFilters(query, status = activeStoreStatus, search = stor
   let filtered = query.eq("content_type", "stores");
   if (status !== "Tümü") {
     filtered = filtered.contains("data", { status });
+  }
+  if (activeStoreCity !== "Tümü") {
+    filtered = filtered.contains("data", { city: activeStoreCity });
+  }
+  if (activeStoreName !== "Tümü") {
+    filtered = activeStoreName === "Diğer"
+      ? filtered.not("data->>store", "in", `(${STORE_FILTER_NAMES.slice(1, -1).join(",")})`)
+      : filtered.eq("data->>store", activeStoreName);
+  }
+  if (activeStoreEvidence !== "Tümü") {
+    filtered = filtered.eq("data->>confidence", activeStoreEvidence);
   }
   if (search) {
     const pattern = `*${search}*`;
@@ -1455,12 +1562,65 @@ function syncAppShell() {
   const isHome = activeView === "home";
   const isCommunity = activeView === "community";
   const isRewards = activeView === "rewards";
+  const isAdmin = activeView === "admin";
   document.body.classList.toggle("is-home-view", isHome);
   document.body.classList.toggle("is-community-view", isCommunity);
   document.body.classList.toggle("is-rewards-view", isRewards);
+  document.body.classList.toggle("is-admin-view", isAdmin);
+  document.body.classList.toggle("is-store-view", activeView === "stores");
+  document.body.classList.toggle("is-market-view", activeView === "market");
+  document.body.classList.toggle("is-collection-view", activeView === "collection");
+  document.body.classList.toggle("is-wishlist-view", activeView === "wishlist");
   document.body.classList.toggle("is-module-view", !isHome && !isCommunity && !isRewards);
   communityModule.classList.toggle("is-visible", isCommunity);
   rewardsModule.classList.toggle("is-visible", isRewards);
+  if (dashboardPageTitle) dashboardPageTitle.textContent = DASHBOARD_VIEW_TITLES[activeView] || "Ana Sayfa";
+  syncDashboardViewHeader();
+}
+
+function syncDashboardViewHeader() {
+  if (!dashboardViewHeader) return;
+  const meta = DASHBOARD_VIEW_META[activeView];
+  dashboardViewHeader.classList.toggle("is-visible", Boolean(meta));
+  if (!meta) return;
+  dashboardViewEyebrow.textContent = meta.eyebrow;
+  dashboardViewHeading.textContent = meta.title;
+  dashboardViewDescription.textContent = meta.description;
+  dashboardViewIcon.textContent = meta.icon;
+  dashboardPrimaryAction.textContent = meta.primary || "";
+  dashboardPrimaryAction.classList.toggle("is-hidden", !meta.primary);
+  dashboardSecondaryAction.textContent = meta.secondary || "";
+  dashboardSecondaryAction.classList.toggle("is-hidden", !meta.secondary);
+}
+
+function focusActiveEntryForm(selector) {
+  const field = document.querySelector(selector);
+  const form = field?.closest(".entry-form");
+  if (!form) return;
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => field.focus(), 260);
+}
+
+function runDashboardViewAction(action = "primary") {
+  if (activeView === "stores" && action === "primary") {
+    openRadarNoteModal();
+    return;
+  }
+  if (activeView === "market") {
+    if (action === "secondary") {
+      document.querySelector("#startMarketPick")?.click();
+    } else {
+      document.querySelector("#openDirectMarketListing")?.click();
+    }
+    return;
+  }
+  if (activeView === "collection" && action === "primary") {
+    focusActiveEntryForm("#catalogSearch");
+    return;
+  }
+  if (activeView === "wishlist" && action === "primary") {
+    focusActiveEntryForm("#wishModel");
+  }
 }
 
 function createCard(item) {
@@ -1628,8 +1788,15 @@ function matchesViewFilters(item) {
   }
 
   if (activeView !== "stores") return true;
-  if (activeStoreStatus === "Tümü") return true;
-  return item.status === activeStoreStatus;
+  const statusMatch = activeStoreStatus === "Tümü" || item.status === activeStoreStatus;
+  const cityMatch = activeStoreCity === "Tümü" || item.city === activeStoreCity;
+  const storeMatch = activeStoreName === "Tümü"
+    || (activeStoreName === "Diğer"
+      ? !STORE_FILTER_NAMES.slice(1, -1).includes(item.store)
+      : item.store === activeStoreName);
+  const evidenceMatch = activeStoreEvidence === "Tümü"
+    || item.confidence === activeStoreEvidence;
+  return statusMatch && cityMatch && storeMatch && evidenceMatch;
 }
 
 function renderListFilters() {
@@ -1695,22 +1862,152 @@ function renderListFilters() {
   marketPanelFilters.classList.remove("is-visible");
   if (!shouldShow) return;
 
-  ["Tümü", ...STORE_STATUSES].forEach((status) => {
-    const count = storeStatusCounts[status] || 0;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `radar-filter radar-filter--${statusTone[status] || "neutral"}`;
-    button.classList.toggle("is-active", activeStoreStatus === status);
-    button.textContent = `${status} ${count}`;
-    button.disabled = storePageLoading;
-    button.addEventListener("click", () => {
-      if (activeStoreStatus === status) return;
-      activeStoreStatus = status;
+  const storeToolbar = document.createElement("div");
+  storeToolbar.className = "store-filter-toolbar";
+  storeToolbar.append(
+    createStoreSearchFilter(),
+    createStoreSelectFilter("Şehir", "location", activeStoreCity, STORE_FILTER_CITIES, (value) => {
+      activeStoreCity = value;
+    }),
+    createStoreSelectFilter("Mağaza", "store", activeStoreName, STORE_FILTER_NAMES, (value) => {
+      activeStoreName = value;
+    }),
+    createStoreSelectFilter("Durum", "status", activeStoreStatus, ["Tümü", ...STORE_STATUSES], (value) => {
+      activeStoreStatus = value;
+    }),
+    createStoreSelectFilter("Fotoğraf", "camera", activeStoreEvidence, STORE_FILTER_EVIDENCE, (value) => {
+      activeStoreEvidence = value;
+    })
+  );
+  const clearFilters = document.createElement("button");
+  clearFilters.type = "button";
+  clearFilters.className = "store-filter-clear";
+  clearFilters.innerHTML = `${storeFilterIcon("reset")}<span>Filtreleri temizle</span>`;
+  clearFilters.disabled = !storeExtraFiltersActive() || storePageLoading;
+  clearFilters.addEventListener("click", () => {
+    activeStoreStatus = "Tümü";
+    activeStoreCity = "Tümü";
+    activeStoreName = "Tümü";
+    activeStoreEvidence = "Tümü";
+    searchInput.value = "";
+    storeCurrentPage = 1;
+    void loadStorePage({ page: 1 });
+  });
+  storeToolbar.appendChild(clearFilters);
+  radarFilters.appendChild(storeToolbar);
+}
+
+function createStoreSearchFilter() {
+  const wrapper = document.createElement("label");
+  wrapper.className = "store-filter-search";
+  wrapper.innerHTML = storeFilterIcon("search");
+  const content = document.createElement("span");
+  content.className = "store-filter-search__content";
+  const caption = document.createElement("span");
+  caption.className = "store-filter-select__caption";
+  caption.textContent = "Ara";
+  const input = document.createElement("input");
+  input.type = "search";
+  input.value = searchInput.value;
+  input.placeholder = "Model, mağaza ya da not";
+  input.setAttribute("aria-label", "Radar notlarında ara");
+  input.addEventListener("input", () => {
+    searchInput.value = input.value;
+    scheduleStoreSearch();
+  });
+  content.append(caption, input);
+  wrapper.appendChild(content);
+  return wrapper;
+}
+
+function storeFilterIcon(type) {
+  const paths = {
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>',
+    location: '<path d="M12 21s6-5.05 6-11a6 6 0 1 0-12 0c0 5.95 6 11 6 11Z"/><circle cx="12" cy="10" r="2.2"/>',
+    store: '<path d="M4 10v10h16V10"/><path d="M3 10l2-6h14l2 6"/><path d="M8 20v-6h8v6"/><path d="M3 10c1.5 2 3 2 4.5 0 1.5 2 3 2 4.5 0 1.5 2 3 2 4.5 0 1.5 2 3 2 4.5 0"/>',
+    status: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/><path d="M9 3h6"/>',
+    camera: '<path d="M4 7h4l1.5-2h5L16 7h4v12H4Z"/><circle cx="12" cy="13" r="3.2"/>',
+    reset: '<path d="M5 7v5h5"/><path d="M6.5 17a7 7 0 1 0-.8-9.2L5 12"/>'
+  };
+  return `<svg class="store-filter-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[type] || paths.status}</svg>`;
+}
+
+function createStoreSelectFilter(label, icon, currentValue, values, setValue) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "store-filter-select";
+  const iconElement = document.createElement("span");
+  iconElement.className = "store-filter-select__icon";
+  iconElement.innerHTML = storeFilterIcon(icon);
+  const content = document.createElement("span");
+  content.className = "store-filter-select__content";
+  const caption = document.createElement("span");
+  caption.className = "store-filter-select__caption";
+  caption.textContent = label;
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "store-filter-select__trigger";
+  trigger.setAttribute("aria-label", `${label} filtresi`);
+  trigger.setAttribute("aria-haspopup", "listbox");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.disabled = storePageLoading;
+  const valueText = document.createElement("strong");
+  valueText.textContent = currentValue;
+  const chevron = document.createElement("span");
+  chevron.className = "store-filter-select__chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  trigger.append(valueText, chevron);
+
+  const menu = document.createElement("div");
+  menu.className = "store-filter-menu";
+  menu.setAttribute("role", "listbox");
+  menu.setAttribute("aria-label", `${label} seçenekleri`);
+  values.forEach((value) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "store-filter-option";
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", String(value === currentValue));
+    option.innerHTML = `<span>${escapeHtml(value)}</span>${value === currentValue ? '<i aria-hidden="true">✓</i>' : ""}`;
+    option.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (value === currentValue) {
+        closeStoreFilterMenus();
+        return;
+      }
+      setValue(value);
       storeCurrentPage = 1;
+      closeStoreFilterMenus();
       void loadStorePage({ page: 1 });
     });
-    radarFilters.appendChild(button);
+    menu.appendChild(option);
   });
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = !wrapper.classList.contains("is-open");
+    closeStoreFilterMenus();
+    wrapper.classList.toggle("is-open", willOpen);
+    trigger.setAttribute("aria-expanded", String(willOpen));
+  });
+
+  content.append(caption, trigger);
+  wrapper.append(iconElement, content, menu);
+  return wrapper;
+}
+
+function closeStoreFilterMenus() {
+  document.querySelectorAll(".store-filter-select.is-open").forEach((filter) => {
+    filter.classList.remove("is-open");
+    filter.querySelector(".store-filter-select__trigger")?.setAttribute("aria-expanded", "false");
+  });
+}
+
+function storeExtraFiltersActive() {
+  return activeStoreStatus !== "Tümü"
+    || activeStoreCity !== "Tümü"
+    || activeStoreName !== "Tümü"
+    || activeStoreEvidence !== "Tümü"
+    || Boolean(storeSearchTerm());
 }
 
 function renderFilterGroup(label, filters, activeValue, countFor, setActive, options = {}) {
@@ -2205,27 +2502,6 @@ function commentNotificationTargets(comment) {
   return [listing?.sellerUsername, comment.authorUsername].filter(Boolean);
 }
 
-function ensureDemoCommentNotification() {
-  if (!currentUser) return;
-  const username = normalize(currentUser.username);
-  const listing = allMarketListings().find((item) => normalize(item.sellerUsername) === username);
-  if (!listing) return;
-  const id = `demo-comment-${username}`;
-  if (state.comments.some((comment) => comment.id === id)) return;
-  state.comments.push({
-    id,
-    listingKey: listingDiscussionKey(listing),
-    listingTitle: listing.model,
-    authorId: "demo-ali-hotwheels",
-    authorUsername: "ali_hotwheels",
-    text: "Selam, bu ilan hâlâ aktif mi? Fotoğraf ve son fiyat bilgisini paylaşabilir misin?",
-    createdAt: new Date().toISOString(),
-    readBy: ["ali_hotwheels"],
-    replies: []
-  });
-  saveState();
-}
-
 function isUnreadForUser(item, username) {
   return item && normalize(item.authorUsername) !== username && !item.readBy.map(normalize).includes(username);
 }
@@ -2402,7 +2678,6 @@ function runGlobalSearch() {
   const view = resolveGlobalSearchView(query);
   setActiveView(view, { clearSearch: true, scroll: true });
   if (view === "community") {
-    if (query) showToast(`Toplulukta "${query}" için mock sonuçlar gösteriliyor.`);
     return;
   }
   searchInput.value = query;
@@ -3355,9 +3630,18 @@ function isAdminUser(user = currentUser) {
 }
 
 function syncAdminVisibility() {
-  if (!adminPanel) return;
-  adminPanel.classList.toggle("is-hidden", !isAdminUser());
-  if (isAdminUser()) renderAdminCenter();
+  const canAccessAdmin = isAdminUser();
+  if (adminPanel) {
+    adminPanel.classList.toggle("is-hidden", !canAccessAdmin || activeView !== "admin");
+  }
+  if (dashboardAdminLink) {
+    dashboardAdminLink.classList.toggle("is-hidden", !canAccessAdmin);
+    dashboardAdminLink.hidden = !canAccessAdmin;
+  }
+  if (canAccessAdmin) renderAdminCenter();
+  if (authInitialized && !canAccessAdmin && activeView === "admin") {
+    navigateToView("home", { replace: true });
+  }
 }
 
 function applySiteConfig() {
@@ -3404,10 +3688,6 @@ function knownRewardUsers() {
     username: item.reporterUsername || item.reporter,
     email: ""
   }));
-  if (!map.size) {
-    add({ id: "demo-saruhan", username: "saruhan34", email: "" });
-    add({ id: "demo-ali", username: "ali_hotwheels", email: "" });
-  }
   return [...map.values()];
 }
 
@@ -3444,6 +3724,7 @@ function renderRewardCenter() {
   const settings = Rewards.settings();
   rewardModuleTitle.textContent = settings.title;
   rewardModuleCopy.textContent = settings.description;
+  renderRewardUserOverview();
   const rows = Rewards.leaderboard(knownRewardUsers(), state, activeLeaderboardPeriod).slice(0, 10);
   renderRewardPodium(rows.slice(0, 3));
   renderRewardRows(rows);
@@ -3451,6 +3732,40 @@ function renderRewardCenter() {
   renderRewardRanks(settings.ranks);
   renderRewardBadges();
   renderRewardAvatarShowcase(settings.avatars);
+}
+
+function renderRewardUserOverview() {
+  if (!rewardUserOverview || !Rewards) return;
+  const isSignedIn = Boolean(currentUser);
+  rewardOverviewLogin.classList.toggle("is-hidden", isSignedIn);
+  rewardOverviewLogin.hidden = isSignedIn;
+  if (!isSignedIn) {
+    resetAvatarElement(rewardOverviewAvatar, "HR");
+    rewardOverviewUsername.textContent = "Giriş yaparak puanlarını takip et";
+    rewardOverviewRank.textContent = "Rank ve rozet bilgilerin burada görünür.";
+    rewardOverviewPoints.textContent = "0";
+    rewardOverviewProgressLabel.textContent = "Rank ilerlemesi";
+    rewardOverviewProgressValue.textContent = "0%";
+    rewardOverviewProgressFill.style.width = "0%";
+    rewardOverviewReports.textContent = "0";
+    rewardOverviewVerification.textContent = "0";
+    rewardOverviewBadges.textContent = "0";
+    return;
+  }
+  const stats = Rewards.statsFor(currentUser, state);
+  const progress = Rewards.rankProgress(stats.points);
+  const rank = progress.current;
+  const badges = Rewards.badgesFor(currentUser, state);
+  applyAvatarElement(rewardOverviewAvatar, Rewards.getAvatar(currentUser), currentUser);
+  rewardOverviewUsername.textContent = `@${currentUser.username}`;
+  rewardOverviewRank.textContent = `${rank.title} · ${progress.next ? `sonraki ranka ${progress.remaining} puan` : "maksimum rank"}`;
+  rewardOverviewPoints.textContent = String(stats.points);
+  rewardOverviewProgressLabel.textContent = progress.next ? `${rank.title} → ${progress.next.title}` : rank.title;
+  rewardOverviewProgressValue.textContent = `${progress.percent}%`;
+  rewardOverviewProgressFill.style.width = `${progress.percent}%`;
+  rewardOverviewReports.textContent = String(stats.storeReports || 0);
+  rewardOverviewVerification.textContent = String(stats.verificationScore || 0);
+  rewardOverviewBadges.textContent = String(badges.length);
 }
 
 function renderRewardPodium(rows) {
@@ -3756,6 +4071,8 @@ async function initSupabaseAuth() {
   await loadStoreVerificationSummaries();
   render();
   if (!supabaseClient) {
+    authInitialized = true;
+    updateUserButton();
     syncAdminVisibility();
     return;
   }
@@ -3778,6 +4095,8 @@ async function initSupabaseAuth() {
   } else {
     saveCurrentUser(null);
   }
+  authInitialized = true;
+  updateUserButton();
   syncAdminVisibility();
 
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -3786,6 +4105,7 @@ async function initSupabaseAuth() {
       return;
     }
     currentUser = session?.user ? await ensureSupabaseProfile(session.user) : null;
+    authInitialized = true;
     saveCurrentUser(currentUser);
     if (currentUser) await Rewards?.refresh();
     if (currentUser) await loadRewardNotifications();
@@ -3801,7 +4121,16 @@ async function initSupabaseAuth() {
 function updateUserButton() {
   const notifications = unreadNotificationCount();
   const unreadCount = notifications.total;
-  userButtonText.textContent = currentUser ? `@${currentUser.username}` : "Giriş yap";
+  const rewardStats = currentUser && Rewards ? Rewards.statsFor(currentUser, state) : null;
+  const activeRank = rewardStats && Rewards ? Rewards.rankFor(rewardStats.points) : null;
+  const earnedBadges = currentUser && Rewards ? Rewards.badgesFor(currentUser, state) : [];
+  userButtonText.textContent = currentUser ? `@${currentUser.username}` : "Giriş Yap / Hesap Oluştur";
+  userButton.setAttribute("aria-label", currentUser ? `@${currentUser.username} profil menüsü` : "Giriş Yap / Hesap Oluştur");
+  if (userButtonMeta) {
+    userButtonMeta.textContent = currentUser
+      ? `${activeRank?.title || "R1 Çaylak Avcı"} · ${earnedBadges.length} rozet`
+      : "Misafir hesap";
+  }
   const initials = currentUser ? userInitials(currentUser.username) : "HR";
   const avatar = currentUser && Rewards ? Rewards.getAvatar(currentUser) : null;
   if (avatar) {
@@ -3813,6 +4142,11 @@ function updateUserButton() {
   }
   accountMenuName.textContent = currentUser ? `@${currentUser.username}` : "Misafir";
   accountMenuEmail.textContent = currentUser ? currentUser.email : "Pazar ilanı için giriş yap.";
+  if (accountMenuRank) {
+    accountMenuRank.textContent = currentUser
+      ? `${activeRank?.title || "R1 Çaylak Avcı"} · ${rewardStats?.points || 0} Radar Puanı · ${earnedBadges.length} rozet`
+      : "Giriş yaparak rank ve rozetlerini takip edebilirsin.";
+  }
   accountListingCount.textContent = currentUser
     ? allMarketListings().filter((listing) => normalize(listing.sellerUsername) === normalize(currentUser.username)).length
     : "0";
@@ -3832,14 +4166,35 @@ function updateUserButton() {
   topNotificationButton.classList.toggle("is-logged-out", !currentUser);
   userButton.classList.toggle("is-logged-in", Boolean(currentUser));
   accountLogout.disabled = !currentUser;
-  openProfileSettings.textContent = currentUser ? "Profil bilgileri" : "Giriş yap / kayıt ol";
   syncAdminVisibility();
   syncStoreFormAuthState();
 }
 
 function syncStoreFormAuthState() {
   if (!storeAuthNotice) return;
-  storeAuthNotice.classList.toggle("is-hidden", Boolean(currentUser));
+  const shouldHide = !authInitialized || Boolean(currentUser);
+  storeAuthNotice.classList.toggle("is-hidden", shouldHide);
+  storeAuthNotice.hidden = shouldHide;
+}
+
+function openRadarNoteModal() {
+  if (activeView !== "stores") setActiveView("stores", { scroll: true });
+  syncStoreFormAuthState();
+  syncStorePhotoEvidence({ clearHidden: false });
+  radarNoteModal.setAttribute("aria-hidden", "false");
+  radarNoteModalBackdrop.classList.add("is-visible");
+  radarNoteModalBackdrop.setAttribute("aria-hidden", "false");
+  document.body.classList.add("radar-note-modal-open");
+  window.setTimeout(() => closeRadarNoteModalButton.focus(), 180);
+}
+
+function closeRadarNoteModal() {
+  if (!radarNoteModal) return;
+  radarNoteModal.setAttribute("aria-hidden", "true");
+  radarNoteModalBackdrop.classList.remove("is-visible");
+  radarNoteModalBackdrop.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("radar-note-modal-open");
+  resetStorePhotoSelection();
 }
 
 function userInitials(value) {
@@ -4028,8 +4383,21 @@ function resetStorePhotoSelection() {
   updateStorePhotoPreview();
 }
 
+function syncStorePhotoEvidence({ clearHidden = true } = {}) {
+  if (!storeConfidence || !storeProofField) return;
+  const isPhotographic = storeConfidence.value === "Fotoğraflı";
+  storeProofField.classList.toggle("is-hidden", !isPhotographic);
+  storeProofField.setAttribute("aria-hidden", String(!isPhotographic));
+  if (!isPhotographic && clearHidden && pendingStorePhotoFiles.length) {
+    resetStorePhotoSelection();
+  }
+}
+
 function updateStorePhotoPreview() {
   const files = pendingStorePhotoFiles;
+  if (storeProofField && storePhotoPreview.parentElement !== storeProofField) {
+    storeProofField.appendChild(storePhotoPreview);
+  }
   storePhotoPreview.innerHTML = "";
   storePhotoPreview.classList.toggle("is-empty", files.length === 0);
   storePhotoCount.textContent = `${files.length} / ${MAX_STORE_PHOTOS}`;
@@ -4060,6 +4428,17 @@ function updateStorePhotoPreview() {
     preview.appendChild(removeButton);
     storePhotoPreview.appendChild(preview);
   });
+  if (radarNoteModalBody) {
+    radarNoteModalBody.style.removeProperty("height");
+    radarNoteModalBody.style.removeProperty("min-height");
+    radarNoteModalBody.style.removeProperty("padding-bottom");
+    radarNoteModalBody.style.removeProperty("overflow");
+  }
+  if (radarNoteModalFooter) {
+    radarNoteModalFooter.style.removeProperty("position");
+    radarNoteModalFooter.style.removeProperty("bottom");
+    radarNoteModalFooter.style.removeProperty("transform");
+  }
 }
 
 function fileToDataUrl(file) {
@@ -5448,7 +5827,7 @@ function setStoreSubmitLoading(button, loading, hasPhotos = false) {
   if (label) {
     label.textContent = loading
       ? (hasPhotos ? "Fotoğraflar yükleniyor..." : "Radar notu ekleniyor...")
-      : "Radar notu ekle";
+      : "Notu paylaş";
   }
 }
 
@@ -5506,7 +5885,63 @@ async function rewardNewEntry(type, record) {
   }
 }
 
+function dashboardHashForView(view) {
+  return `#/${DASHBOARD_ROUTES[view] || DASHBOARD_ROUTES.home}`;
+}
+
+function dashboardViewFromHash(hash = window.location.hash) {
+  const route = String(hash || "").replace(/^#\/?/, "").split(/[?#]/)[0].trim();
+  return DASHBOARD_VIEWS_BY_ROUTE[route] || "";
+}
+
+function closeDashboardMenu() {
+  document.body.classList.remove("is-dashboard-menu-open");
+  dashboardSidebarBackdrop?.setAttribute("aria-hidden", "true");
+  dashboardMenuToggle?.setAttribute("aria-expanded", "false");
+  dashboardMenuToggle?.setAttribute("aria-label", "Menüyü aç");
+}
+
+function toggleDashboardMenu() {
+  const willOpen = !document.body.classList.contains("is-dashboard-menu-open");
+  document.body.classList.toggle("is-dashboard-menu-open", willOpen);
+  dashboardSidebarBackdrop?.setAttribute("aria-hidden", String(!willOpen));
+  dashboardMenuToggle?.setAttribute("aria-expanded", String(willOpen));
+  dashboardMenuToggle?.setAttribute("aria-label", willOpen ? "Menüyü kapat" : "Menüyü aç");
+}
+
+function navigateToView(view, options = {}) {
+  const safeView = DASHBOARD_ROUTES[view] ? view : "home";
+  const targetView = safeView === "admin" && authInitialized && !isAdminUser() ? "home" : safeView;
+  const targetHash = dashboardHashForView(targetView);
+  if (window.location.hash !== targetHash) {
+    const method = options.replace ? "replaceState" : "pushState";
+    window.history[method](null, "", targetHash);
+  }
+  setActiveView(targetView, { ...options, fromRoute: true });
+}
+
+function applyDashboardRoute({ replaceUnknown = true } = {}) {
+  if (window.location.hash.includes("reset-password")) {
+    setActiveView("home", { fromRoute: true });
+    return;
+  }
+  const routedView = dashboardViewFromHash();
+  if (!routedView) {
+    navigateToView("home", { replace: replaceUnknown, clearSearch: true });
+    return;
+  }
+  if (routedView === "admin" && authInitialized && !isAdminUser()) {
+    navigateToView("home", { replace: true, clearSearch: true });
+    return;
+  }
+  setActiveView(routedView, { fromRoute: true });
+}
+
 function setActiveView(view, options = {}) {
+  if (!options.fromRoute) {
+    navigateToView(view, options);
+    return;
+  }
   const enteringStores = view === "stores" && activeView !== "stores";
   activeView = view;
 
@@ -5516,6 +5951,10 @@ function setActiveView(view, options = {}) {
 
   if (view !== "stores") {
     activeStoreStatus = "Tümü";
+    activeStoreCity = "Tümü";
+    activeStoreName = "Tümü";
+    activeStoreEvidence = "Tümü";
+    closeRadarNoteModal();
   }
 
   if (view !== "collection") {
@@ -5541,11 +5980,17 @@ function setActiveView(view, options = {}) {
     item.classList.toggle("is-active", item.dataset.view === activeView);
   });
 
+  document.querySelectorAll("[data-route-view]").forEach((item) => {
+    item.classList.toggle("is-active", item.dataset.routeView === activeView);
+  });
+
   document.querySelectorAll(".entry-form").forEach((form) => {
     form.classList.toggle("is-active", form.dataset.form === activeView);
   });
 
   render();
+  syncAdminVisibility();
+  closeDashboardMenu();
 
   if (enteringStores) {
     storeCurrentPage = 1;
@@ -5575,6 +6020,18 @@ document.querySelectorAll("[data-view]:not(.segmented__button)").forEach((button
     setActiveView(button.dataset.view, { clearSearch: true, scroll: true });
   });
 });
+
+document.querySelectorAll("[data-route-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    navigateToView(button.dataset.routeView, { clearSearch: true, scroll: true });
+  });
+});
+
+dashboardMenuToggle?.addEventListener("click", toggleDashboardMenu);
+dashboardSidebarBackdrop?.addEventListener("click", closeDashboardMenu);
+dashboardPrimaryAction?.addEventListener("click", () => runDashboardViewAction("primary"));
+dashboardSecondaryAction?.addEventListener("click", () => runDashboardViewAction("secondary"));
+window.addEventListener("hashchange", () => applyDashboardRoute());
 
 document.querySelectorAll("[data-global-scope]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -5628,6 +6085,18 @@ openProfileSettings.addEventListener("click", () => {
   closeAccountMenu();
   openProfileModal();
 });
+
+openAccountSettings?.addEventListener("click", () => {
+  closeAccountMenu();
+  openProfileModal();
+});
+
+openAccountBadges?.addEventListener("click", () => {
+  closeAccountMenu();
+  navigateToView("rewards", { clearSearch: true, scroll: true });
+});
+
+rewardOverviewLogin?.addEventListener("click", () => openAuthModal("login", "Radar puanlarını görmek için hesabına giriş yap."));
 
 topMessageButton.addEventListener("click", () => {
   closeAccountMenu();
@@ -5762,6 +6231,12 @@ document.querySelector("#closeStorePhotoLightbox").addEventListener("click", clo
 storePhotoLightbox.addEventListener("click", (event) => {
   if (event.target === storePhotoLightbox) closeStorePhotoLightbox();
 });
+openRadarNoteModalButton.addEventListener("click", openRadarNoteModal);
+closeRadarNoteModalButton.addEventListener("click", closeRadarNoteModal);
+cancelRadarNoteModalButton.addEventListener("click", closeRadarNoteModal);
+radarNoteModalBackdrop.addEventListener("click", (event) => {
+  if (event.target === radarNoteModalBackdrop) closeRadarNoteModal();
+});
 
 closeMessageModalButton.addEventListener("click", closeMessageModal);
 messagesTab.addEventListener("click", () => setNotificationTab("messages"));
@@ -5865,7 +6340,7 @@ document.querySelector("#storeForm").addEventListener("submit", (event) => {
   const form = event.currentTarget;
   if (!validateStoreForm(form)) return;
   requireAuth(async () => {
-    const submitButton = form.querySelector('button[type="submit"]');
+    const submitButton = storeSubmitButton;
     setStoreSubmitLoading(submitButton, true, pendingStorePhotoFiles.length > 0);
     try {
       const id = crypto.randomUUID();
@@ -5874,8 +6349,10 @@ document.querySelector("#storeForm").addEventListener("submit", (event) => {
       form.reset();
       resetStorePhotoSelection();
       syncOtherStoreField();
+      syncStorePhotoEvidence({ clearHidden: false });
       form.querySelectorAll(".is-invalid").forEach(clearStoreFieldError);
       showToast("Radar notun başarıyla eklendi.");
+      closeRadarNoteModal();
     } catch (error) {
       console.error("Radar notu kaydedilemedi:", error);
       showToast("Radar notu kaydedilemedi. Lütfen tekrar dene.");
@@ -5897,6 +6374,7 @@ storeAuthLogin.addEventListener("click", () => openAuthModal("login", "Radar not
 storePrice.addEventListener("input", () => {
   storePrice.value = storePrice.value.replace(/[^\d,.]/g, "");
 });
+storeConfidence.addEventListener("change", () => syncStorePhotoEvidence());
 storePhotoFiles.addEventListener("change", (event) => addStorePhotoFiles(event.currentTarget.files || []));
 ["dragenter", "dragover"].forEach((eventName) => {
   storePhotoPicker.addEventListener(eventName, (event) => {
@@ -5912,41 +6390,36 @@ storePhotoFiles.addEventListener("change", (event) => addStorePhotoFiles(event.c
 });
 storePhotoPicker.addEventListener("drop", (event) => addStorePhotoFiles(event.dataTransfer?.files || []));
 
+document.addEventListener("click", closeStoreFilterMenus);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeStoreFilterMenus();
+  if (event.key === "Escape") closeDashboardMenu();
+  if (event.key === "Escape") closeAccountMenu();
+  if (event.key === "Escape" && radarNoteModalBackdrop.classList.contains("is-visible")) {
+    closeRadarNoteModal();
+  }
+});
+
+function scheduleStoreSearch() {
+  window.clearTimeout(storeSearchTimer);
+  storePageRequestId += 1;
+  storeCurrentPage = 1;
+  storePageLoading = true;
+  storeSearchTimer = window.setTimeout(() => {
+    void loadStorePage({ page: 1 });
+  }, 280);
+}
+
 searchInput.addEventListener("input", () => {
   if (activeView !== "stores") {
     render();
     return;
   }
-  window.clearTimeout(storeSearchTimer);
-  storePageRequestId += 1;
-  storeCurrentPage = 1;
-  storePageLoading = true;
-  render();
-  storeSearchTimer = window.setTimeout(() => {
-    void loadStorePage({ page: 1 });
-  }, 280);
-});
-
-document.querySelector("#resetData").addEventListener("click", () => {
-  const accepted = confirm("Tüm kayıtlar silinip örnek verilere dönülsün mü?");
-  if (!accepted) return;
-  state = structuredClone(starterData);
-  saveState();
-  render();
-});
-
-document.querySelector("#exportData").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "hunt-garaj-verileri.json";
-  link.click();
-  URL.revokeObjectURL(url);
+  scheduleStoreSearch();
 });
 
 setupCatalogSelect();
-ensureDemoCommentNotification();
+applyDashboardRoute();
 updateUserButton();
 syncAuthMode();
 updatePhotoPreview();
@@ -5954,4 +6427,5 @@ updateStorePhotoPreview();
 syncMarketFields();
 render();
 syncOtherStoreField();
+syncStorePhotoEvidence({ clearHidden: false });
 initSupabaseAuth();
