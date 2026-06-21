@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=113" />
+    <link rel="stylesheet" href="./styles.css?v=118" />
   </head>
   <body class="dashboard-shell">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -624,6 +624,9 @@
                     <option>Ebebek</option>
                     <option>Joker</option>
                     <option>Rossmann</option>
+                    <option>BİM</option>
+                    <option>A101</option>
+                    <option>ŞOK</option>
                     <option>Kırtasiye</option>
                     <option>Oyuncakçı</option>
                     <option>Diğer</option>
@@ -1343,6 +1346,26 @@
       <img id="storePhotoLightboxImage" alt="Radar kanıtı büyük önizleme" />
     </div>
 
+    <div class="market-modal saved-radar-modal" id="savedRadarModal" aria-hidden="true">
+      <section class="market-modal__panel saved-radar-modal__panel" role="dialog" aria-modal="true" aria-labelledby="savedRadarTitle">
+        <div class="section-heading saved-radar-modal__header">
+          <div>
+            <p class="eyebrow">Kişisel radar arşivi</p>
+            <h2 id="savedRadarTitle">Kaydedilen radar notları</h2>
+            <p class="view-copy" id="savedRadarSubtitle">Daha sonra incelemek için kaydettiğin bildirimler.</p>
+          </div>
+          <button class="delete-button" id="closeSavedRadarModal" type="button" aria-label="Kaydedilenleri kapat">×</button>
+        </div>
+        <div class="saved-radar-modal__loading" id="savedRadarLoading">Kaydedilen radar notları yükleniyor…</div>
+        <div class="saved-radar-modal__grid" id="savedRadarGrid"></div>
+        <div class="saved-radar-modal__empty" id="savedRadarEmpty">
+          <span aria-hidden="true">☆</span>
+          <strong>Henüz kaydettiğin radar notu yok</strong>
+          <small>Kartların altındaki Kaydet düğmesini kullanarak radar notlarını burada toplayabilirsin.</small>
+        </div>
+      </section>
+    </div>
+
     <div class="market-modal message-modal" id="messageModal" aria-hidden="true">
       <section class="market-modal__panel message-modal__panel" role="dialog" aria-modal="true" aria-labelledby="messageModalTitle">
         <div class="section-heading">
@@ -1394,6 +1417,6 @@
     <script src="./catalog-2026.js?v=7"></script>
     <script src="./reward-service.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=119"></script>
+    <script src="./app.js?v=124"></script>
   </body>
 </html>

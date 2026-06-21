@@ -43,7 +43,24 @@ const supabaseClient = window.supabase
   : null;
 const STORE_STATUSES = ["Yeni sevkiyat", "Premium var", "Az stok", "Boş", "TH görüldü", "STH görüldü", "Bakmaya değmez"];
 const STORE_FILTER_CITIES = ["Tümü", "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Kocaeli", "Diğer"];
-const STORE_FILTER_NAMES = ["Tümü", "Toyzz Shop", "LC Waikiki", "D&R", "Migros", "CarrefourSA", "Armağan Oyuncak", "Ebebek", "Joker", "Rossmann", "Kırtasiye", "Oyuncakçı", "Diğer"];
+const STORE_FILTER_NAMES = ["Tümü", "Toyzz Shop", "LC Waikiki", "D&R", "Migros", "CarrefourSA", "Armağan Oyuncak", "Ebebek", "Joker", "Rossmann", "BİM", "A101", "ŞOK", "Kırtasiye", "Oyuncakçı", "Diğer"];
+const STORE_LOGOS = {
+  "toyzz shop": "./assets/store-logos/toyzz-shop.png?v=2",
+  "lc waikiki": "./assets/store-logos/lc-waikiki.svg",
+  "d&r": "./assets/store-logos/dr.svg",
+  "migros": "./assets/store-logos/migros.svg",
+  "carrefoursa": "./assets/store-logos/carrefoursa.svg",
+  "armağan oyuncak": "./assets/store-logos/armagan-oyuncak.png",
+  "ebebek": "./assets/store-logos/ebebek.png",
+  "joker": "./assets/store-logos/joker.png",
+  "rossmann": "./assets/store-logos/rossmann.svg",
+  "bim": "./assets/store-logos/bim.png",
+  "a101": "./assets/store-logos/a101.svg",
+  "şok": "./assets/store-logos/sok.svg",
+  "kırtasiye": "./assets/store-logos/stationery.svg",
+  "oyuncakçı": "./assets/store-logos/toy-store.svg",
+  "diğer": "./assets/store-logos/other-store.svg"
+};
 const STORE_FILTER_EVIDENCE = ["Tümü", "Fotoğraflı", "Gözle görüldü", "Duyum"];
 const DASHBOARD_ROUTES = {
   home: "ana-sayfa",
@@ -78,7 +95,8 @@ const DASHBOARD_VIEW_META = {
     title: "Hunt Radar",
     description: "Güncel mağaza bildirimlerini filtrele, kanıtları incele ve topluluk doğrulamalarını takip et.",
     icon: "⌁",
-    primary: "+ Radar Notu Ekle"
+    primary: "+ Radar Notu Ekle",
+    secondary: "☆ Kaydedilenler"
   },
   market: {
     eyebrow: "Koleksiyon pazarı",
@@ -463,6 +481,7 @@ let storeVerificationSummaries = {};
 let radarNotePhotos = {};
 let pendingStorePhotoFiles = [];
 let remoteStorePageItems = [];
+let savedRadarItems = [];
 let storeCurrentPage = 1;
 let storeTotalCount = 0;
 let storeTotalPages = 1;
@@ -526,6 +545,12 @@ const globalSearchInput = document.querySelector("#globalSearchInput");
 const searchInput = document.querySelector("#searchInput");
 const radarFilters = document.querySelector("#radarFilters");
 const radarPagination = document.querySelector("#radarPagination");
+const savedRadarModal = document.querySelector("#savedRadarModal");
+const savedRadarGrid = document.querySelector("#savedRadarGrid");
+const savedRadarEmpty = document.querySelector("#savedRadarEmpty");
+const savedRadarLoading = document.querySelector("#savedRadarLoading");
+const savedRadarSubtitle = document.querySelector("#savedRadarSubtitle");
+const closeSavedRadarModalButton = document.querySelector("#closeSavedRadarModal");
 const marketPanelFilters = document.querySelector("#marketPanelFilters");
 const userButton = document.querySelector("#userButton");
 const userButtonText = document.querySelector("#userButtonText");
@@ -1589,8 +1614,329 @@ function syncDashboardViewHeader() {
   dashboardViewIcon.textContent = meta.icon;
   dashboardPrimaryAction.textContent = meta.primary || "";
   dashboardPrimaryAction.classList.toggle("is-hidden", !meta.primary);
-  dashboardSecondaryAction.textContent = meta.secondary || "";
+  dashboardSecondaryAction.textContent = activeView === "stores" && meta.secondary
+    ? `${meta.secondary} (${savedRadarNoteIds().size})`
+    : meta.secondary || "";
   dashboardSecondaryAction.classList.toggle("is-hidden", !meta.secondary);
+}
+
+const SAVED_RADAR_NOTES_KEY = "hunt-radar-saved-notes";
+
+function savedRadarNoteIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SAVED_RADAR_NOTES_KEY) || "[]").map(String));
+  } catch (error) {
+    console.error("Kaydedilen radar notları okunamadı:", error);
+    return new Set();
+  }
+}
+
+function toggleSavedRadarNote(storeId, button) {
+  const saved = savedRadarNoteIds();
+  const key = String(storeId);
+  const willSave = !saved.has(key);
+  if (willSave) saved.add(key);
+  else saved.delete(key);
+  try {
+    localStorage.setItem(SAVED_RADAR_NOTES_KEY, JSON.stringify([...saved]));
+    button.classList.toggle("is-active", willSave);
+    button.setAttribute("aria-pressed", String(willSave));
+    button.querySelector("span:last-child").textContent = willSave ? "Kaydedildi" : "Kaydet";
+    if (activeView === "stores") syncDashboardViewHeader();
+    showToast(willSave ? "Radar notu kaydedildi." : "Radar notu kaydedilenlerden çıkarıldı.");
+    if (savedRadarModal?.classList.contains("is-visible")) {
+      if (!willSave) savedRadarItems = savedRadarItems.filter((item) => String(item.id) !== key);
+      renderSavedRadarItems();
+    }
+  } catch (error) {
+    console.error("Radar notu kaydedilemedi:", error);
+    showToast("Radar notu kaydedilemedi.");
+  }
+}
+
+function renderSavedRadarItems() {
+  if (!savedRadarGrid || !savedRadarEmpty) return;
+  const saved = savedRadarNoteIds();
+  const items = savedRadarItems.filter((item) => saved.has(String(item.id)));
+  savedRadarGrid.innerHTML = "";
+  items.forEach((item) => savedRadarGrid.appendChild(createStoreRadarCard(item)));
+  savedRadarEmpty.classList.toggle("is-visible", items.length === 0 && !savedRadarLoading?.classList.contains("is-visible"));
+  savedRadarSubtitle.textContent = items.length
+    ? `${items.length} radar notunu daha sonra incelemek için kaydettin.`
+    : "Daha sonra incelemek için kaydettiğin bildirimler.";
+}
+
+async function openSavedRadarModal() {
+  if (!savedRadarModal) return;
+  savedRadarModal.classList.add("is-visible");
+  savedRadarModal.setAttribute("aria-hidden", "false");
+  savedRadarLoading.classList.add("is-visible");
+  savedRadarEmpty.classList.remove("is-visible");
+  savedRadarGrid.innerHTML = "";
+  const ids = [...savedRadarNoteIds()];
+  if (!ids.length) {
+    savedRadarItems = [];
+    savedRadarLoading.classList.remove("is-visible");
+    renderSavedRadarItems();
+    return;
+  }
+  try {
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from(CONTENT_TABLE)
+        .select("id, content_type, owner_id, owner_username, data, created_at, updated_at")
+        .eq("content_type", "stores")
+        .in("id", ids)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      savedRadarItems = (data || []).map((row) => ownedRemoteRecord("stores", row));
+    } else {
+      savedRadarItems = state.stores.filter((item) => ids.includes(String(item.id)));
+    }
+    const existingIds = new Set(savedRadarItems.map((item) => String(item.id)));
+    const validIds = ids.filter((id) => existingIds.has(String(id)));
+    if (validIds.length !== ids.length) {
+      localStorage.setItem(SAVED_RADAR_NOTES_KEY, JSON.stringify(validIds));
+    }
+  } catch (error) {
+    console.error("Kaydedilen radar notları yüklenemedi:", error);
+    showToast("Kaydedilen radar notları yüklenemedi.");
+    savedRadarItems = [];
+  } finally {
+    savedRadarLoading.classList.remove("is-visible");
+    renderSavedRadarItems();
+  }
+}
+
+function closeSavedRadarModal() {
+  if (!savedRadarModal) return;
+  savedRadarModal.classList.remove("is-visible");
+  savedRadarModal.setAttribute("aria-hidden", "true");
+}
+
+async function shareRadarNote(item) {
+  const shareData = {
+    title: `${item.store || "Hunt Radar"} radar notu`,
+    text: `${item.store || "Mağaza"}: ${item.models || "Güncel raf bildirimi"}`,
+    url: `${window.location.origin}${window.location.pathname}#/hunt-radar`
+  };
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      return;
+    }
+    await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+    showToast("Radar bağlantısı kopyalandı.");
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    console.error("Radar notu paylaşılamadı:", error);
+    showToast("Paylaşım bağlantısı oluşturulamadı.");
+  }
+}
+
+function storeStatusDescription(status) {
+  return {
+    pending: "Topluluk doğrulaması bekleniyor",
+    verified: "Topluluk tarafından doğrulandı",
+    expired: "Doğrulama süresi doldu",
+    disputed: "Çelişkili oylar var"
+  }[status] || "Topluluk doğrulaması bekleniyor";
+}
+
+function storeLogoPath(storeName) {
+  return STORE_LOGOS[normalize(storeName)] || "";
+}
+
+function storeLogoMarkup(storeName, fallback = "M") {
+  const logo = storeLogoPath(storeName);
+  return logo
+    ? `<img src="${logo}" alt="" loading="lazy" />`
+    : escapeHtml(fallback);
+}
+
+function storeStatusIcon(status) {
+  return {
+    pending: "◷",
+    verified: "✓",
+    expired: "⌛",
+    disputed: "!"
+  }[status] || "◷";
+}
+
+function storeTrustTone(score) {
+  if (score >= 70) return "high";
+  if (score >= 40) return "medium";
+  return "low";
+}
+
+function createStoreRadarCard(item) {
+  const summary = storeVerificationSummary(item);
+  const status = storeVerificationStatus(summary.status);
+  const trustScore = storeTrustScore(item, summary);
+  const trustTone = storeTrustTone(trustScore);
+  const photos = storePhotos(item);
+  const currentVote = summary.current_vote || "";
+  const isOwnReport = isOwnedByCurrentUser("stores", item);
+  const processClosed = summary.status !== "pending";
+  const totalVotes = Number(summary.total_votes || 0)
+    || Number(summary.correct_count || 0) + Number(summary.gone_count || 0) + Number(summary.wrong_count || 0);
+  const username = item.reporterUsername || item.reporter || "anonim";
+  const initials = String(item.store || username || "HR").trim().slice(0, 1).toLocaleUpperCase("tr-TR");
+  const hasWideStoreLogo = normalize(item.store) === "toyzz shop";
+  const isSaved = savedRadarNoteIds().has(String(item.id));
+  const card = document.createElement("article");
+  card.className = `store-card store-radar-card store-card--${statusTone[item.status] || "neutral"} store-radar-card--${status.className} ${photos.length ? "has-photo" : "is-text-card"} ${hasWideStoreLogo ? "has-wide-store-logo" : ""}`;
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", `${item.store} radar detayını aç`);
+
+  card.innerHTML = `
+    <header class="store-radar-card__header">
+      <span class="store-radar-card__avatar ${storeLogoPath(item.store) ? "has-logo" : ""}" aria-hidden="true">${storeLogoMarkup(item.store, initials)}</span>
+      <span class="store-radar-card__identity">
+        <strong>${escapeHtml(item.store || "Mağaza bildirimi")}${status.className === "verified" ? '<i class="store-radar-card__verified" title="Doğrulandı">✓</i>' : ""}</strong>
+        <small><button type="button" class="store-radar-card__profile">@${escapeHtml(username)}</button><span>· ${escapeHtml(freshnessLabel(item) || "Şimdi")}</span></small>
+      </span>
+      <button type="button" class="store-radar-card__message" aria-label="@${escapeHtml(username)} kullanıcısına mesaj gönder" title="Mesaj gönder">✉</button>
+      <span class="store-radar-card__evidence-badge">${photos.length ? `▣ ${photos.length} fotoğraf` : "▤ Metin"}</span>
+    </header>
+    ${photos.length ? '<div class="store-radar-card__media"></div>' : ""}
+    <div class="store-radar-card__content">
+      <h3>${escapeHtml(item.models || item.store || "Radar bildirimi")}</h3>
+      <p class="store-radar-card__description">${escapeHtml(item.notes || `${item.status || "Raf bilgisi"} · ${item.confidence || "Topluluk bildirimi"}`)}</p>
+      <div class="store-radar-card__location"><span aria-hidden="true">⌖</span>${escapeHtml([item.city, item.area, item.spot].filter(Boolean).join(", ") || "Konum bilgisi yok")}</div>
+      <div class="store-radar-card__tags">
+        ${[item.status, item.confidence].filter(Boolean).slice(0, 2).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+      </div>
+      <section class="store-radar-card__trust store-radar-card__trust--${trustTone}" style="--trust:${trustScore}%">
+        <div><span>Güven skoru <i class="store-radar-card__info" tabindex="0" data-tooltip="Kanıt türü, güncellik ve topluluğun Hâlâ var / Artık kalmadı / Yanlış bilgi oylarına göre hesaplanır." aria-label="Güven skoru açıklaması">i</i></span><strong>${trustScore}%</strong></div>
+        <div class="store-radar-card__trust-track"><i></i></div>
+      </section>
+      <section class="store-radar-card__status">
+        <span class="store-status-badge store-status-badge--${status.className}"><i aria-hidden="true">${storeStatusIcon(summary.status)}</i>${status.label}</span>
+        <small>${storeStatusDescription(summary.status)}</small>
+      </section>
+      ${isOwnReport ? `
+        <div class="store-radar-card__owner-lock">
+          <span aria-hidden="true">⌑</span>
+          <div><strong>Kendi radar notunu doğrulayamazsın</strong><small>Başka kullanıcıların notlarını doğrulayabilirsin.</small></div>
+        </div>
+      ` : ""}
+      <div class="store-radar-card__votes">
+        ${[
+          ["correct", "✓", "Hâlâ var", Number(summary.correct_count || 0)],
+          ["gone", "−", "Artık kalmadı", Number(summary.gone_count || 0)],
+          ["wrong", "!", "Yanlış bilgi", Number(summary.wrong_count || 0)]
+        ].map(([vote, icon, label, count]) => {
+          const selected = currentVote === vote;
+          const disabled = isOwnReport || Boolean(currentVote) || processClosed;
+          const loggedOutLock = !currentUser;
+          return `
+            <button type="button" data-store-vote="${vote}" class="${selected ? "is-selected" : ""} ${loggedOutLock ? "is-login-locked" : ""}" aria-pressed="${selected}" aria-disabled="${disabled || loggedOutLock}" ${disabled ? "disabled" : ""}>
+              <span aria-hidden="true">${icon}</span><strong>${label}</strong><em>${count}</em>
+            </button>
+          `;
+        }).join("")}
+      </div>
+      <div class="store-radar-card__participation">
+        <span aria-hidden="true">♙</span>
+        ${totalVotes ? `${totalVotes} kişi oy kullandı` : "Henüz oy yok"}
+        ${currentVote ? `<b>Seçimin: ${storeVoteLabels(currentVote).title}</b>` : ""}
+      </div>
+    </div>
+    <footer class="store-radar-card__actions">
+      <button type="button" class="store-radar-card__save ${isSaved ? "is-active" : ""}" aria-pressed="${isSaved}"><span aria-hidden="true">☆</span><span>${isSaved ? "Kaydedildi" : "Kaydet"}</span></button>
+      <button type="button" class="store-radar-card__share"><span aria-hidden="true">↗</span><span>Paylaş</span></button>
+      <div class="store-radar-card__more">
+        <button type="button" class="store-radar-card__more-trigger" aria-label="Radar notu seçenekleri" aria-expanded="false">•••</button>
+        <div class="store-radar-card__menu">
+          <button type="button" data-radar-action="detail">Detayları gör</button>
+          ${isOwnReport ? '<button type="button" data-radar-action="delete" class="is-danger">Notu sil</button>' : ""}
+        </div>
+      </div>
+    </footer>
+  `;
+
+  const media = card.querySelector(".store-radar-card__media");
+  if (media && photos.length) {
+    const image = document.createElement("img");
+    image.alt = `${item.store || "Mağaza"} raf kanıtı`;
+    image.loading = "lazy";
+    setManagedImageSource(image, photos[0]);
+    media.appendChild(image);
+  }
+
+  card.querySelector(".store-radar-card__profile").addEventListener("click", (event) => {
+    event.stopPropagation();
+    openPublicProfile(username);
+  });
+  const messageButton = card.querySelector(".store-radar-card__message");
+  const isOwnProfile = currentUser && normalize(currentUser.username) === normalize(username);
+  messageButton.disabled = Boolean(isOwnProfile);
+  messageButton.title = isOwnProfile ? "Kendi profiline mesaj gönderemezsin" : "Mesaj gönder";
+  messageButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openMessageThreadForUser(username);
+  });
+  card.querySelectorAll("[data-store-vote]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (!currentUser) {
+        voteStoreReport(item.id, button.dataset.storeVote);
+        return;
+      }
+      if (!button.disabled) voteStoreReport(item.id, button.dataset.storeVote);
+    });
+  });
+  card.querySelector(".store-radar-card__save").addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleSavedRadarNote(item.id, event.currentTarget);
+  });
+  card.querySelector(".store-radar-card__share").addEventListener("click", (event) => {
+    event.stopPropagation();
+    shareRadarNote(item);
+  });
+  const more = card.querySelector(".store-radar-card__more");
+  const moreTrigger = card.querySelector(".store-radar-card__more-trigger");
+  moreTrigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    document.querySelectorAll(".store-radar-card__more.is-open").forEach((menu) => {
+      if (menu !== more) {
+        menu.classList.remove("is-open");
+        menu.querySelector(".store-radar-card__more-trigger")?.setAttribute("aria-expanded", "false");
+      }
+    });
+    const isOpen = more.classList.toggle("is-open");
+    moreTrigger.setAttribute("aria-expanded", String(isOpen));
+  });
+  card.querySelector('[data-radar-action="detail"]').addEventListener("click", (event) => {
+    event.stopPropagation();
+    openStoreDetail(item);
+  });
+  card.querySelector('[data-radar-action="delete"]')?.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    const deleted = await deletePublicRecord("stores", item);
+    if (!deleted) return;
+    if (supabaseClient) {
+      remoteStorePageItems = remoteStorePageItems.filter((entry) => entry.id !== item.id);
+      storeTotalCount = Math.max(0, storeTotalCount - 1);
+      await loadStorePage({ page: storeCurrentPage });
+    } else {
+      state.stores = state.stores.filter((entry) => entry.id !== item.id);
+      saveState();
+      render();
+    }
+  });
+  card.addEventListener("click", (event) => {
+    if (event.target.closest("button, a, input, select, textarea")) return;
+    openStoreDetail(item);
+  });
+  card.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key) || event.target.closest("button")) return;
+    event.preventDefault();
+    openStoreDetail(item);
+  });
+  return card;
 }
 
 function focusActiveEntryForm(selector) {
@@ -1604,6 +1950,10 @@ function focusActiveEntryForm(selector) {
 function runDashboardViewAction(action = "primary") {
   if (activeView === "stores" && action === "primary") {
     openRadarNoteModal();
+    return;
+  }
+  if (activeView === "stores" && action === "secondary") {
+    void openSavedRadarModal();
     return;
   }
   if (activeView === "market") {
@@ -1624,6 +1974,7 @@ function runDashboardViewAction(action = "primary") {
 }
 
 function createCard(item) {
+  if (activeView === "stores") return createStoreRadarCard(item);
   const template = document.querySelector("#cardTemplate");
   const card = template.content.firstElementChild.cloneNode(true);
   const title = card.querySelector("h3");
@@ -1669,34 +2020,6 @@ function createCard(item) {
     muted.textContent = `${displayPerson(item.owner)} arıyor · hedef ${item.budget || "belirsiz"}`;
     addTags(tags, [item.priority]);
     notes.textContent = item.notes || "Not eklenmedi.";
-  }
-
-  if (activeView === "stores") {
-    editButton.remove();
-    card.querySelector(".mini-car")?.remove();
-    const tone = statusTone[item.status] || "neutral";
-    card.classList.add("store-card", `store-card--${tone}`);
-    renderStoreEvidence(media, item);
-    title.textContent = item.store;
-    muted.textContent = [locationLabel(item), freshnessLabel(item)].filter(Boolean).join(" · ");
-    addTags(tags, [item.status, item.confidence]);
-    notes.textContent = item.models;
-    addMeta(meta, [
-      `@${item.reporterUsername || item.reporter || "anonim"}`
-    ]);
-    addStoreCardSummary(card, item);
-    card.tabIndex = 0;
-    card.setAttribute("role", "button");
-    card.setAttribute("aria-label", `${item.store} radar detayını aç`);
-    card.addEventListener("click", (event) => {
-      if (event.target.closest("button, a, input, select, textarea")) return;
-      openStoreDetail(item);
-    });
-    card.addEventListener("keydown", (event) => {
-      if (!["Enter", " "].includes(event.key)) return;
-      event.preventDefault();
-      openStoreDetail(item);
-    });
   }
 
   if (activeView === "market") {
@@ -1951,7 +2274,11 @@ function createStoreSelectFilter(label, icon, currentValue, values, setValue) {
   trigger.setAttribute("aria-expanded", "false");
   trigger.disabled = storePageLoading;
   const valueText = document.createElement("strong");
-  valueText.textContent = currentValue;
+  if (icon === "store" && currentValue !== "Tümü" && storeLogoPath(currentValue)) {
+    valueText.innerHTML = `<img class="store-filter-logo" src="${storeLogoPath(currentValue)}" alt="" /><span>${escapeHtml(currentValue)}</span>`;
+  } else {
+    valueText.textContent = currentValue;
+  }
   const chevron = document.createElement("span");
   chevron.className = "store-filter-select__chevron";
   chevron.setAttribute("aria-hidden", "true");
@@ -1967,7 +2294,10 @@ function createStoreSelectFilter(label, icon, currentValue, values, setValue) {
     option.className = "store-filter-option";
     option.setAttribute("role", "option");
     option.setAttribute("aria-selected", String(value === currentValue));
-    option.innerHTML = `<span>${escapeHtml(value)}</span>${value === currentValue ? '<i aria-hidden="true">✓</i>' : ""}`;
+    const optionLogo = icon === "store" && value !== "Tümü" && storeLogoPath(value)
+      ? `<img class="store-filter-logo" src="${storeLogoPath(value)}" alt="" />`
+      : "";
+    option.innerHTML = `<span class="store-filter-option__label">${optionLogo}<span>${escapeHtml(value)}</span></span>${value === currentValue ? '<i aria-hidden="true">✓</i>' : ""}`;
     option.addEventListener("click", (event) => {
       event.stopPropagation();
       if (value === currentValue) {
@@ -4602,7 +4932,7 @@ function storeVerificationStatus(status) {
     pending: { label: "Doğrulama bekliyor", className: "pending" },
     verified: { label: "Doğrulandı", className: "verified" },
     expired: { label: "Süresi doldu", className: "expired" },
-    disputed: { label: "İtirazlı bilgi", className: "disputed" }
+    disputed: { label: "Şüpheli", className: "disputed" }
   }[status] || { label: "Doğrulama bekliyor", className: "pending" };
 }
 
@@ -4829,7 +5159,7 @@ function addStoreRewardPanel(card, item) {
 
 function voteStoreReport(storeId, vote) {
   requireAuth(async () => {
-    const selectedStore = [...remoteStorePageItems, ...state.stores].find((item) => item.id === storeId);
+    const selectedStore = [...remoteStorePageItems, ...savedRadarItems, ...state.stores].find((item) => item.id === storeId);
     if (!selectedStore) return;
     if (isOwnedByCurrentUser("stores", selectedStore)) {
       showToast("Kendi radar notuna oy veremezsin.");
@@ -6031,6 +6361,10 @@ dashboardMenuToggle?.addEventListener("click", toggleDashboardMenu);
 dashboardSidebarBackdrop?.addEventListener("click", closeDashboardMenu);
 dashboardPrimaryAction?.addEventListener("click", () => runDashboardViewAction("primary"));
 dashboardSecondaryAction?.addEventListener("click", () => runDashboardViewAction("secondary"));
+closeSavedRadarModalButton?.addEventListener("click", closeSavedRadarModal);
+savedRadarModal?.addEventListener("click", (event) => {
+  if (event.target === savedRadarModal) closeSavedRadarModal();
+});
 window.addEventListener("hashchange", () => applyDashboardRoute());
 
 document.querySelectorAll("[data-global-scope]").forEach((button) => {
@@ -6390,11 +6724,18 @@ storePhotoFiles.addEventListener("change", (event) => addStorePhotoFiles(event.c
 });
 storePhotoPicker.addEventListener("drop", (event) => addStorePhotoFiles(event.dataTransfer?.files || []));
 
-document.addEventListener("click", closeStoreFilterMenus);
+document.addEventListener("click", () => {
+  closeStoreFilterMenus();
+  document.querySelectorAll(".store-radar-card__more.is-open").forEach((menu) => {
+    menu.classList.remove("is-open");
+    menu.querySelector(".store-radar-card__more-trigger")?.setAttribute("aria-expanded", "false");
+  });
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeStoreFilterMenus();
   if (event.key === "Escape") closeDashboardMenu();
   if (event.key === "Escape") closeAccountMenu();
+  if (event.key === "Escape" && savedRadarModal?.classList.contains("is-visible")) closeSavedRadarModal();
   if (event.key === "Escape" && radarNoteModalBackdrop.classList.contains("is-visible")) {
     closeRadarNoteModal();
   }
