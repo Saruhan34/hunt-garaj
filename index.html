@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=118" />
+    <link rel="stylesheet" href="./styles.css?v=126" />
   </head>
   <body class="dashboard-shell">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -273,107 +273,281 @@
       </section>
 
       <section class="community-module app-module-only" id="communityModule" aria-label="Forum ve topluluk">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Forum / Topluluk</p>
-            <h2>Topluluk</h2>
-            <p class="view-copy">Koleksiyon sohbetlerini, mağaza deneyimlerini ve av rehberlerini toplulukla paylaş.</p>
+        <section class="community-hub-hero">
+          <div class="community-hub-hero__copy">
+            <p class="eyebrow">Topluluk Merkezi</p>
+            <h2>Topluluk Merkezi</h2>
+            <p>Video akışları, forum konuları ve topluluk sohbetleri tek merkezde.</p>
           </div>
-        </div>
-        <div class="community-grid">
-          <article><span>Popüler</span><strong>2026 mainline’da ilk avlanacak modeller</strong><p>Ferrari, Porsche ve TH adayları için takip listesi.</p></article>
-          <article><span>Yorumlar</span><strong>Bugün hangi mağazaya gidilir?</strong><p>Son radar notlarına göre hızlı rota önerileri.</p></article>
-          <article><span>Rehber</span><strong>Kartonetli araç saklama düzeni</strong><p>Nem, kutu izi ve sergileme için kısa notlar.</p></article>
-          <article><span>Takas</span><strong>Premium takasında değer dengesi</strong><p>Hasar, blister ve seri farkı nasıl hesaplanır?</p></article>
+          <div class="community-hub-hero__actions">
+            <button class="button button--ghost" id="communitySuggestVideo" type="button"><span aria-hidden="true">＋</span>Video Öner</button>
+            <button class="button button--primary" id="communityJoinChat" type="button"><span aria-hidden="true">◌</span>Sohbete Katıl</button>
+          </div>
+        </section>
+
+        <nav class="community-tabs" aria-label="Topluluk bölümleri">
+          <button class="is-active" type="button" data-community-target="communityFeed"><span aria-hidden="true">⌁</span>Akış</button>
+          <button type="button" data-community-target="communityForum"><span aria-hidden="true">▤</span>Forum</button>
+          <button type="button" data-community-target="communityChat"><span aria-hidden="true">◌</span>Sohbet</button>
+        </nav>
+
+        <div class="community-hub-layout">
+          <div class="community-hub-main">
+            <section class="community-surface community-featured" id="communityFeed">
+              <div class="community-section-heading">
+                <div>
+                  <p class="eyebrow">Gündemde</p>
+                  <h3>Öne Çıkan İçerikler</h3>
+                </div>
+                <span class="community-section-count">3 yeni içerik</span>
+              </div>
+              <div class="community-content-grid">
+                <article class="community-content-card community-content-card--shipment">
+                  <div class="community-content-card__media">
+                    <img src="./assets/community/toyzz-sevkiyat.svg" alt="Toyzz Shop sevkiyat radar görseli" loading="lazy" />
+                    <span class="community-source community-source--youtube">YouTube</span>
+                    <span class="community-duration">08:42</span>
+                  </div>
+                  <div class="community-content-card__body">
+                    <h4>Toyzz Shop raflarında yeni sevkiyat turu</h4>
+                    <div class="community-content-card__location"><span aria-hidden="true">⌖</span>İstanbul · Akasya AVM</div>
+                    <p>Premium koliler, yeni mainline araçlar ve rafın güncel durumu tek videoda.</p>
+                    <footer><span>12,4B görüntülenme</span><span>184 yorum</span><button type="button" aria-label="İçerik seçenekleri">•••</button></footer>
+                  </div>
+                </article>
+                <article class="community-content-card community-content-card--tour">
+                  <div class="community-content-card__media">
+                    <img src="./assets/community/diecast-magaza-turu.svg" alt="Diecast mağaza turu görseli" loading="lazy" />
+                    <span class="community-source community-source--instagram">Instagram</span>
+                    <span class="community-duration">04:16</span>
+                  </div>
+                  <div class="community-content-card__body">
+                    <h4>Diecast mağaza turu: koleksiyon duvarı</h4>
+                    <div class="community-content-card__location"><span aria-hidden="true">⌖</span>Ankara · Çankaya</div>
+                    <p>JDM, Euro ve Amerikan serilerinin yer aldığı butik mağazadan kısa bir keşif.</p>
+                    <footer><span>8,7B görüntülenme</span><span>96 yorum</span><button type="button" aria-label="İçerik seçenekleri">•••</button></footer>
+                  </div>
+                </article>
+                <article class="community-content-card community-content-card--alert">
+                  <div class="community-content-card__media">
+                    <img src="./assets/community/th-premium-alert.svg" alt="TH ve premium av alarmı görseli" loading="lazy" />
+                    <span class="community-source community-source--radar">Yerel Hunt</span>
+                    <span class="community-duration">02:38</span>
+                  </div>
+                  <div class="community-content-card__body">
+                    <h4>TH ve Premium alarmı: sabah raf raporu</h4>
+                    <div class="community-content-card__location"><span aria-hidden="true">⌖</span>İzmir · Karşıyaka</div>
+                    <p>Erken saat raf kontrolünde öne çıkan TH adayları ve premium stok notları.</p>
+                    <footer><span>5,2B görüntülenme</span><span>71 yorum</span><button type="button" aria-label="İçerik seçenekleri">•••</button></footer>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <div class="community-discussion-grid">
+              <section class="community-surface community-forum" id="communityForum">
+                <div class="community-section-heading">
+                  <div>
+                    <p class="eyebrow">Avcıların Gündemi</p>
+                    <h3>Forum Konuları</h3>
+                  </div>
+                  <button class="community-mini-button" id="communityCreateTopic" type="button">＋ Konu Aç</button>
+                </div>
+                <div class="community-forum-list">
+                  <article class="community-forum-row">
+                    <span class="community-forum-category community-forum-category--gold">Case Bilgisi</span>
+                    <div><h4>2026 J case dağılımında hangi modeller öne çıkıyor?</h4><p>Yeni case içeriği, TH ihtimali ve koli dağılımı üzerine güncel notlar.</p><footer><span>28 cevap</span><span>12 dk önce</span><span>Son yanıt: @Diecast34</span></footer></div>
+                    <span class="community-topic-status community-topic-status--hot">Popüler</span>
+                  </article>
+                  <article class="community-forum-row">
+                    <span class="community-forum-category community-forum-category--teal">Fiyat Sor</span>
+                    <div><h4>Kartonetli Premium Boulevard için güncel fiyat dengesi</h4><p>Kutu kondisyonu ve seri tamamlanma durumuna göre değer karşılaştırması.</p><footer><span>16 cevap</span><span>34 dk önce</span><span>Son yanıt: @GarajUstasi</span></footer></div>
+                    <span class="community-topic-status community-topic-status--solved">Çözüldü</span>
+                  </article>
+                  <article class="community-forum-row">
+                    <span class="community-forum-category community-forum-category--orange">Mağaza Deneyimi</span>
+                    <div><h4>İstanbul Anadolu yakası sabah av rotası</h4><p>AVM açılış saatleri, sevkiyat günleri ve toplu taşıma bağlantıları.</p><footer><span>42 cevap</span><span>1 saat önce</span><span>Son yanıt: @AkasyaHunter</span></footer></div>
+                    <span class="community-topic-status community-topic-status--hot">Popüler</span>
+                  </article>
+                  <article class="community-forum-row">
+                    <span class="community-forum-category">Genel Sohbet</span>
+                    <div><h4>Bu ay koleksiyona eklediğiniz favori model hangisi?</h4><p>Yeni bulunan araçlar, sergileme fikirleri ve koleksiyon fotoğrafları.</p><footer><span>31 cevap</span><span>2 saat önce</span><span>Son yanıt: @MiniGTurkiye</span></footer></div>
+                  </article>
+                </div>
+                <button class="community-panel-link" type="button" data-community-action="forum-all">Tüm forum konularını görüntüle <span>→</span></button>
+              </section>
+
+              <section class="community-surface community-chat" id="communityChat">
+                <div class="community-section-heading">
+                  <div>
+                    <p class="eyebrow">Anlık Paylaşım</p>
+                    <h3>Sohbet Odası</h3>
+                  </div>
+                  <span class="community-live-status"><i></i>Canlı</span>
+                </div>
+                <div class="community-room-tabs" aria-label="Şehir sohbet odaları">
+                  <button class="is-active" type="button" data-community-city="İstanbul">İstanbul</button>
+                  <button type="button" data-community-city="Ankara">Ankara</button>
+                  <button type="button" data-community-city="İzmir">İzmir</button>
+                  <button type="button" data-community-city="Bursa">Bursa</button>
+                  <button type="button" data-community-city="Diğer">Diğer</button>
+                </div>
+                <div class="community-chat-feed" id="communityChatFeed">
+                  <article data-chat-city="İstanbul"><span class="community-member-avatar community-member-avatar--gold">S</span><div><header><strong>@ShelfHunter</strong><time>21:42</time><em>İstanbul</em></header><p>Akasya’da yeni koli açıldı, premium rafta birkaç model hâlâ duruyor.</p></div></article>
+                  <article data-chat-city="İstanbul"><span class="community-member-avatar community-member-avatar--teal">D</span><div><header><strong>@Diecast34</strong><time>21:39</time><em>İstanbul</em></header><p>Teşekkürler, radar notundaki fotoğraf da oldukça güncel görünüyor.</p></div></article>
+                  <article data-chat-city="Ankara"><span class="community-member-avatar community-member-avatar--violet">A</span><div><header><strong>@AnkaraAvcisi</strong><time>21:31</time><em>Ankara</em></header><p>Çankaya tarafında Boulevard arayan varsa mağaza turu başlığını kontrol etsin.</p></div></article>
+                  <article data-chat-city="İzmir"><span class="community-member-avatar community-member-avatar--orange">K</span><div><header><strong>@KarsiyakaTH</strong><time>21:27</time><em>İzmir</em></header><p>Sabah rafında TH adayı vardı, doğrulama için ikinci gözlem bekleniyor.</p></div></article>
+                  <article data-chat-city="Bursa"><span class="community-member-avatar community-member-avatar--teal">B</span><div><header><strong>@BursaGarage</strong><time>21:14</time><em>Bursa</em></header><p>Nilüfer bölgesinde yeni sevkiyat haberi alan oldu mu?</p></div></article>
+                  <article data-chat-city="Diğer"><span class="community-member-avatar community-member-avatar--gold">M</span><div><header><strong>@MainlineTR</strong><time>21:02</time><em>Diğer</em></header><p>Yeni case listesi forumda, eksik modelleri konu altında tamamlayabiliriz.</p></div></article>
+                </div>
+                <form class="community-chat-compose" id="communityChatForm">
+                  <input id="communityChatInput" type="text" maxlength="240" placeholder="Topluluğa bir mesaj yaz..." autocomplete="off" />
+                  <button type="submit">Gönder</button>
+                </form>
+                <button class="community-chat-auth is-hidden" id="communityChatAuth" type="button">Sohbete katılmak için giriş yap</button>
+              </section>
+            </div>
+          </div>
+
+          <aside class="community-hub-sidebar">
+            <section class="community-widget">
+              <div class="community-widget__heading"><span class="community-widget__icon">↗</span><h3>Popüler Konular</h3></div>
+              <ol class="community-popular-list">
+                <li><span>01</span><div><strong>2026 J case dağılımı</strong><small>28 yanıt</small></div></li>
+                <li><span>02</span><div><strong>İstanbul av rotası</strong><small>42 yanıt</small></div></li>
+                <li><span>03</span><div><strong>Premium fiyat dengesi</strong><small>16 yanıt</small></div></li>
+                <li><span>04</span><div><strong>TH ayırt etme rehberi</strong><small>35 yanıt</small></div></li>
+              </ol>
+              <button class="community-widget__link" type="button" data-community-action="popular-all">Tüm popüler konular <span>→</span></button>
+            </section>
+
+            <section class="community-widget">
+              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal">◉</span><h3>Aktif Üyeler</h3></div>
+              <div class="community-active-members">
+                <div class="community-avatar-stack"><span class="community-member-avatar community-member-avatar--gold">S</span><span class="community-member-avatar community-member-avatar--teal">D</span><span class="community-member-avatar community-member-avatar--violet">A</span><span class="community-member-avatar community-member-avatar--orange">K</span><span>+18</span></div>
+                <p><strong>22 avcı çevrimiçi</strong><span>Topluluk şu anda aktif.</span></p>
+              </div>
+              <button class="community-widget__link" type="button" data-community-action="members-all">Tüm üyeleri görüntüle <span>→</span></button>
+            </section>
+
+            <section class="community-widget">
+              <div class="community-widget__heading"><span class="community-widget__icon">⌖</span><h3>Şehre Göre Sohbet</h3></div>
+              <div class="community-city-list">
+                <button type="button" data-community-city-link="İstanbul"><span>İstanbul Odası</span><b>48</b></button>
+                <button type="button" data-community-city-link="Ankara"><span>Ankara Odası</span><b>26</b></button>
+                <button type="button" data-community-city-link="İzmir"><span>İzmir Odası</span><b>19</b></button>
+                <button type="button" data-community-city-link="Bursa"><span>Bursa Odası</span><b>12</b></button>
+                <button type="button" data-community-city-link="Diğer"><span>Diğer Şehirler</span><b>31</b></button>
+              </div>
+              <button class="community-widget__link" type="button" data-community-action="rooms-all">Tüm odaları görüntüle <span>→</span></button>
+            </section>
+
+            <section class="community-widget community-rules-widget">
+              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal">◇</span><h3>Topluluk Kuralları</h3></div>
+              <ul><li>Saygılı ve yardımsever olun</li><li>Reklam ve spam paylaşmayın</li><li>Yanıltıcı bilgi paylaşmayın</li><li>Topluluk güvenini koruyun</li></ul>
+              <button class="community-widget__link" type="button" data-community-action="rules-all">Tüm kuralları görüntüle <span>→</span></button>
+            </section>
+          </aside>
         </div>
       </section>
 
       <section class="rewards-module app-module-only" id="rewardsModule" aria-label="Radar puanı ve rozetler">
-        <div class="section-heading">
+        <div class="section-heading reward-page-heading">
           <div>
-            <p class="eyebrow">Reward / Level / Badge</p>
+            <p class="eyebrow">İlerleme Merkezi</p>
             <h2 id="rewardModuleTitle">Radar Puanı</h2>
             <p class="view-copy" id="rewardModuleCopy">Hunt katkılarını puana, seviyeye ve rozete dönüştür.</p>
           </div>
-          <div class="leaderboard-tabs" aria-label="Leaderboard filtresi">
-            <button class="is-active" type="button" data-leaderboard-period="daily">Günlük</button>
-            <button type="button" data-leaderboard-period="weekly">Haftalık</button>
-            <button type="button" data-leaderboard-period="monthly">Aylık</button>
-            <button type="button" data-leaderboard-period="all">Tüm zamanlar</button>
-          </div>
         </div>
         <section class="reward-user-overview" id="rewardUserOverview" aria-label="Kullanıcı puan özeti">
-          <div class="reward-user-overview__identity">
-            <span class="reward-user-overview__avatar" id="rewardOverviewAvatar">HR</span>
-            <div>
-              <p class="eyebrow">Senin radar durumun</p>
-              <h3 id="rewardOverviewUsername">Giriş yaparak puanlarını takip et</h3>
-              <span id="rewardOverviewRank">Rank ve rozet bilgilerin burada görünür.</span>
+          <div class="reward-user-overview__main">
+            <div class="reward-user-overview__rank-visual" id="rewardOverviewRankVisual" aria-hidden="true"></div>
+            <div class="reward-user-overview__identity">
+              <span class="reward-user-overview__avatar" id="rewardOverviewAvatar">HR</span>
+              <div>
+                <p class="eyebrow">Senin radar durumun</p>
+                <h3 id="rewardOverviewUsername">Giriş yaparak puanlarını takip et</h3>
+                <span id="rewardOverviewRank">Rank ve rozet bilgilerin burada görünür.</span>
+              </div>
             </div>
           </div>
-          <div class="reward-user-overview__score">
-            <strong id="rewardOverviewPoints">0</strong>
-            <span>Radar Puanı</span>
-          </div>
-          <div class="reward-user-overview__progress">
-            <div><span id="rewardOverviewProgressLabel">Rank ilerlemesi</span><strong id="rewardOverviewProgressValue">0%</strong></div>
-            <span><i id="rewardOverviewProgressFill"></i></span>
+          <div class="reward-user-overview__journey">
+            <div class="reward-user-overview__score">
+              <span>Mevcut Radar Puanı</span>
+              <strong id="rewardOverviewPoints">0</strong>
+            </div>
+            <div class="reward-user-overview__progress">
+              <div><span id="rewardOverviewProgressLabel">Rank ilerlemesi</span><strong id="rewardOverviewProgressValue">0%</strong></div>
+              <span><i id="rewardOverviewProgressFill"></i></span>
+            </div>
           </div>
           <div class="reward-user-overview__stats">
-            <span><strong id="rewardOverviewReports">0</strong> radar katkısı</span>
-            <span><strong id="rewardOverviewVerification">0</strong> doğrulama</span>
-            <span><strong id="rewardOverviewBadges">0</strong> rozet</span>
+            <span><i aria-hidden="true">⌁</i><small>Radar katkısı</small><strong id="rewardOverviewReports">0</strong></span>
+            <span><i aria-hidden="true">✓</i><small>Doğrulama</small><strong id="rewardOverviewVerification">0</strong></span>
+            <span><i aria-hidden="true">◆</i><small>Kazanılan rozet</small><strong id="rewardOverviewBadges">0</strong></span>
           </div>
           <button class="button button--ghost" id="rewardOverviewLogin" type="button">Giriş Yap</button>
         </section>
-        <div class="reward-podium" id="rewardPodium"></div>
-        <div class="reward-system-policy">
-          <strong>Adil oyun koruması</strong>
-          <span>Günlük en fazla 150 Radar Puanı · aynı nota tek oy · kendi notuna doğrulama yok · tekrar bildirimlerde bekleme süresi</span>
-        </div>
-        <div class="reward-board">
-          <div>
-            <div class="section-heading section-heading--compact">
-              <div>
-                <p class="eyebrow">Top 10</p>
-                <h3>Leaderboard</h3>
-              </div>
+        <section class="reward-section reward-leaderboard-section">
+          <div class="section-heading section-heading--compact reward-section-heading">
+            <div>
+              <p class="eyebrow">Topluluk Sıralaması</p>
+              <h3>Radar Liderleri</h3>
+              <p>Kanıtlı katkılarıyla topluluğun önüne geçen avcılar.</p>
+            </div>
+            <div class="leaderboard-tabs" aria-label="Leaderboard filtresi">
+              <button class="is-active" type="button" data-leaderboard-period="daily">Günlük</button>
+              <button type="button" data-leaderboard-period="weekly">Haftalık</button>
+              <button type="button" data-leaderboard-period="monthly">Aylık</button>
+              <button type="button" data-leaderboard-period="all">Tüm zamanlar</button>
+            </div>
+          </div>
+          <div class="reward-podium" id="rewardPodium"></div>
+          <div class="reward-leaderboard-list">
+            <div class="reward-leaderboard-list__head">
+              <span>Sıra</span><span>Avcı</span><span>Rank / Rozet</span><span>Radar Puanı</span>
             </div>
             <div class="reward-leaderboard-rows" id="rewardLeaderboardRows"></div>
           </div>
-          <aside class="reward-side-card">
-            <p class="eyebrow">Rank sistemi</p>
-            <h3>Seviyeler</h3>
-            <div class="rank-grid" id="rewardRanksGrid"></div>
-          </aside>
-        </div>
-        <div class="reward-section">
-          <div class="section-heading section-heading--compact">
+          <div class="reward-system-policy">
+            <span class="reward-system-policy__icon" aria-hidden="true">◇</span>
             <div>
-              <p class="eyebrow">Nasıl kazanılır?</p>
+              <strong>Adil oyun koruması aktif</strong>
+              <span>Günlük en fazla 150 puan · aynı nota tek oy · kendi notuna doğrulama yok · tekrar bildirimlerde bekleme süresi</span>
+            </div>
+          </div>
+        </section>
+        <section class="reward-section reward-rank-section">
+          <div class="section-heading section-heading--compact reward-section-heading">
+            <div>
+              <p class="eyebrow">Seviye Yol Haritası</p>
+              <h3>Rank Sistemi</h3>
+              <p>Katkı yaptıkça yeni avcı seviyelerinin kilidini aç.</p>
+            </div>
+          </div>
+          <div class="rank-grid" id="rewardRanksGrid"></div>
+        </section>
+        <section class="reward-section reward-rules-section">
+          <div class="section-heading section-heading--compact reward-section-heading">
+            <div>
+              <p class="eyebrow">Katkı Rehberi</p>
               <h3>Puan Kuralları</h3>
+              <p>Hangi katkının ne kazandırdığını ve sistemin sınırlarını tek bakışta gör.</p>
             </div>
           </div>
           <div class="reward-rules-grid" id="rewardRulesGrid"></div>
-        </div>
-        <div class="reward-section">
-          <div class="section-heading section-heading--compact">
+        </section>
+        <section class="reward-section reward-badges-section">
+          <div class="section-heading section-heading--compact reward-section-heading">
             <div>
-              <p class="eyebrow">Ödüller</p>
-              <h3>Rozetler</h3>
+              <p class="eyebrow">Ödül Vitrini</p>
+              <h3>Başarı Koleksiyonu</h3>
+              <p>Rozetlerini aç, uzmanlığını göster ve profilini güçlendir.</p>
             </div>
+            <span class="reward-badges-summary" id="rewardBadgesSummary">0 / 8 rozet açıldı</span>
           </div>
           <div class="reward-badges-grid" id="rewardBadgesGrid"></div>
-        </div>
-        <div class="reward-section">
-          <div class="section-heading section-heading--compact">
-            <div>
-              <p class="eyebrow">Avatar vitrini</p>
-              <h3>Hazır profil kimlikleri</h3>
-            </div>
-          </div>
-          <div class="reward-avatar-showcase" id="rewardAvatarShowcase"></div>
-        </div>
+        </section>
       </section>
 
       <section class="toolbar app-module-only" aria-label="Filtreler">
@@ -1320,9 +1494,7 @@
 
     <div class="store-detail-modal" id="storeDetailModal" aria-hidden="true">
       <section class="store-detail-modal__panel" role="dialog" aria-modal="true" aria-labelledby="storeDetailTitle">
-        <button class="delete-button store-detail__close" id="closeStoreDetail" type="button" aria-label="Pencereyi kapat">×</button>
-        <div class="store-detail__gallery" id="storeDetailGallery"></div>
-        <div class="store-detail__body">
+        <header class="store-detail__header">
           <div class="store-detail__heading">
             <div>
               <p class="eyebrow">Hunt Radar detayı</p>
@@ -1331,13 +1503,46 @@
             </div>
             <div id="storeDetailStatus"></div>
           </div>
-          <div class="store-detail__facts" id="storeDetailFacts"></div>
-          <section class="store-detail__section">
-            <span class="store-detail__label">Görülen modeller</span>
-            <p class="store-detail__models" id="storeDetailModels"></p>
+          <button class="delete-button store-detail__close" id="closeStoreDetail" type="button" aria-label="Pencereyi kapat">×</button>
+        </header>
+        <div class="store-detail__scroll">
+          <section class="store-detail__visual-column">
+            <div class="store-detail__gallery" id="storeDetailGallery"></div>
+            <article class="store-detail__store-card" id="storeDetailStoreCard"></article>
           </section>
-          <div id="storeDetailVerification"></div>
+          <div class="store-detail__body">
+            <button class="store-detail__reporter" id="storeDetailReporter" type="button">
+              <span class="store-detail__reporter-avatar" id="storeDetailReporterAvatar">HR</span>
+              <span>
+                <small>Bildiren koleksiyoncu</small>
+                <strong id="storeDetailReporterName">@kullanici</strong>
+                <em id="storeDetailReporterMeta">Profili görüntüle</em>
+              </span>
+              <i aria-hidden="true">→</i>
+            </button>
+            <div class="store-detail__facts" id="storeDetailFacts"></div>
+            <section class="store-detail__section store-detail__models-section">
+              <span class="store-detail__label">Görülen modeller</span>
+              <div class="store-detail__models" id="storeDetailModels"></div>
+            </section>
+            <section class="store-detail__verification-section">
+              <div class="store-detail__section-head">
+                <div>
+                  <span>Topluluk doğrulaması</span>
+                  <small>Güncellik, kanıt ve kullanıcı oylarının ortak özeti.</small>
+                </div>
+              </div>
+              <div id="storeDetailVerification"></div>
+            </section>
+          </div>
         </div>
+        <footer class="store-detail__actions">
+          <button type="button" id="storeDetailSave"><span aria-hidden="true">☆</span><span>Kaydet</span></button>
+          <button type="button" id="storeDetailShare"><span aria-hidden="true">↗</span><span>Paylaş</span></button>
+          <button type="button" id="storeDetailProfile"><span aria-hidden="true">♙</span><span>Profili Gör</span></button>
+          <button type="button" id="storeDetailMoreStore"><span aria-hidden="true">⌖</span><span>Diğer Radarlar</span></button>
+          <button type="button" class="is-primary" id="storeDetailCloseAction"><span>Kapat</span></button>
+        </footer>
       </section>
     </div>
 
@@ -1417,6 +1622,6 @@
     <script src="./catalog-2026.js?v=7"></script>
     <script src="./reward-service.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=124"></script>
+    <script src="./app.js?v=130"></script>
   </body>
 </html>

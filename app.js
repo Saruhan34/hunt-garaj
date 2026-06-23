@@ -477,6 +477,7 @@ let activeMarketMinPrice = 0;
 let activeMarketMaxPrice = null;
 let activeGlobalSearchScope = "all";
 let activeLeaderboardPeriod = "daily";
+let activeCommunityCity = "İstanbul";
 let storeVerificationSummaries = {};
 let radarNotePhotos = {};
 let pendingStorePhotoFiles = [];
@@ -515,6 +516,17 @@ const visibleCount = document.querySelector("#visibleCount");
 const listTitle = document.querySelector("#listTitle");
 const viewCopy = document.querySelector("#viewCopy");
 const communityModule = document.querySelector("#communityModule");
+const communityTabs = document.querySelectorAll("[data-community-target]");
+const communitySuggestVideo = document.querySelector("#communitySuggestVideo");
+const communityJoinChat = document.querySelector("#communityJoinChat");
+const communityCreateTopic = document.querySelector("#communityCreateTopic");
+const communityChat = document.querySelector("#communityChat");
+const communityChatFeed = document.querySelector("#communityChatFeed");
+const communityChatForm = document.querySelector("#communityChatForm");
+const communityChatInput = document.querySelector("#communityChatInput");
+const communityChatAuth = document.querySelector("#communityChatAuth");
+const communityRoomTabs = document.querySelectorAll("[data-community-city]");
+const communityCityLinks = document.querySelectorAll("[data-community-city-link]");
 const rewardsModule = document.querySelector("#rewardsModule");
 const rewardModuleTitle = document.querySelector("#rewardModuleTitle");
 const rewardModuleCopy = document.querySelector("#rewardModuleCopy");
@@ -522,8 +534,8 @@ const rewardPodium = document.querySelector("#rewardPodium");
 const rewardLeaderboardRows = document.querySelector("#rewardLeaderboardRows");
 const rewardRulesGrid = document.querySelector("#rewardRulesGrid");
 const rewardBadgesGrid = document.querySelector("#rewardBadgesGrid");
+const rewardBadgesSummary = document.querySelector("#rewardBadgesSummary");
 const rewardRanksGrid = document.querySelector("#rewardRanksGrid");
-const rewardAvatarShowcase = document.querySelector("#rewardAvatarShowcase");
 const featuredListing = document.querySelector("#featuredListing");
 const featuredListingMeta = document.querySelector("#featuredListingMeta");
 const featuredStore = document.querySelector("#featuredStore");
@@ -586,6 +598,7 @@ const dashboardViewIcon = document.querySelector("#dashboardViewIcon");
 const dashboardPrimaryAction = document.querySelector("#dashboardPrimaryAction");
 const dashboardSecondaryAction = document.querySelector("#dashboardSecondaryAction");
 const rewardUserOverview = document.querySelector("#rewardUserOverview");
+const rewardOverviewRankVisual = document.querySelector("#rewardOverviewRankVisual");
 const rewardOverviewAvatar = document.querySelector("#rewardOverviewAvatar");
 const rewardOverviewUsername = document.querySelector("#rewardOverviewUsername");
 const rewardOverviewRank = document.querySelector("#rewardOverviewRank");
@@ -781,6 +794,16 @@ const storeDetailStatus = document.querySelector("#storeDetailStatus");
 const storeDetailFacts = document.querySelector("#storeDetailFacts");
 const storeDetailModels = document.querySelector("#storeDetailModels");
 const storeDetailVerification = document.querySelector("#storeDetailVerification");
+const storeDetailStoreCard = document.querySelector("#storeDetailStoreCard");
+const storeDetailReporter = document.querySelector("#storeDetailReporter");
+const storeDetailReporterAvatar = document.querySelector("#storeDetailReporterAvatar");
+const storeDetailReporterName = document.querySelector("#storeDetailReporterName");
+const storeDetailReporterMeta = document.querySelector("#storeDetailReporterMeta");
+const storeDetailSave = document.querySelector("#storeDetailSave");
+const storeDetailShare = document.querySelector("#storeDetailShare");
+const storeDetailProfile = document.querySelector("#storeDetailProfile");
+const storeDetailMoreStore = document.querySelector("#storeDetailMoreStore");
+const storeDetailCloseAction = document.querySelector("#storeDetailCloseAction");
 const storePhotoLightbox = document.querySelector("#storePhotoLightbox");
 const storePhotoLightboxImage = document.querySelector("#storePhotoLightboxImage");
 const messageModal = document.querySelector("#messageModal");
@@ -828,7 +851,7 @@ const viewCopies = {
   wishlist: "İstek Listesi'ndeki modelleri öncelik, hedef fiyat ve notlarla takip edin.",
   stores: "Bugün hangi rafta ne kaldı? Hunt Radar notlarını, son sevkiyat haberlerini ve güven durumunu hızlıca paylaşın.",
   market: "Satılık ve takaslık modelleri fiyat, sahip ve pazar durumuyla tek vitrinde takip edin.",
-  community: "Popüler konular, yorumlar ve rehber yazıları.",
+  community: "Video akışları, forum konuları ve topluluk sohbetleri tek merkezde.",
   rewards: "Radar puanı, seviyeler, rozetler ve haftanın avcıları."
 };
 
@@ -1599,8 +1622,71 @@ function syncAppShell() {
   document.body.classList.toggle("is-module-view", !isHome && !isCommunity && !isRewards);
   communityModule.classList.toggle("is-visible", isCommunity);
   rewardsModule.classList.toggle("is-visible", isRewards);
+  if (isCommunity) syncCommunityHub();
   if (dashboardPageTitle) dashboardPageTitle.textContent = DASHBOARD_VIEW_TITLES[activeView] || "Ana Sayfa";
   syncDashboardViewHeader();
+}
+
+function selectCommunitySection(targetId, options = {}) {
+  const target = document.querySelector(`#${targetId}`);
+  if (!target) return;
+  communityTabs.forEach((tab) => tab.classList.toggle("is-active", tab.dataset.communityTarget === targetId));
+  if (options.scroll !== false) target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function selectCommunityCity(city, options = {}) {
+  activeCommunityCity = city || "İstanbul";
+  communityRoomTabs.forEach((button) => button.classList.toggle("is-active", button.dataset.communityCity === activeCommunityCity));
+  communityChatFeed?.querySelectorAll("[data-chat-city]").forEach((message) => {
+    message.hidden = message.dataset.chatCity !== activeCommunityCity;
+  });
+  if (options.scroll && communityChat) {
+    selectCommunitySection("communityChat", { scroll: false });
+    communityChat.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function syncCommunityHub() {
+  if (!communityModule) return;
+  const isSignedIn = Boolean(currentUser);
+  communityChatForm?.classList.toggle("is-hidden", !isSignedIn);
+  communityChatAuth?.classList.toggle("is-hidden", isSignedIn);
+  if (communityChatInput) {
+    communityChatInput.disabled = !isSignedIn;
+    communityChatInput.placeholder = isSignedIn ? `${activeCommunityCity} odasına bir mesaj yaz...` : "Mesaj göndermek için giriş yap";
+  }
+  communityModule.querySelectorAll(".community-content-card__media img:not([data-fallback-bound])").forEach((image) => {
+    image.dataset.fallbackBound = "true";
+    image.addEventListener("error", () => {
+      image.hidden = true;
+      image.closest(".community-content-card__media")?.classList.add("is-fallback");
+    }, { once: true });
+  });
+  selectCommunityCity(activeCommunityCity, { scroll: false });
+}
+
+function appendCommunityChatMessage(message) {
+  if (!communityChatFeed || !currentUser) return;
+  const article = document.createElement("article");
+  article.dataset.chatCity = activeCommunityCity;
+  const avatar = document.createElement("span");
+  avatar.className = "community-member-avatar community-member-avatar--gold";
+  avatar.textContent = userInitials(currentUser.username || currentUser.email || "HR");
+  const body = document.createElement("div");
+  const header = document.createElement("header");
+  const username = document.createElement("strong");
+  username.textContent = `@${currentUser.username || "avci"}`;
+  const time = document.createElement("time");
+  time.textContent = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const city = document.createElement("em");
+  city.textContent = activeCommunityCity;
+  const text = document.createElement("p");
+  text.textContent = message;
+  header.append(username, time, city);
+  body.append(header, text);
+  article.append(avatar, body);
+  communityChatFeed.appendChild(article);
+  communityChatFeed.scrollTo({ top: communityChatFeed.scrollHeight, behavior: "smooth" });
 }
 
 function syncDashboardViewHeader() {
@@ -4061,7 +4147,6 @@ function renderRewardCenter() {
   renderRewardRules(settings.rules);
   renderRewardRanks(settings.ranks);
   renderRewardBadges();
-  renderRewardAvatarShowcase(settings.avatars);
 }
 
 function renderRewardUserOverview() {
@@ -4071,6 +4156,7 @@ function renderRewardUserOverview() {
   rewardOverviewLogin.hidden = isSignedIn;
   if (!isSignedIn) {
     resetAvatarElement(rewardOverviewAvatar, "HR");
+    if (rewardOverviewRankVisual) rewardOverviewRankVisual.innerHTML = rankImageMarkup(Rewards.settings().ranks[0], "reward-overview-rank-image");
     rewardOverviewUsername.textContent = "Giriş yaparak puanlarını takip et";
     rewardOverviewRank.textContent = "Rank ve rozet bilgilerin burada görünür.";
     rewardOverviewPoints.textContent = "0";
@@ -4087,6 +4173,7 @@ function renderRewardUserOverview() {
   const rank = progress.current;
   const badges = Rewards.badgesFor(currentUser, state);
   applyAvatarElement(rewardOverviewAvatar, Rewards.getAvatar(currentUser), currentUser);
+  if (rewardOverviewRankVisual) rewardOverviewRankVisual.innerHTML = rankImageMarkup(rank, "reward-overview-rank-image");
   rewardOverviewUsername.textContent = `@${currentUser.username}`;
   rewardOverviewRank.textContent = `${rank.title} · ${progress.next ? `sonraki ranka ${progress.remaining} puan` : "maksimum rank"}`;
   rewardOverviewPoints.textContent = String(stats.points);
@@ -4105,6 +4192,10 @@ function renderRewardPodium(rows) {
     const avatar = user.avatar || Rewards.getAvatar(user);
     const card = document.createElement("article");
     card.className = `podium-card podium-card--${index + 1}`;
+    card.dataset.rewardUsername = user.username;
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `@${user.username} profilini aç`);
     card.innerHTML = `
       <span class="podium-medal">#${index + 1}</span>
       <span class="podium-avatar-slot reward-avatar--large"></span>
@@ -4112,8 +4203,17 @@ function renderRewardPodium(rows) {
       <strong>@${escapeHtml(user.username)}</strong>
       <span>${escapeHtml(user.rank.title)}</span>
       <b>${user.points} Radar Puanı</b>
+      <small>${user.badges.length} rozet</small>
     `;
     applyAvatarElement(card.querySelector(".podium-avatar-slot"), avatar, user);
+    const openProfile = () => openPublicProfile(user.username);
+    card.addEventListener("click", openProfile);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openProfile();
+      }
+    });
     rewardPodium.appendChild(card);
   });
 }
@@ -4122,14 +4222,16 @@ function renderRewardRows(rows) {
   if (!rewardLeaderboardRows || !Rewards) return;
   rewardLeaderboardRows.innerHTML = rows.map((user, index) => {
     const avatar = user.avatar || Rewards.getAvatar(user);
+    const isCurrentUser = Boolean(currentUser && String(currentUser.username || "").toLocaleLowerCase("tr-TR") === String(user.username || "").toLocaleLowerCase("tr-TR"));
     return `
-      <article class="reward-row">
+      <article class="reward-row ${isCurrentUser ? "is-current-user" : ""}" data-reward-profile="${escapeHtml(user.username)}" tabindex="0" role="button" aria-label="@${escapeHtml(user.username)} profilini aç">
         <span class="leaderboard-position">#${index + 1}</span>
         <span class="reward-row-avatar-slot" data-reward-row-index="${index}"></span>
         <div class="leaderboard-main">
-          <strong>${rankImageMarkup(user.rank, "leaderboard-rank-image")}@${escapeHtml(user.username)}</strong>
-          <span>${escapeHtml(user.rank.title)} · ${user.badges.length} rozet</span>
+          <strong>@${escapeHtml(user.username)}${isCurrentUser ? '<em class="reward-you-badge">Sen</em>' : ""}</strong>
+          <span>${rankImageMarkup(user.rank, "leaderboard-rank-image")}${escapeHtml(user.rank.title)}</span>
         </div>
+        <span class="reward-row__badges"><i aria-hidden="true">◆</i>${user.badges.length} rozet</span>
         <div class="leaderboard-score"><strong>${user.points}</strong><span>puan</span></div>
       </article>
     `;
@@ -4138,31 +4240,71 @@ function renderRewardRows(rows) {
     const avatar = user.avatar || Rewards.getAvatar(user);
     applyAvatarElement(rewardLeaderboardRows.querySelector(`[data-reward-row-index="${index}"]`), avatar, user);
   });
+  rewardLeaderboardRows.querySelectorAll("[data-reward-profile]").forEach((row) => {
+    const openProfile = () => openPublicProfile(row.dataset.rewardProfile);
+    row.addEventListener("click", openProfile);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openProfile();
+      }
+    });
+  });
 }
 
 function renderRewardRules(rules) {
   if (!rewardRulesGrid) return;
-  rewardRulesGrid.innerHTML = Object.entries(rules).map(([key, rule]) => `
-    <article class="reward-rule-card reward-tone--${escapeHtml(rule.tone || "gold")} reward-card--${escapeHtml(rewardVisualKey(key, rule))}">
-      <span class="reward-visual reward-visual--${escapeHtml(rewardVisualKey(key, rule))}" aria-hidden="true"><i></i></span>
-      <div>
-        <strong>${escapeHtml(rule.label)}</strong>
-        <p>${Number(rule.points || 0) > 0 ? "+" : ""}${Number(rule.points || 0)} Radar Puanı</p>
-        <small>${rule.oncePerTarget ? "Aynı kayıt için tek sefer" : rule.cooldownMinutes ? `${Number(rule.cooldownMinutes)} dk tekrar süresi` : "Sunucu doğrulamalı"}</small>
-      </div>
-    </article>
-  `).join("");
+  const groups = [
+    { id: "radar", title: "Radar katkıları", subtitle: "Raf ve araç bilgisini topluluğa ulaştır.", keys: ["radar_photo", "radar_text", "radar_premium", "radar_th", "radar_sth", "radar_empty", "radar_verified_bonus"] },
+    { id: "verification", title: "Doğrulama katkıları", subtitle: "Radar notlarının güncelliğini güvenle doğrula.", keys: ["vote_correct", "vote_gone", "vote_wrong"] },
+    { id: "ecosystem", title: "Pazar / Garaj katkıları", subtitle: "Koleksiyon ve topluluk ekonomisine katkı sağla.", keys: ["garage_created", "listing_created", "deal_completed", "seller_positive_review", "helpful_forum"] },
+    { id: "penalty", title: "Cezalar ve koruma", subtitle: "Yanlış bilgi ve tekrarlı işlemler puan kaybettirir.", keys: ["radar_false_penalty", "radar_spam_penalty"] }
+  ];
+  const renderedKeys = new Set();
+  rewardRulesGrid.innerHTML = groups.map((group) => {
+    const items = group.keys.filter((key) => rules[key]).map((key) => {
+      renderedKeys.add(key);
+      return rewardRuleMarkup(key, rules[key]);
+    }).join("");
+    if (!items) return "";
+    return `
+      <section class="reward-rule-group reward-rule-group--${group.id}">
+        <header><span class="reward-rule-group__mark" aria-hidden="true"></span><div><h4>${group.title}</h4><p>${group.subtitle}</p></div></header>
+        <div class="reward-rule-group__grid">${items}</div>
+      </section>
+    `;
+  }).join("");
+  const remaining = Object.entries(rules).filter(([key]) => !renderedKeys.has(key));
+  if (remaining.length) {
+    rewardRulesGrid.insertAdjacentHTML("beforeend", `
+      <section class="reward-rule-group">
+        <header><span class="reward-rule-group__mark" aria-hidden="true"></span><div><h4>Diğer katkılar</h4><p>Aktif sistem kuralları.</p></div></header>
+        <div class="reward-rule-group__grid">${remaining.map(([key, rule]) => rewardRuleMarkup(key, rule)).join("")}</div>
+      </section>
+    `);
+  }
+  rewardRulesGrid.querySelectorAll(".reward-rule-card__emblem img").forEach((image) => {
+    image.addEventListener("error", () => {
+      image.hidden = true;
+      image.closest(".reward-rule-card__emblem")?.classList.add("is-fallback");
+    }, { once: true });
+  });
 }
 
 function renderRewardRanks(ranks) {
   if (!rewardRanksGrid) return;
-  rewardRanksGrid.innerHTML = ranks.map((rank) => `
-    <article class="rank-card" style="--rank-color:${escapeHtml(rank.color || "#f5c451")}">
+  const points = currentUser && Rewards ? Rewards.statsFor(currentUser, state).points : 0;
+  const currentRank = Rewards?.rankFor(points);
+  const nextRank = Rewards?.nextRankFor(points);
+  rewardRanksGrid.innerHTML = ranks.map((rank, index) => `
+    <article class="rank-card ${rank.id === currentRank?.id ? "is-active" : ""} ${rank.id === nextRank?.id ? "is-next" : ""} ${Number(points) >= Number(rank.min || 0) ? "is-unlocked" : "is-locked"}" style="--rank-color:${escapeHtml(rank.color || "#f5c451")}">
+      <span class="rank-card__step">${String(index + 1).padStart(2, "0")}</span>
       ${rankImageMarkup(rank)}
       <div>
         <strong>${escapeHtml(rank.title)}</strong>
         <p>${Number(rank.min || 0)}${rank.max ? ` - ${Number(rank.max)}` : "+"} puan</p>
       </div>
+      <b>${rank.id === currentRank?.id ? "Aktif rank" : rank.id === nextRank?.id ? "Sıradaki" : Number(points) >= Number(rank.min || 0) ? "Tamamlandı" : "Kilitli"}</b>
     </article>
   `).join("");
 }
@@ -4170,27 +4312,142 @@ function renderRewardRanks(ranks) {
 function renderRewardBadges() {
   if (!rewardBadgesGrid || !Rewards) return;
   const badges = currentUser ? Rewards.allBadgesFor(currentUser, state) : Rewards.BADGES.map((badge) => ({ ...badge, earned: false }));
+  const stats = currentUser ? Rewards.statsFor(currentUser, state) : {};
+  const earnedCount = badges.filter((badge) => badge.earned).length;
+  if (rewardBadgesSummary) rewardBadgesSummary.textContent = `${earnedCount} / ${badges.length} rozet açıldı`;
   rewardBadgesGrid.innerHTML = badges.map((badge) => `
-    <article class="badge-card ${badge.earned ? "is-earned" : "is-locked"} reward-tone--${escapeHtml(badge.tone || "gold")} reward-card--${escapeHtml(rewardVisualKey(badge.id, badge))}">
-      <span class="reward-visual reward-visual--${escapeHtml(rewardVisualKey(badge.id, badge))}" aria-hidden="true"><i></i></span>
-      <div>
+    <article class="badge-card ${badge.earned ? "is-earned" : "is-locked"} reward-tone--${escapeHtml(badge.tone || "gold")} reward-card--${escapeHtml(rewardVisualKey(badge.id, badge))}" data-badge-id="${escapeHtml(badge.id)}">
+      <div class="badge-card__showcase">
+        <div class="badge-card__glow" aria-hidden="true"></div>
+        <div class="badge-card__emblem" aria-hidden="true">
+          <img src="${escapeHtml(rewardBadgeAssetPath(badge.id))}" alt="" loading="lazy" decoding="async" />
+          <span class="reward-visual reward-visual--${escapeHtml(rewardVisualKey(badge.id, badge))}"><i></i></span>
+        </div>
+        <span class="badge-card__state">${badge.earned ? "Açıldı" : "Kilitli"}</span>
+      </div>
+      <div class="badge-card__body">
         <strong>${escapeHtml(badge.title)}</strong>
         <p>${escapeHtml(badge.description || "")}</p>
-        <small>${escapeHtml(badge.requirement || "")}</small>
+        <small><span>Koşul</span>${escapeHtml(badge.requirement || "")}</small>
       </div>
-      <b>${badge.earned ? "Kazanıldı" : "Kilitli"}</b>
+      ${rewardBadgeProgressMarkup(badge, stats)}
     </article>
   `).join("");
+  rewardBadgesGrid.querySelectorAll(".badge-card__emblem img").forEach((image) => {
+    image.addEventListener("error", () => {
+      image.hidden = true;
+      image.closest(".badge-card__emblem")?.classList.add("is-fallback");
+    }, { once: true });
+  });
 }
 
-function renderRewardAvatarShowcase(avatars) {
-  if (!rewardAvatarShowcase) return;
-  rewardAvatarShowcase.innerHTML = avatars.map((avatar) => `
-    <article class="avatar-showcase-card">
-      ${avatarVisualMarkup(avatar)}
-      <strong>${escapeHtml(avatar.label)}</strong>
+function rewardBadgeAssetPath(id) {
+  const assets = {
+    "photo-proof": "fotografli-kanitci.png",
+    "trusted-seller": "guvenilir-satici.png",
+    "shelf-reporter": "raf-muhbiri.png",
+    "empty-shelf": "bos-raf-uyaricisi.png",
+    "premium-hunter": "premium-avcisi.png",
+    "th-finder": "th-bulucu.png",
+    "community-guide": "topluluk-rehberi.png",
+    "first-trade": "ilk-takas.png"
+  };
+  return `./assets/badges/${assets[id] || "fotografli-kanitci.png"}`;
+}
+
+function rewardRuleMarkup(key, rule) {
+  const points = Number(rule.points || 0);
+  const sellerPoints = Number(rule.sellerPoints || 0);
+  const visual = rewardVisualKey(key, rule);
+  const descriptions = {
+    radar_photo: "Raf bilgisini gerçek bir fotoğrafla kanıtla.",
+    radar_text: "Fotoğraf olmadan güncel bir raf notu paylaş.",
+    radar_premium: "Premium araç bulgusunu topluluğa bildir.",
+    radar_th: "Treasure Hunt aracını doğru bilgilerle paylaş.",
+    radar_sth: "Super Treasure Hunt bulgusunu kanıtla.",
+    radar_empty: "Boşalan rafı zamanında haber ver.",
+    radar_verified_bonus: "Notun topluluk doğrulamasına ulaştığında kazan.",
+    vote_correct: "Güncel raf bilgisini hâlâ var olarak doğrula.",
+    vote_gone: "Stok bittiyse artık kalmadı olarak işaretle.",
+    vote_wrong: "Hatalı bildirimi kontrollü biçimde raporla.",
+    garage_created: "Koleksiyonuna yeni araç kaydı ekle.",
+    listing_created: "Pazarda kurallara uygun ilan oluştur.",
+    deal_completed: "Satış veya takası başarıyla tamamla.",
+    seller_positive_review: "Güvenilir işlem sonrası olumlu değerlendirme al.",
+    helpful_forum: "Topluluğa faydalı bilgi ve rehber sun.",
+    radar_false_penalty: "Doğrulanmış yanlış bilgi puan kaybettirir.",
+    radar_spam_penalty: "Tekrarlı veya spam bildirimler cezalandırılır."
+  };
+  const note = rule.oncePerTarget
+    ? "Aynı kayıt için tek sefer"
+    : rule.cooldownMinutes
+      ? `${Number(rule.cooldownMinutes)} dk bekleme süresi`
+      : "Sunucu tarafından doğrulanır";
+  const pointLabel = points
+    ? `${points > 0 ? "+" : ""}${points} RP`
+    : sellerPoints
+      ? `+${sellerPoints} güven`
+      : "Sistem katkısı";
+  const assetPath = rewardRuleAssetPath(key);
+  return `
+    <article class="reward-rule-card reward-tone--${escapeHtml(rule.tone || "gold")} reward-card--${escapeHtml(visual)}" data-reward-key="${escapeHtml(key)}">
+      <div class="reward-rule-card__emblem" aria-hidden="true">
+        <img src="${escapeHtml(assetPath)}" alt="" loading="lazy" decoding="async" />
+        <span class="reward-visual reward-visual--${escapeHtml(visual)}"><i></i></span>
+      </div>
+      <div class="reward-rule-card__body">
+        <span class="reward-rule-card__points ${points < 0 ? "is-negative" : ""}">${escapeHtml(pointLabel)}</span>
+        <strong>${escapeHtml(rule.label)}</strong>
+        <p>${escapeHtml(descriptions[key] || "Hunt Radar ekosistemine doğrulanmış katkı sağlar.")}</p>
+        <small>${escapeHtml(note)}</small>
+      </div>
     </article>
-  `).join("");
+  `;
+}
+
+function rewardRuleAssetPath(key) {
+  const assets = {
+    radar_photo: "fotografli-radar-bildirimi.svg",
+    radar_text: "fotografsiz-radar-bildirimi.svg",
+    radar_premium: "premium-arac-bildirimi.svg",
+    radar_th: "th-bildirimi.svg",
+    radar_sth: "sth-bildirimi.svg",
+    radar_empty: "bos-raf-bildirimi.svg",
+    radar_verified_bonus: "topluluk-dogrulandi.svg",
+    vote_correct: "dogru-dogrulama-katkisi.svg",
+    vote_gone: "artik-kalmadi-katkisi.svg",
+    vote_wrong: "yanlis-bilgi-raporu.svg",
+    garage_created: "garaja-arac-ekleme.svg",
+    listing_created: "ilan-ekleme.svg",
+    deal_completed: "satis-takas-tamamlandi.svg",
+    seller_positive_review: "olumlu-satici-yorumu.svg",
+    helpful_forum: "faydali-topluluk-katkisi.svg",
+    radar_false_penalty: "yanlis-bilgi-cezasi.svg",
+    radar_spam_penalty: "spam-tekrar-bilgi.svg"
+  };
+  return `./assets/rewards/${assets[key] || "topluluk-dogrulandi.svg"}`;
+}
+
+function rewardBadgeProgressMarkup(badge, stats = {}) {
+  const progressMap = {
+    "photo-proof": [Number(stats.photoReports || 0), 10, "fotoğraflı radar bildirimi"],
+    "trusted-seller": [Number(stats.sellerScore || 0), 100, "satıcı güveni"],
+    "shelf-reporter": [Number(stats.storeReports || 0), 25, "radar bildirimi"],
+    "empty-shelf": [Number(stats.emptyShelfReports || 0), 10, "boş raf bildirimi"],
+    "premium-hunter": [Number(stats.premiumFinds || 0), 15, "premium bildirimi"],
+    "th-finder": [Number(stats.thFinds || 0), 5, "TH/STH bildirimi"],
+    "community-guide": [Number(stats.forumHelpful || 0), 20, "faydalı katkı"],
+    "first-trade": [Number(stats.completedDeals || 0), 1, "tamamlanan işlem"]
+  };
+  const [value = 0, target = 1, label = "ilerleme"] = progressMap[badge.id] || [];
+  const current = Math.min(value, target);
+  const percent = badge.earned ? 100 : Math.min(100, Math.round((current / Math.max(1, target)) * 100));
+  return `
+    <div class="badge-card__progress">
+      <div><span>${current} / ${target} ${escapeHtml(label)}</span><strong>${percent}%</strong></div>
+      <span><i style="width:${percent}%"></i></span>
+    </div>
+  `;
 }
 
 function rewardVisualKey(key, item = {}) {
@@ -5017,32 +5274,54 @@ function renderStoreDetailGallery(item) {
   if (!photos.length) {
     storeDetailGallery.innerHTML = `
       <div class="store-evidence__empty store-detail__empty">
-        <span class="store-evidence__icon" aria-hidden="true"></span>
+        <span class="store-detail__empty-logo ${storeLogoPath(item.store) ? "has-logo" : ""}" aria-hidden="true">${storeLogoMarkup(item.store, String(item.store || "M").slice(0, 1))}</span>
         <strong>Fotoğraf/kanıt yok</strong>
-        <small>Bu bildirim metin bilgisiyle paylaşıldı.</small>
+        <small>Bu bildirim metin bilgisiyle paylaşıldı. Mağaza ve doğrulama ayrıntıları sağ panelde yer alıyor.</small>
       </div>
     `;
     return;
   }
-  photos.forEach((photo, index) => {
-    const figure = document.createElement("figure");
-    figure.className = `store-detail__photo ${index === 0 ? "is-cover" : ""}`;
-    const image = document.createElement("img");
-    image.alt = `${item.store} kanıt fotoğrafı ${index + 1}`;
-    image.loading = index === 0 ? "eager" : "lazy";
-    setManagedImageSource(image, photo);
-    figure.appendChild(image);
-    figure.tabIndex = 0;
-    figure.setAttribute("role", "button");
-    figure.setAttribute("aria-label", `${index + 1}. fotoğrafı büyüt`);
-    figure.addEventListener("click", () => openStorePhotoLightbox(photo));
-    figure.addEventListener("keydown", (event) => {
-      if (!["Enter", " "].includes(event.key)) return;
-      event.preventDefault();
-      openStorePhotoLightbox(photo);
+  const hero = document.createElement("button");
+  hero.type = "button";
+  hero.className = "store-detail__hero";
+  hero.setAttribute("aria-label", "Aktif fotoğrafı büyüt");
+  const heroImage = document.createElement("img");
+  heroImage.alt = `${item.store} raf kanıtı`;
+  heroImage.loading = "eager";
+  hero.appendChild(heroImage);
+  const count = document.createElement("span");
+  count.textContent = `${photos.length} fotoğraf`;
+  hero.appendChild(count);
+
+  const thumbnails = document.createElement("div");
+  thumbnails.className = "store-detail__thumbnails";
+  let activePhoto = photos[0];
+  const selectPhoto = (photo, index) => {
+    activePhoto = photo;
+    setManagedImageSource(heroImage, photo);
+    heroImage.alt = `${item.store} kanıt fotoğrafı ${index + 1}`;
+    thumbnails.querySelectorAll("button").forEach((button, buttonIndex) => {
+      button.classList.toggle("is-active", buttonIndex === index);
+      button.setAttribute("aria-pressed", String(buttonIndex === index));
     });
-    storeDetailGallery.appendChild(figure);
+  };
+  photos.forEach((photo, index) => {
+    const thumbnail = document.createElement("button");
+    thumbnail.type = "button";
+    thumbnail.className = index === 0 ? "is-active" : "";
+    thumbnail.setAttribute("aria-label", `${index + 1}. fotoğrafı göster`);
+    thumbnail.setAttribute("aria-pressed", String(index === 0));
+    const image = document.createElement("img");
+    image.alt = "";
+    image.loading = "lazy";
+    setManagedImageSource(image, photo);
+    thumbnail.appendChild(image);
+    thumbnail.addEventListener("click", () => selectPhoto(photo, index));
+    thumbnails.appendChild(thumbnail);
   });
+  hero.addEventListener("click", () => openStorePhotoLightbox(activePhoto));
+  storeDetailGallery.append(hero, thumbnails);
+  selectPhoto(photos[0], 0);
 }
 
 function openStorePhotoLightbox(photo) {
@@ -5057,42 +5336,116 @@ function closeStorePhotoLightbox() {
   storePhotoLightboxImage.removeAttribute("src");
 }
 
-function addStoreDetailFact(label, value) {
+function addStoreDetailFact(label, value, icon = "•") {
   if (!value) return;
   const fact = document.createElement("div");
-  fact.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
+  fact.innerHTML = `<i aria-hidden="true">${icon}</i><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
   storeDetailFacts.appendChild(fact);
+}
+
+function renderStoreDetailModels(value) {
+  storeDetailModels.innerHTML = "";
+  const models = String(value || "")
+    .split(/[,;\n]+/)
+    .map((model) => model.trim())
+    .filter(Boolean)
+    .slice(0, 16);
+  if (!models.length) {
+    storeDetailModels.innerHTML = '<span class="is-empty">Model bilgisi eklenmedi.</span>';
+    return;
+  }
+  models.forEach((model) => {
+    const chip = document.createElement("span");
+    chip.textContent = model;
+    storeDetailModels.appendChild(chip);
+  });
+}
+
+function renderStoreDetailReporter(item) {
+  const username = item.reporterUsername || item.reporter || "anonim";
+  const user = findUserByUsername(username) || { username };
+  let rankLabel = "";
+  if (Rewards) {
+    const stats = Rewards.statsFor(user, state);
+    const rank = Rewards.rankFor(stats.points);
+    rankLabel = rank?.title || rank?.name || "";
+  }
+  storeDetailReporterName.textContent = `@${username}`;
+  storeDetailReporterMeta.textContent = currentUser && normalize(currentUser.username) === normalize(username)
+    ? "Kendi profilin"
+    : rankLabel
+      ? `${rankLabel} · Profili görüntüle`
+      : "Profil ve mesaj seçeneklerini görüntüle";
+  if (Rewards) applyAvatarElement(storeDetailReporterAvatar, Rewards.getAvatar(user), user);
+  else storeDetailReporterAvatar.textContent = userInitials(username);
+}
+
+function renderStoreDetailStoreCard(item) {
+  const photos = storePhotos(item);
+  const logo = storeLogoPath(item.store);
+  storeDetailStoreCard.innerHTML = `
+    <div class="store-detail__store-visual ${logo ? "has-logo" : ""}">
+      ${logo ? `<img src="${logo}" alt="" />` : storeLogoMarkup(item.store, String(item.store || "M").slice(0, 1))}
+    </div>
+    <div>
+      <small>Mağaza noktası</small>
+      <strong>${escapeHtml(item.store || "Mağaza")}</strong>
+      <span>${escapeHtml([item.city, item.area].filter(Boolean).join(" · ") || "Konum bilgisi eklenmedi")}</span>
+      <em>${photos.length ? `${photos.length} fotoğraflı radar kanıtı` : "Metin tabanlı radar bildirimi"}</em>
+    </div>
+    <button type="button">Diğer radarları gör <span aria-hidden="true">→</span></button>
+  `;
+  storeDetailStoreCard.querySelector("button").addEventListener("click", () => showOtherStoreRadars(item));
+}
+
+function showOtherStoreRadars(item) {
+  if (!item?.store) return;
+  closeStoreDetail();
+  const isPresetStore = STORE_FILTER_NAMES.includes(item.store);
+  activeStoreName = isPresetStore ? item.store : "Diğer";
+  searchInput.value = isPresetStore ? "" : item.store;
+  storeCurrentPage = 1;
+  void loadStorePage({ page: 1, scroll: true });
 }
 
 function openStoreDetail(item) {
   currentStoreDetail = item;
   const summary = storeVerificationSummary(item);
   const status = storeVerificationStatus(summary.status);
+  const username = item.reporterUsername || item.reporter || "anonim";
   renderStoreDetailGallery(item);
+  renderStoreDetailStoreCard(item);
+  renderStoreDetailReporter(item);
   storeDetailTitle.textContent = item.store || "Mağaza bildirimi";
-  storeDetailSubtitle.textContent = [locationLabel(item), freshnessLabel(item)].filter(Boolean).join(" · ");
-  storeDetailStatus.innerHTML = `<span class="store-status-badge store-status-badge--${status.className}">${status.label}</span>`;
+  storeDetailSubtitle.textContent = [item.city, item.area, freshnessLabel(item), item.confidence].filter(Boolean).join(" · ");
+  storeDetailStatus.innerHTML = `<span class="store-status-badge store-status-badge--${status.className}"><i aria-hidden="true">${storeStatusIcon(summary.status)}</i>${status.label}</span>`;
   storeDetailFacts.innerHTML = "";
-  addStoreDetailFact("Şehir", item.city);
-  addStoreDetailFact("Bölge / AVM", item.area);
-  addStoreDetailFact("Raf / kat", item.spot);
-  addStoreDetailFact("Fiyat", item.price);
-  addStoreDetailFact("Raf durumu", item.status);
-  addStoreDetailFact("Güven tipi", item.confidence);
-  addStoreDetailFact("Bildiren", `@${item.reporterUsername || item.reporter || "anonim"}`);
-  addStoreDetailFact("Bildirim tarihi", formatDateTime(item.createdAt || item.date) || "Bilinmiyor");
-  addStoreDetailFact("Son güncelleme", formatDateTime(item.updatedAt || item.createdAt || item.date) || "Bilinmiyor");
-  storeDetailModels.textContent = item.models || "Model bilgisi eklenmedi.";
+  addStoreDetailFact("Şehir", item.city, "⌖");
+  addStoreDetailFact("Bölge / AVM", item.area, "◇");
+  addStoreDetailFact("Raf / kat", item.spot, "≡");
+  addStoreDetailFact("Fiyat", item.price, "₺");
+  addStoreDetailFact("Raf durumu", item.status, "◷");
+  addStoreDetailFact("Güven tipi", item.confidence, "◎");
+  addStoreDetailFact("Bildirim tarihi", formatDateTime(item.createdAt || item.date) || "Bilinmiyor", "◫");
+  addStoreDetailFact("Son güncelleme", formatDateTime(item.updatedAt || item.createdAt || item.date) || "Bilinmiyor", "↻");
+  renderStoreDetailModels(item.models);
   storeDetailVerification.innerHTML = "";
   addStoreRewardPanel(storeDetailVerification, item);
+  const saved = savedRadarNoteIds().has(String(item.id));
+  storeDetailSave.classList.toggle("is-active", saved);
+  storeDetailSave.setAttribute("aria-pressed", String(saved));
+  storeDetailSave.querySelector("span:last-child").textContent = saved ? "Kaydedildi" : "Kaydet";
+  storeDetailProfile.disabled = username === "anonim";
   storeDetailModal.classList.add("is-visible");
   storeDetailModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("store-detail-open");
 }
 
 function closeStoreDetail() {
   currentStoreDetail = null;
   storeDetailModal.classList.remove("is-visible");
   storeDetailModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("store-detail-open");
 }
 
 function addStoreRewardPanel(card, item) {
@@ -6432,6 +6785,72 @@ openAccountBadges?.addEventListener("click", () => {
 
 rewardOverviewLogin?.addEventListener("click", () => openAuthModal("login", "Radar puanlarını görmek için hesabına giriş yap."));
 
+communityTabs.forEach((button) => {
+  button.addEventListener("click", () => selectCommunitySection(button.dataset.communityTarget));
+});
+
+communityRoomTabs.forEach((button) => {
+  button.addEventListener("click", () => selectCommunityCity(button.dataset.communityCity));
+});
+
+communityCityLinks.forEach((button) => {
+  button.addEventListener("click", () => selectCommunityCity(button.dataset.communityCityLink, { scroll: true }));
+});
+
+communityJoinChat?.addEventListener("click", () => {
+  selectCommunitySection("communityChat");
+  if (!currentUser) {
+    openAuthModal("login", "Topluluk sohbetine katılmak için giriş yapmalısın.");
+    return;
+  }
+  communityChatInput?.focus();
+});
+
+communitySuggestVideo?.addEventListener("click", () => {
+  if (!currentUser) {
+    openAuthModal("login", "Topluluğa video önermek için giriş yapmalısın.");
+    return;
+  }
+  showToast("Video öneri alanı yakında topluluk üyelerine açılacak.");
+});
+
+communityCreateTopic?.addEventListener("click", () => {
+  if (!currentUser) {
+    openAuthModal("login", "Forum konusu açmak için giriş yapmalısın.");
+    return;
+  }
+  showToast("Yeni konu oluşturma alanı yakında açılacak.");
+});
+
+communityChatAuth?.addEventListener("click", () => openAuthModal("login", "Topluluk sohbetine katılmak için giriş yapmalısın."));
+
+communityChatForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!currentUser) {
+    openAuthModal("login", "Mesaj göndermek için giriş yapmalısın.");
+    return;
+  }
+  const message = communityChatInput?.value.trim();
+  if (!message) return;
+  appendCommunityChatMessage(message);
+  communityChatInput.value = "";
+});
+
+document.querySelectorAll("[data-community-action]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const action = button.dataset.communityAction;
+    if (action === "forum-all" || action === "popular-all") {
+      selectCommunitySection("communityForum");
+      return;
+    }
+    if (action === "rooms-all") {
+      selectCommunitySection("communityChat");
+      return;
+    }
+    showToast(action === "rules-all" ? "Topluluk kuralları bu panelde özetleniyor." : "Topluluk üyeleri alanı yakında genişletilecek.");
+  });
+});
+
 topMessageButton.addEventListener("click", () => {
   closeAccountMenu();
   openMessageModal("messages");
@@ -6447,6 +6866,7 @@ leaderboardTabs.forEach((button) => {
     activeLeaderboardPeriod = button.dataset.leaderboardPeriod;
     leaderboardTabs.forEach((tab) => tab.classList.toggle("is-active", tab === button));
     renderLeaderboard();
+    renderRewardCenter();
   });
 });
 
@@ -6558,6 +6978,31 @@ listingDetailModal.addEventListener("click", (event) => {
 });
 
 document.querySelector("#closeStoreDetail").addEventListener("click", closeStoreDetail);
+storeDetailCloseAction?.addEventListener("click", closeStoreDetail);
+storeDetailSave?.addEventListener("click", (event) => {
+  if (!currentStoreDetail) return;
+  toggleSavedRadarNote(currentStoreDetail.id, event.currentTarget);
+});
+storeDetailShare?.addEventListener("click", () => {
+  if (currentStoreDetail) void shareRadarNote(currentStoreDetail);
+});
+storeDetailReporter?.addEventListener("click", () => {
+  if (!currentStoreDetail) return;
+  const username = currentStoreDetail.reporterUsername || currentStoreDetail.reporter;
+  if (!username) return;
+  closeStoreDetail();
+  openPublicProfile(username);
+});
+storeDetailProfile?.addEventListener("click", () => {
+  if (!currentStoreDetail) return;
+  const username = currentStoreDetail.reporterUsername || currentStoreDetail.reporter;
+  if (!username) return;
+  closeStoreDetail();
+  openPublicProfile(username);
+});
+storeDetailMoreStore?.addEventListener("click", () => {
+  if (currentStoreDetail) showOtherStoreRadars(currentStoreDetail);
+});
 storeDetailModal.addEventListener("click", (event) => {
   if (event.target === storeDetailModal) closeStoreDetail();
 });
@@ -6736,6 +7181,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeDashboardMenu();
   if (event.key === "Escape") closeAccountMenu();
   if (event.key === "Escape" && savedRadarModal?.classList.contains("is-visible")) closeSavedRadarModal();
+  if (event.key === "Escape" && storeDetailModal?.classList.contains("is-visible")) closeStoreDetail();
   if (event.key === "Escape" && radarNoteModalBackdrop.classList.contains("is-visible")) {
     closeRadarNoteModal();
   }
