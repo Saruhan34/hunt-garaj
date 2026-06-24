@@ -13,6 +13,7 @@ const STORE_PAGE_SIZE = 12;
 const STORE_VOTE_CACHE_KEY = "hunt-radar-my-votes-v1";
 const ASSET_BUCKET = "hunt-radar-assets";
 const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
+const HOTWHEELS_IMAGE_PROXY_URL = `${SUPABASE_URL}/functions/v1/hotwheels-image-proxy`;
 const MANAGED_ASSET_PATHS = [
   "garage-hero.png",
   "hunt-radar-brand-portfolio.png",
@@ -383,6 +384,7 @@ const HOT_WHEELS_CATALOG = [
 ];
 
 let siteConfig = loadSiteConfig();
+let remoteHotWheelsCatalog = [];
 let ALL_CATALOG = buildCatalog();
 Rewards?.configure(siteConfig.rewardSettings || {});
 
@@ -899,8 +901,116 @@ function saveSiteConfigLocal() {
 function buildCatalog() {
   const custom = Array.isArray(siteConfig?.customCatalog) ? siteConfig.customCatalog : [];
   const hidden = new Set(siteConfig?.hiddenCatalogIds || []);
-  return [...HOT_WHEELS_CATALOG, ...(window.HW_CATALOG_2026 || []), ...custom]
+  const catalog2026 = remoteHotWheelsCatalog.length ? [] : window.HW_CATALOG_2026 || [];
+  return [...HOT_WHEELS_CATALOG, ...catalog2026, ...remoteHotWheelsCatalog, ...custom]
     .filter((car) => !hidden.has(car.id));
+}
+
+function displayRaritySegment(segment) {
+  const labels = {
+    regular: "Regular",
+    silver_series: "Silver Series",
+    premium: "Premium",
+    treasure_hunt: "Treasure Hunt",
+    super_treasure_hunt: "Super Treasure Hunt",
+    zamac: "ZAMAC",
+    red_edition: "Red Edition",
+    exclusive: "Exclusive"
+  };
+  return labels[segment] || "Regular";
+}
+
+function brandFromCatalogModel(modelName) {
+  const text = String(modelName || "");
+  const rules = [
+    ["Mercedes-Benz", "Mercedes-Benz"],
+    ["Gordon Murray", "Gordon Murray Automotive"],
+    ["Lamborghini", "Lamborghini"],
+    ["Porsche", "Porsche"],
+    ["Ferrari", "Ferrari"],
+    ["McLaren", "McLaren"],
+    ["Ford", "Ford"],
+    ["Chevy", "Chevrolet"],
+    ["Chevrolet", "Chevrolet"],
+    ["Dodge", "Dodge"],
+    ["Honda", "Honda"],
+    ["Toyota", "Toyota"],
+    ["Nissan", "Nissan"],
+    ["Datsun", "Datsun"],
+    ["Mazda", "Mazda"],
+    ["BMW", "BMW"],
+    ["Audi", "Audi"],
+    ["Volkswagen", "Volkswagen"],
+    ["VW ", "Volkswagen"],
+    ["Bugatti", "Bugatti"],
+    ["Pagani", "Pagani"],
+    ["Maserati", "Maserati"],
+    ["Lotus", "Lotus"],
+    ["Subaru", "Subaru"],
+    ["Jeep", "Jeep"],
+    ["Cadillac", "Cadillac"],
+    ["Buick", "Buick"],
+    ["Lincoln", "Lincoln"],
+    ["Pontiac", "Pontiac"],
+    ["Alfa Romeo", "Alfa Romeo"],
+    ["Aston Martin", "Aston Martin"],
+    ["Jaguar", "Jaguar"],
+    ["Volvo", "Volvo"],
+    ["Fiat", "Fiat"],
+    ["Renault", "Renault"],
+    ["Morgan", "Morgan"],
+    ["Polestar", "Polestar"],
+    ["Mini", "Mini"],
+    ["Mitsubishi", "Mitsubishi"],
+    ["Ram", "Ram"],
+    ["Barbie", "Mattel"],
+    ["Optimus", "Transformers"],
+    ["Batmobile", "Batman"],
+    ["Batman", "Batman"]
+  ];
+  return rules.find(([needle]) => text.includes(needle))?.[1] || "Hot Wheels Originals";
+}
+
+function normalizeRemoteCatalogItem(row) {
+  const features = Array.isArray(row.features) ? row.features : [];
+  const rarity = displayRaritySegment(row.rarity_segment);
+  return {
+    id: row.id,
+    toyNo: "",
+    colNo: "",
+    year: String(row.release_year || ""),
+    brand: brandFromCatalogModel(row.model_name),
+    model: row.model_name || "",
+    series: features.length ? features.join(" / ") : "",
+    seriesNo: "",
+    color: row.color || "",
+    rarity,
+    features,
+    raritySegment: row.rarity_segment || "regular",
+    photo: row.image_url || "",
+    imageUrl: row.image_url || "",
+    reference: ""
+  };
+}
+
+async function loadHotWheelsCatalogFromSupabase() {
+  if (!supabaseClient) return;
+  const { data, error } = await supabaseClient
+    .from("hotwheels_catalog_items")
+    .select("id, model_name, release_year, color, image_url, features, rarity_segment")
+    .order("model_name", { ascending: true })
+    .order("color", { ascending: true });
+
+  if (error) {
+    console.warn("Supabase katalog yüklenemedi:", error.message);
+    return;
+  }
+
+  remoteHotWheelsCatalog = (data || []).map(normalizeRemoteCatalogItem);
+  ALL_CATALOG = buildCatalog();
+  setupCatalogSelect();
+  renderCatalogSearchResults();
+  renderAdminCatalogSearchResults();
 }
 
 function loadUsers() {
@@ -1043,6 +1153,17 @@ function localAssetUrl(path) {
   }
 }
 
+function proxiedHotWheelsImageUrl(path) {
+  if (!path) return "";
+  try {
+    const url = new URL(path, document.baseURI);
+    if (!["static.wikia.nocookie.net", "hotwheels.fandom.com"].includes(url.hostname)) return "";
+    return `${HOTWHEELS_IMAGE_PROXY_URL}?url=${encodeURIComponent(url.href)}`;
+  } catch {
+    return "";
+  }
+}
+
 function managedAsset(item = {}) {
   const local = localAssetUrl(item.image || "");
   return {
@@ -1053,6 +1174,7 @@ function managedAsset(item = {}) {
 
 function managedAssetFromPath(path) {
   const local = localAssetUrl(path);
+  const proxied = proxiedHotWheelsImageUrl(local);
   const marker = "/assets/";
   const normalized = String(path || "").replace(/\\/g, "/");
   const markerIndex = normalized.indexOf(marker);
@@ -1062,7 +1184,7 @@ function managedAssetFromPath(path) {
       ? normalized.slice(markerIndex + marker.length)
       : "";
   return {
-    src: storagePath ? publicAssetUrl(storagePath) : local,
+    src: proxied || (storagePath ? publicAssetUrl(storagePath) : local),
     fallback: local
   };
 }
@@ -1070,9 +1192,20 @@ function managedAssetFromPath(path) {
 function setManagedImageSource(image, path) {
   const asset = managedAssetFromPath(path);
   image.src = asset.src;
+  image.referrerPolicy = "no-referrer";
+  image.decoding = "async";
   if (asset.fallback && asset.fallback !== asset.src) {
     image.dataset.fallbackSrc = asset.fallback;
   }
+}
+
+function imageSourceAttributes(path) {
+  const asset = managedAssetFromPath(path);
+  if (!asset.src) return "";
+  const fallback = asset.fallback && asset.fallback !== asset.src
+    ? ` data-fallback-src="${escapeHtml(asset.fallback)}"`
+    : "";
+  return `src="${escapeHtml(asset.src)}"${fallback} referrerpolicy="no-referrer" decoding="async"`;
 }
 
 function useImageFallback(image) {
@@ -1088,6 +1221,12 @@ function consumeAppliedFallback(image) {
   if (image?.dataset?.fallbackApplied !== "true") return false;
   image.removeAttribute("data-fallback-applied");
   return true;
+}
+
+function handleCatalogResultImageError(image) {
+  if (consumeAppliedFallback(image)) return;
+  if (useImageFallback(image)) return;
+  image.closest(".catalog-result__media").innerHTML = '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
 }
 
 function imageMarkup(item, alt = "", className = "", loading = "lazy") {
@@ -4651,6 +4790,7 @@ async function ensureSupabaseProfile(authUser) {
 
 async function initSupabaseAuth() {
   await loadSiteConfigFromSupabase();
+  await loadHotWheelsCatalogFromSupabase();
   await loadRewardSettingsFromSupabase();
   await loadPublicContentFromSupabase();
   await loadStorePage({ page: 1 });
@@ -5726,13 +5866,16 @@ function normalizeCarEntry(entry) {
 }
 
 function setupCatalogSelect() {
-  const brands = [...new Set(ALL_CATALOG.map((car) => car.brand))].sort((a, b) => a.localeCompare(b, "tr"));
+  const currentBrand = brandSelect.value;
+  const brands = [...new Set(ALL_CATALOG.map((car) => car.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
+  brandSelect.innerHTML = '<option value="">Tüm markalar</option>';
   brands.forEach((brand) => {
     const option = document.createElement("option");
     option.value = brand;
     option.textContent = brand;
     brandSelect.appendChild(option);
   });
+  brandSelect.value = brands.includes(currentBrand) ? currentBrand : "";
   renderCatalogOptions();
   setupAdminPanel();
 }
@@ -6144,7 +6287,7 @@ function catalogOptionLabel(car) {
 function catalogResultTemplate(car) {
   const photo = getCatalogPhoto(car);
   const media = photo
-    ? `<img src="${photo}" alt="${car.model} görseli" loading="lazy" onerror="this.closest('.catalog-result__media').innerHTML='<span class=&quot;mini-car mini-car--large&quot; aria-hidden=&quot;true&quot;></span>'" />`
+    ? `<img ${imageSourceAttributes(photo)} alt="${escapeHtml(getCatalogModel(car))} görseli" loading="eager" onerror="handleCatalogResultImageError(this)" />`
     : '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
   const facts = [car.year, getCatalogColor(car), displayRarity(getCatalogRarity(car)), car.seriesNo].filter(Boolean);
   const codes = [car.colNo ? `#${car.colNo}` : "", car.toyNo].filter(Boolean);
@@ -6229,6 +6372,8 @@ function applyCropToImage(image, crop) {
 
 function getCatalogPhoto(car) {
   if (catalogOverrides[car.id]?.photo) return catalogOverrides[car.id].photo;
+  if (car.imageUrl) return car.imageUrl;
+  if (car.image_url) return car.image_url;
   if (car.photo) return car.photo;
   if (CATALOG_IMAGE_URLS[car.id]) return CATALOG_IMAGE_URLS[car.id];
   const fileName = CATALOG_IMAGE_FILES[car.id];
