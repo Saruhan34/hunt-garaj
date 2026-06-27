@@ -1,4 +1,4 @@
-const STORAGE_KEY = "hunt-garaj-v1";
+﻿const STORAGE_KEY = "hunt-garaj-v1";
 const CATALOG_OVERRIDE_KEY = "hunt-garaj-catalog-overrides-v1";
 const USERS_KEY = "hunt-garaj-users-v1";
 const CURRENT_USER_KEY = "hunt-garaj-current-user-v1";
@@ -37,6 +37,7 @@ const MANAGED_ASSET_PATHS = [
   "ranks/TH.png"
 ];
 const Rewards = window.HuntRadarRewards;
+const RAW_HOT_WHEELS_LINES_2026 = window.HW_LINES_2026 || null;
 const supabaseClient = window.supabase
   && !SUPABASE_URL.includes("BURAYA_")
   && !SUPABASE_ANON_KEY.includes("BURAYA_")
@@ -135,7 +136,7 @@ const RARITY_LABELS = {
 };
 
 const F40_COMPETIZIONE_YELLOW_IMAGE = "./assets/f40-competizione-yellow.jpg";
-const DEFAULT_COLORS = ["Sarı", "Kırmızı", "Mavi", "Siyah", "Beyaz", "Gri", "Yeşil", "Turuncu", "Mor", "Pembe", "Lacivert", "Gümüş", "Altın", "Çok renkli"];
+const DEFAULT_COLORS = ["Sarı", "Kırmızı", "Mavi", "Siyah", "Beyaz", "Gri", "Yeşil", "Turuncu", "Mor", "Pembe", "Lacivert", "Gümüş", "Altın"];
 const DEFAULT_RARITIES = ["Regular", "Treasure Hunt", "Silver Series", "Premium", "Super Treasure Hunt", "Chase"];
 const CATALOG_RULES = {
   "ferrari-f40": {
@@ -385,6 +386,8 @@ const HOT_WHEELS_CATALOG = [
 
 let siteConfig = loadSiteConfig();
 let remoteHotWheelsCatalog = [];
+const HOT_WHEELS_SERIES_CATALOG_2026 = buildHotWheelsSeriesCatalog2026(RAW_HOT_WHEELS_LINES_2026);
+window.HuntRadarSeriesCatalog2026 = HOT_WHEELS_SERIES_CATALOG_2026;
 let ALL_CATALOG = buildCatalog();
 Rewards?.configure(siteConfig.rewardSettings || {});
 
@@ -898,11 +901,124 @@ function saveSiteConfigLocal() {
   localStorage.setItem(SITE_SETTINGS_KEY, JSON.stringify(siteConfig));
 }
 
+function buildHotWheelsSeriesCatalog2026(source) {
+  const catalogSource = source && typeof source === "object" ? source : {};
+  const sourceVehicles = Array.isArray(catalogSource.vehicles) ? catalogSource.vehicles : [];
+  const sourceLines = Array.isArray(catalogSource.lines) ? catalogSource.lines : [];
+  const sourceCategories = Array.isArray(catalogSource.categories) ? catalogSource.categories : [];
+
+  const vehicles = sourceVehicles.map((vehicle, index) => normalizeSeriesVehicle2026(vehicle, index));
+  const vehicleMap = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
+  const lines = sourceLines.map((line, index) => normalizeSeriesLine2026(line, index, vehicleMap));
+
+  return {
+    source: catalogSource.source || "",
+    year: String(catalogSource.year || "2026"),
+    categoryCount: sourceCategories.length,
+    lineCount: lines.length,
+    vehicleCount: vehicles.length,
+    categories: sourceCategories.map((category) => ({
+      category: category.category || "",
+      variant: category.variant || "",
+      lineCount: Number(category.lineCount || 0),
+      vehicleCount: Number(category.vehicleCount || 0)
+    })),
+    lines,
+    vehicles
+  };
+}
+
+function normalizeSeriesLine2026(line, index, vehicleMap) {
+  const lineVehicles = Array.isArray(line?.vehicles)
+    ? line.vehicles.map((vehicle) => vehicleMap.get(vehicle.id) || normalizeSeriesVehicle2026({
+      ...vehicle,
+      category: line.category,
+      variant: line.variant,
+      series: line.series,
+      assortment: line.assortment,
+      mix: line.mix,
+      mixCode: line.mixCode
+    }, index)).filter(Boolean)
+    : [];
+
+  return {
+    id: line?.id || `line-2026-${index + 1}`,
+    category: line?.category || "",
+    variant: line?.variant || "",
+    series: line?.series || "",
+    assortment: line?.assortment || "",
+    mix: line?.mix || "",
+    mixCode: line?.mixCode || "",
+    format: line?.format || "# Casting Image",
+    sourceHeaders: Array.isArray(line?.sourceHeaders) ? line.sourceHeaders : [],
+    vehicles: lineVehicles
+  };
+}
+
+function normalizeSeriesVehicle2026(vehicle, index) {
+  const features = Array.isArray(vehicle?.features) ? vehicle.features : [];
+  const imageUrl = vehicle?.image || vehicle?.imageUrl || vehicle?.photo || "";
+  const model = vehicle?.casting || "";
+  const variant = vehicle?.variant || "";
+
+  return {
+    id: vehicle?.id || `series-vehicle-2026-${index + 1}`,
+    source: "Orange Track 2026",
+    year: "2026",
+    number: vehicle?.number || "",
+    casting: vehicle?.casting || "",
+    brand: brandFromCatalogModel(model),
+    model,
+    category: vehicle?.category || "",
+    variant,
+    series: vehicle?.series || "",
+    assortment: vehicle?.assortment || "",
+    mix: vehicle?.mix || "",
+    mixCode: vehicle?.mixCode || "",
+    seriesNo: vehicle?.number || "",
+    colNo: vehicle?.number || "",
+    toyNo: vehicle?.extra?.toyNo || "",
+    color: "",
+    rarity: catalogRarityFromSeriesVariant(variant),
+    rarityLabel: variant,
+    raritySegment: raritySegmentFromSeriesVariant(variant),
+    imageUrl,
+    photo: imageUrl,
+    reference: vehicle?.sourceLinks?.[0]?.href || RAW_HOT_WHEELS_LINES_2026?.source || "",
+    features,
+    extra: vehicle?.extra && typeof vehicle.extra === "object" ? vehicle.extra : {},
+    sourceLinks: Array.isArray(vehicle?.sourceLinks) ? vehicle.sourceLinks : [],
+    rawColumns: vehicle?.rawColumns && typeof vehicle.rawColumns === "object" ? vehicle.rawColumns : {}
+  };
+}
+
+function catalogRarityFromSeriesVariant(variant) {
+  const key = String(variant || "").toLowerCase();
+  if (key === "silver series") return "Silver Series";
+  if (key === "premium" || key === "mattel creations") return "Premium";
+  if (key === "chase") return "Chase";
+  return "Regular";
+}
+
+function raritySegmentFromSeriesVariant(variant) {
+  const key = String(variant || "").toLowerCase();
+  if (key === "premium") return "premium";
+  if (key === "silver series") return "silver_series";
+  if (key === "mattel creations") return "mattel_creations";
+  if (key === "extensions") return "extensions";
+  if (key === "basics") return "regular";
+  return "regular";
+}
+
 function buildCatalog() {
   const custom = Array.isArray(siteConfig?.customCatalog) ? siteConfig.customCatalog : [];
   const hidden = new Set(siteConfig?.hiddenCatalogIds || []);
-  const catalog2026 = remoteHotWheelsCatalog.length ? [] : window.HW_CATALOG_2026 || [];
-  return [...HOT_WHEELS_CATALOG, ...catalog2026, ...remoteHotWheelsCatalog, ...custom]
+  const catalog2026 = window.HW_CATALOG_2026 || [];
+  const seriesCatalog2026 = Array.isArray(HOT_WHEELS_SERIES_CATALOG_2026?.vehicles)
+    ? HOT_WHEELS_SERIES_CATALOG_2026.vehicles
+    : [];
+  const hotWheelsCatalog = remoteHotWheelsCatalog.length > catalog2026.length ? remoteHotWheelsCatalog : catalog2026;
+  return [...HOT_WHEELS_CATALOG, ...hotWheelsCatalog, ...seriesCatalog2026, ...custom]
     .filter((car) => !hidden.has(car.id));
 }
 
@@ -3675,7 +3791,7 @@ function openMarketListingModal(item) {
   modalListingModel.value = listing.model || "";
   modalListingOwner.value = listing.owner || "Saruhan";
   modalListingSeries.value = listing.series || "";
-  modalListingColor.value = listing.color || "Sarı";
+  modalListingColor.value = listing.color || "";
   modalListingCondition.value = normalizeCondition(listing.condition) || "Sıfır / Kartonetli";
   modalListingRarity.value = displayRarity(listing.rarity) || "Regular";
   marketListingForm.elements.marketType.value = listing.marketType || "Satılık";
@@ -5743,7 +5859,7 @@ function renderCarMedia(target, item) {
     setManagedImageSource(image, item.photo);
     image.alt = `${item.model} fotoğrafı`;
     image.loading = "lazy";
-    applyCropToImage(image, getEntryCrop(item));
+    applyCropToImage(image, getEntryCrop(item), { maxZoom: 1 });
     image.addEventListener("error", () => {
       if (consumeAppliedFallback(image)) return;
       if (useImageFallback(image)) return;
@@ -6107,7 +6223,7 @@ async function addCustomCatalogItem() {
     model: adminNewModel.value.trim(),
     year: adminNewYear.value.trim(),
     series: adminNewSeries.value.trim() || "Admin katalog",
-    color: adminNewColor.value.trim() || "Çok renkli",
+    color: adminNewColor.value.trim(),
     rarity: adminNewRarity.value.trim() || "Regular",
     photo: adminNewPhoto.value.trim(),
     reference: ""
@@ -6174,7 +6290,7 @@ function applyCatalogSelection() {
 function applyCatalogItem(selected) {
   applyCatalogRules(selected?.id);
   if (!selected) {
-    setFormValues(carForm, { photo: "", cropZoom: "1", cropX: "50", cropY: "50" });
+    setFormValues(carForm, { color: "", photo: "", cropZoom: "1", cropX: "50", cropY: "50" });
     applyImageRules();
     updatePhotoPreview();
     return;
@@ -6206,7 +6322,23 @@ function renderCatalogSearchResults() {
   }
 
   const matches = ALL_CATALOG
-    .filter((car) => normalize([car.brand, car.model, car.series, car.seriesNo, car.year, car.toyNo, car.colNo, car.color, car.rarity].join(" ")).includes(query))
+    .filter((car) => normalize([
+      car.brand,
+      car.model,
+      car.series,
+      car.assortment,
+      car.mix,
+      car.seriesNo,
+      car.year,
+      car.toyNo,
+      car.colNo,
+      car.color,
+      car.rarity,
+      car.rarityLabel,
+      car.variant,
+      car.category,
+      car.source
+    ].join(" ")).includes(query))
     .slice(0, 8);
 
   if (!matches.length) {
@@ -6244,7 +6376,23 @@ function renderAdminCatalogSearchResults() {
   }
 
   const matches = ALL_CATALOG
-    .filter((car) => normalize([car.brand, getCatalogModel(car), car.series, car.seriesNo, car.year, car.toyNo, car.colNo, getCatalogColor(car), getCatalogRarity(car)].join(" ")).includes(query))
+    .filter((car) => normalize([
+      car.brand,
+      getCatalogModel(car),
+      car.series,
+      car.assortment,
+      car.mix,
+      car.seriesNo,
+      car.year,
+      car.toyNo,
+      car.colNo,
+      getCatalogColor(car),
+      getCatalogRarity(car),
+      car.rarityLabel,
+      car.variant,
+      car.category,
+      car.source
+    ].join(" ")).includes(query))
     .slice(0, 10);
 
   if (!matches.length) {
@@ -6279,7 +6427,7 @@ function catalogOptionLabel(car) {
     getCatalogModel(car),
     car.year,
     getCatalogColor(car),
-    displayRarity(getCatalogRarity(car)),
+    getCatalogVariantLabel(car),
     car.colNo ? `#${car.colNo}` : ""
   ].filter(Boolean).join(" · ");
 }
@@ -6289,14 +6437,15 @@ function catalogResultTemplate(car) {
   const media = photo
     ? `<img ${imageSourceAttributes(photo)} alt="${escapeHtml(getCatalogModel(car))} görseli" loading="eager" onerror="handleCatalogResultImageError(this)" />`
     : '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
-  const facts = [car.year, getCatalogColor(car), displayRarity(getCatalogRarity(car)), car.seriesNo].filter(Boolean);
+  const facts = [car.year, getCatalogColor(car), getCatalogVariantLabel(car), car.seriesNo].filter(Boolean);
   const codes = [car.colNo ? `#${car.colNo}` : "", car.toyNo].filter(Boolean);
+  const seriesLabel = [car.series, car.assortment, car.mix].filter(Boolean).join(" · ");
 
   return `
     <span class="catalog-result__media">${media}</span>
     <span class="catalog-result__body">
       <strong>${getCatalogModel(car)}</strong>
-      <span>${[car.brand, car.series].filter(Boolean).join(" · ")}</span>
+      <span>${[car.brand, seriesLabel].filter(Boolean).join(" · ")}</span>
       <span class="catalog-result__chips">${facts.map((fact) => `<em>${fact}</em>`).join("")}</span>
       <span class="catalog-result__codes">${codes.join(" · ")}</span>
     </span>
@@ -6305,31 +6454,22 @@ function catalogResultTemplate(car) {
 
 function applyCatalogRules(catalogId) {
   const rule = CATALOG_RULES[catalogId];
-  populateSelect(carForm.elements.color, rule?.colors || DEFAULT_COLORS);
   populateSelect(carForm.elements.rarity, rule?.rarities || DEFAULT_RARITIES);
 }
 
 function getCatalogColor(car) {
-  if (catalogOverrides[car.id]?.color) return catalogOverrides[car.id].color;
-  const text = normalize([car.color, car.model, car.series, car.id].join(" "));
-  if (text.includes("red edition")) return "Kırmızı";
-  if (text.includes("zamac") || text.includes("zamak")) return "Gümüş";
-  if (text.includes("blue")) return "Mavi";
-  if (text.includes("black") || text.includes("dark")) return "Siyah";
-  if (text.includes("pink")) return "Pembe";
-  if (text.includes("white")) return "Beyaz";
-  if (text.includes("yellow")) return "Sarı";
-  if (text.includes("green")) return "Yeşil";
-  if (DEFAULT_COLORS.includes(car.color)) return car.color;
-  return "Çok renkli";
+  return catalogOverrides[car.id]?.color || car.color || "";
 }
-
 function getCatalogModel(car) {
   return catalogOverrides[car.id]?.model || car.model;
 }
 
 function getCatalogRarity(car) {
   return catalogOverrides[car.id]?.rarity || car.rarity || "Regular";
+}
+
+function getCatalogVariantLabel(car) {
+  return car.rarityLabel || car.variant || displayRarity(getCatalogRarity(car));
 }
 
 function getCatalogCrop(car) {
@@ -6365,9 +6505,12 @@ function getCurrentAdminCrop() {
   };
 }
 
-function applyCropToImage(image, crop) {
+function applyCropToImage(image, crop, options = {}) {
+  const rawZoom = Number(crop.cropZoom || 1);
+  const maxZoom = Number.isFinite(options.maxZoom) ? options.maxZoom : Infinity;
+  const zoom = Number.isFinite(rawZoom) ? Math.min(rawZoom, maxZoom) : 1;
   image.style.objectPosition = `${crop.cropX || 50}% ${crop.cropY || 50}%`;
-  image.style.transform = `scale(${crop.cropZoom || 1})`;
+  image.style.transform = `scale(${zoom})`;
 }
 
 function getCatalogPhoto(car) {
@@ -6423,7 +6566,7 @@ function updatePhotoPreview() {
   setManagedImageSource(image, photo);
   image.alt = "Seçilen model görseli";
   image.loading = "lazy";
-  applyCropToImage(image, getCurrentCarCrop());
+  applyCropToImage(image, getCurrentCarCrop(), { maxZoom: 1 });
   image.addEventListener("load", () => {
     photoPreview.classList.remove("has-error");
   });
@@ -7219,7 +7362,6 @@ brandSelect.addEventListener("change", () => {
   applyCatalogSelection();
 });
 carForm.elements.model.addEventListener("input", applyImageRules);
-carForm.elements.color.addEventListener("change", applyImageRules);
 carForm.elements.photo.addEventListener("input", updatePhotoPreview);
 marketTypeSelect.addEventListener("change", syncMarketFields);
 adminCatalogSelect.addEventListener("change", updateAdminPanel);
@@ -7361,3 +7503,4 @@ render();
 syncOtherStoreField();
 syncStorePhotoEvidence({ clearHidden: false });
 initSupabaseAuth();
+

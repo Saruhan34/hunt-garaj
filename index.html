@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="tr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=126" />
+    <link rel="stylesheet" href="./styles.css?v=127" />
   </head>
   <body class="dashboard-shell">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -611,20 +611,7 @@
               </div>
               <div class="field">
                 <label for="carColor">Renk</label>
-                <select id="carColor" name="color">
-                  <option>Sarı</option>
-                  <option>Kırmızı</option>
-                  <option>Mavi</option>
-                  <option>Siyah</option>
-                  <option>Beyaz</option>
-                  <option>Gri</option>
-                  <option>Yeşil</option>
-                  <option>Turuncu</option>
-                  <option>Mor</option>
-                  <option>Gümüş</option>
-                  <option>Altın</option>
-                  <option>Çok renkli</option>
-                </select>
+                <input id="carColor" name="color" readonly placeholder="Katalog varyantından otomatik gelir" />
               </div>
             </div>
             <div class="grid-2">
@@ -1239,20 +1226,7 @@
           </div>
           <div class="field">
             <label for="modalListingColor">Renk</label>
-            <select id="modalListingColor" name="color">
-              <option>Sarı</option>
-              <option>Kırmızı</option>
-              <option>Mavi</option>
-              <option>Siyah</option>
-              <option>Beyaz</option>
-              <option>Gri</option>
-              <option>Yeşil</option>
-              <option>Turuncu</option>
-              <option>Mor</option>
-              <option>Gümüş</option>
-              <option>Altın</option>
-              <option>Çok renkli</option>
-            </select>
+            <input id="modalListingColor" name="color" readonly placeholder="Katalog varyantından otomatik gelir" />
           </div>
           <div class="field">
             <label for="modalListingCondition">Durum</label>
@@ -1459,7 +1433,6 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
     <div class="listing-detail-modal" id="listingDetailModal" aria-hidden="true">
       <section class="listing-detail-modal__panel" role="dialog" aria-modal="true" aria-labelledby="listingDetailTitle">
         <button class="delete-button listing-detail__close" id="closeListingDetail" type="button" aria-label="Pencereyi kapat">×</button>
@@ -1619,9 +1592,11 @@
       </article>
     </template>
 
-    <script src="./catalog-2026.js?v=7"></script>
+    <script src="./catalog-2026.js?v=8"></script>
+    <script src="./catalog-lines-2026.js?v=1"></script>
     <script src="./reward-service.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=134"></script>
+    <script src="./app.js?v=138"></script>
   </body>
 </html>
+

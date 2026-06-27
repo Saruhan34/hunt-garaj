@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: dark;
   --ink: #f6f1e8;
   --muted: #aeb6bf;
@@ -2134,13 +2134,16 @@ label {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  background: #171c22;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(245, 196, 81, 0.12), transparent 58%),
+    #171c22;
 }
 
 .catalog-result__media img {
-  width: 100%;
-  height: 100%;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
   object-fit: contain;
+  object-position: center;
 }
 
 .photo-preview {
@@ -2157,9 +2160,10 @@ label {
 }
 
 .photo-preview img {
-  width: 100%;
+  width: calc(100% - 16px);
   height: 240px;
   object-fit: contain;
+  object-position: center;
   display: block;
   transform-origin: center;
 }
@@ -3638,7 +3642,8 @@ body.is-store-view .radar-filters.is-visible {
   display: grid;
   place-items: center;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 3;
+  max-height: 230px;
   margin: 0 0 14px;
   border: 1px solid rgba(245, 196, 81, 0.13);
   border-radius: 8px;
@@ -3650,9 +3655,9 @@ body.is-store-view .radar-filters.is-visible {
 }
 
 .car-card__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: calc(100% - 18px);
+  height: calc(100% - 18px);
+  object-fit: contain;
   object-position: center;
   display: block;
   transform-origin: center;
@@ -12654,3 +12659,4 @@ body.is-store-view .card-grid {
     gap: 1px;
   }
 }
+
