@@ -4,7 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=127" />
+    <link rel="stylesheet" href="./styles.css?v=137" />
+    <link rel="stylesheet" href="./vehicle-components.css?v=9" />
+    <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
   <body class="dashboard-shell">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -24,6 +26,7 @@
         <button type="button" data-route-view="home"><i aria-hidden="true">⌂</i><span>Ana Sayfa</span></button>
         <button type="button" data-route-view="stores"><i aria-hidden="true">⌁</i><span>Hunt Radar</span></button>
         <button type="button" data-route-view="market"><i aria-hidden="true">₺</i><span>Pazar</span></button>
+        <button type="button" data-route-view="explore"><i aria-hidden="true">◎</i><span>Keşfet</span></button>
         <button type="button" data-route-view="collection"><i aria-hidden="true">◇</i><span>Garaj</span></button>
         <button type="button" data-route-view="wishlist"><i aria-hidden="true">☆</i><span>İstek Listesi</span></button>
         <button type="button" data-route-view="community"><i aria-hidden="true">◌</i><span>Topluluk</span></button>
@@ -62,6 +65,7 @@
         </div>
         <div class="top-module-nav" aria-label="Modül navigasyonu">
           <button type="button" data-view="home">Ana Sayfa</button>
+          <button type="button" data-view="explore">Keşfet</button>
           <button type="button" data-view="collection">Garaj</button>
           <button type="button" data-view="market">Pazar</button>
           <button type="button" data-view="stores">Hunt Radar</button>
@@ -269,6 +273,152 @@
         <div class="dashboard-view-header__actions">
           <button class="button button--ghost is-hidden" id="dashboardSecondaryAction" type="button"></button>
           <button class="button button--primary" id="dashboardPrimaryAction" type="button"></button>
+        </div>
+      </section>
+
+      <section class="explore-module app-module-only" id="exploreModule" aria-labelledby="exploreTitle">
+        <header class="explore-hero">
+          <div class="explore-hero__glow" aria-hidden="true"></div>
+          <div class="explore-hero__copy">
+            <p class="eyebrow">HUNT RADAR CATALOG</p>
+            <h1 id="exploreTitle">Keşfet</h1>
+            <p>Hot Wheels evrenini keşfet, doğru varyantı bul ve koleksiyonuna tek dokunuşla ekle.</p>
+          </div>
+          <div class="explore-search-shell">
+            <label class="explore-search" for="exploreSearchInput">
+              <span class="explore-search__icon" aria-hidden="true"></span>
+              <input id="exploreSearchInput" type="search" autocomplete="off" placeholder="BMW, M4 GT3, HW Exotics, JNG69…" />
+              <kbd>⌘ K</kbd>
+              <button id="exploreSearchClear" type="button" aria-label="Aramayı temizle" hidden>×</button>
+            </label>
+            <div class="explore-search__hints" aria-label="Aranabilen alanlar">
+              <span>Marka</span><span>Model</span><span>Seri</span><span>Case</span><span>Toy No</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="explore-toolbar-mobile">
+          <button id="exploreFilterToggle" type="button"><span aria-hidden="true">⌘</span> Filtreler</button>
+          <span id="exploreResultCountMobile">Katalog</span>
+        </div>
+
+        <div class="explore-layout">
+          <aside class="explore-filters" aria-label="Keşfet filtreleri">
+            <div class="explore-filters__heading">
+              <div><span>Filtreler</span><small>Birlikte çalışır</small></div>
+              <button id="exploreResetFilters" type="button">Temizle</button>
+            </div>
+            <div class="explore-filter-group">
+              <label for="exploreBrandFilter">Brand</label>
+              <select id="exploreBrandFilter"><option value="">Tüm markalar</option></select>
+            </div>
+            <div class="explore-filter-group">
+              <label for="exploreSeriesFilter">Series</label>
+              <select id="exploreSeriesFilter"><option value="">Tüm seriler</option></select>
+            </div>
+            <div class="explore-filter-grid">
+              <div class="explore-filter-group">
+                <label for="exploreYearFilter">Release year</label>
+                <select id="exploreYearFilter"><option value="">Tüm yıllar</option></select>
+              </div>
+              <div class="explore-filter-group">
+                <label for="exploreCaseFilter">Case</label>
+                <select id="exploreCaseFilter"><option value="">Tüm case'ler</option></select>
+              </div>
+            </div>
+            <div class="explore-filter-group">
+              <label for="exploreSegmentFilter">Segment</label>
+              <select id="exploreSegmentFilter"><option value="">Tüm segmentler</option></select>
+            </div>
+            <div class="explore-filter-group">
+              <label for="exploreAssortmentFilter">Assortment</label>
+              <select id="exploreAssortmentFilter"><option value="">Tüm assortment'lar</option></select>
+            </div>
+            <div class="explore-filter-group explore-filter-group--membership">
+              <span>Koleksiyon durumu</span>
+              <div class="explore-membership-filters">
+                <button class="is-active" type="button" data-explore-membership="any">Tümü</button>
+                <button type="button" data-explore-membership="owned">Owned</button>
+                <button type="button" data-explore-membership="not_owned">Not owned</button>
+                <button type="button" data-explore-membership="wishlist">Wishlist</button>
+                <button type="button" data-explore-membership="not_wishlist">Not wishlist</button>
+              </div>
+            </div>
+          </aside>
+
+          <main class="explore-results">
+            <div class="explore-results__heading">
+              <div>
+                <p class="eyebrow">ARAÇ VİTRİNİ</p>
+                <div><strong id="exploreResultCount">Katalog hazırlanıyor…</strong><span id="exploreResultSource">Hunt Radar kataloğu</span></div>
+              </div>
+              <div class="explore-active-filters" id="exploreActiveFilters"></div>
+            </div>
+            <div class="explore-vehicle-grid" id="exploreVehicleGrid" aria-live="polite"></div>
+            <section class="explore-state explore-state--empty" id="exploreEmptyState" aria-hidden="true">
+              <span class="explore-state__radar" aria-hidden="true"></span>
+              <p class="eyebrow">RADAR SONUCU</p>
+              <h2>Bu araç sistemde bulunamadı.</h2>
+              <p>Aradığın modeli topluluğa öner; admin incelemesinden sonra kataloğa eklenebilir.</p>
+              <button class="button button--primary" id="exploreSuggestVehicle" type="button">Araç öner</button>
+            </section>
+            <section class="explore-state explore-state--error" id="exploreErrorState" aria-hidden="true">
+              <h2>Katalog şu anda yüklenemedi.</h2>
+              <p>Bağlantını kontrol edip yeniden deneyebilirsin.</p>
+              <button class="button button--ghost" type="button" onclick="window.HuntRadarExplore?.activate()">Yeniden dene</button>
+            </section>
+            <div class="explore-load-more">
+              <button id="exploreLoadMore" type="button" hidden>Daha fazla araç göster</button>
+              <span id="exploreScrollSentinel" aria-hidden="true"></span>
+            </div>
+          </main>
+        </div>
+      </section>
+
+      <section class="garage-dashboard app-module-only" id="garageDashboard" aria-labelledby="garageDashboardTitle">
+        <header class="garage-dashboard__hero">
+          <div class="garage-dashboard__copy">
+            <p class="eyebrow">KİŞİSEL KOLEKSİYON</p>
+            <h1 id="garageDashboardTitle">Garaj</h1>
+            <p>Koleksiyonundaki araçları görüntüle, filtrele ve yönet.</p>
+          </div>
+          <button class="button garage-dashboard__add" id="openGarageDrawer" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            Araç Ekle
+          </button>
+        </header>
+
+        <div class="garage-stats" aria-label="Garaj istatistikleri">
+          <article class="garage-stat garage-stat--total"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 17h14M3 12l2.4-6h13.2L21 12v5h-2M5 17H3v-5h18M7 12h10" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></svg></span><div><span>Toplam Araç</span><strong id="garageStatTotal">0</strong></div></article>
+          <article class="garage-stat garage-stat--regular"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></svg></span><div><span>Regular</span><strong id="garageStatRegular">0</strong></div></article>
+          <article class="garage-stat garage-stat--premium"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 4 4 5 2-3 5-1 6H7l-1-6-3-5 5-2 4-4Z" /><path d="m3 8 4 11 5-17 5 17 4-11M7 19h10" /></svg></span><div><span>Premium</span><strong id="garageStatPremium">0</strong></div></article>
+          <article class="garage-stat garage-stat--trade"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m17 3 4 4-4 4" /><path d="M3 7h18M7 21l-4-4 4-4" /><path d="M21 17H3" /></svg></span><div><span>Takaslık</span><strong id="garageStatTrade">0</strong></div></article>
+          <article class="garage-stat garage-stat--market"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 10h18M5 10v10h14V10M4 4h16l1 6H3l1-6Z" /><path d="M9 20v-6h6v6" /></svg></span><div><span>Pazarda</span><strong id="garageStatMarket">0</strong></div></article>
+        </div>
+
+        <div class="garage-controls">
+          <label class="garage-search" for="garageSearchInput">
+            <span aria-hidden="true"></span>
+            <input id="garageSearchInput" type="search" placeholder="Garajda ara" autocomplete="off" />
+          </label>
+          <div class="garage-filter-chips" id="garageFilterChips" aria-label="Garaj filtreleri">
+            <button class="is-active" type="button" data-garage-filter="Tümü">Tümü</button>
+            <button type="button" data-garage-filter="Regular">Regular</button>
+            <button type="button" data-garage-filter="Premium">Premium</button>
+            <button type="button" data-garage-filter="Chase">Chase</button>
+            <button type="button" data-garage-filter="Silver Series">Silver Series</button>
+            <button type="button" data-garage-filter="TH/STH">TH/STH</button>
+            <button type="button" data-garage-filter="Takaslık">Takaslık</button>
+            <button type="button" data-garage-filter="Pazarda">Pazarda</button>
+          </div>
+          <label class="garage-sort" for="garageSortSelect">
+            <span>Sırala</span>
+            <select id="garageSortSelect">
+              <option value="newest">Eklenme (Yeni)</option>
+              <option value="oldest">Eklenme (Eski)</option>
+              <option value="model">Model A-Z</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -557,6 +707,7 @@
         </div>
         <div class="segmented" role="tablist" aria-label="Liste seçimi">
           <button class="segmented__button" type="button" data-view="home">Ana Sayfa</button>
+          <button class="segmented__button" type="button" data-view="explore">Keşfet</button>
           <button class="segmented__button is-active" type="button" data-view="collection">Garaj</button>
           <button class="segmented__button" type="button" data-view="wishlist">İstek Listesi</button>
           <button class="segmented__button" type="button" data-view="stores">Hunt Radar</button>
@@ -568,132 +719,121 @@
 
       <section class="workspace app-module-only" id="workspace">
         <aside class="panel" aria-label="Yeni kayıt ekle">
-          <form class="entry-form is-active" id="carForm" data-form="collection">
-            <h2>Araba ekle</h2>
-            <div class="field catalog-search">
-              <label for="catalogSearch">Katalogda ara</label>
-              <input id="catalogSearch" type="search" autocomplete="off" placeholder="Model veya varyant ara" />
-              <div class="catalog-results" id="catalogResults"></div>
+          <form class="entry-form is-active garage-drawer" id="carForm" data-form="collection" novalidate>
+            <header class="garage-drawer__header">
+              <div>
+                <p class="eyebrow">KOLEKSİYONA EKLE</p>
+                <h2>Kataloğa göre araç ekle</h2>
+                <span>Katalogdaki doğru varyantı seç, koleksiyon bilgilerini tamamla.</span>
+              </div>
+              <button class="garage-drawer__close" id="closeGarageDrawer" type="button" aria-label="Araç ekleme panelini kapat">×</button>
+            </header>
+
+            <div class="garage-drawer__body">
+              <div class="field catalog-search garage-catalog-search">
+                <label for="catalogSearch">Katalogda ara</label>
+                <input id="catalogSearch" type="search" autocomplete="off" placeholder="Model, marka veya seri ara" />
+                <div class="catalog-results" id="catalogResults"></div>
+              </div>
+
+              <section class="garage-selected is-empty" id="garageSelectedVehicle" aria-live="polite">
+                <div class="garage-selected__heading">
+                  <div>
+                    <span>Seçilen araç bilgileri</span>
+                    <strong id="garageSelectedModel">Henüz araç seçilmedi</strong>
+                  </div>
+                  <span class="garage-selected__rarity" id="garageSelectedRarity">Katalog</span>
+                </div>
+                <div class="garage-selected__content">
+                  <div class="photo-preview" id="photoPreview">
+                    <span class="mini-car mini-car--large" aria-hidden="true"></span>
+                  </div>
+                  <dl class="garage-selected__facts">
+                    <div><dt>Marka</dt><dd id="garageSelectedBrand">-</dd></div>
+                    <div><dt>Seri</dt><dd id="garageSelectedSeries">-</dd></div>
+                    <div><dt>Yıl</dt><dd id="garageSelectedYear">-</dd></div>
+                    <div><dt>Renk</dt><dd id="garageSelectedColor">-</dd></div>
+                  </dl>
+                </div>
+              </section>
+
+              <section class="garage-collection-fields">
+                <div class="garage-collection-fields__heading">
+                  <span>Koleksiyon bilgileri</span>
+                  <small>Garajındaki fiziksel kaydı tamamla</small>
+                </div>
+                <div class="field">
+                  <label for="carCondition">Durum</label>
+                  <select id="carCondition" name="condition">
+                    <option value="Sıfır / Kartonetli">Kartonetli</option>
+                    <option value="Açık">Açık</option>
+                    <option value="Kutulu">Kutulu</option>
+                    <option value="Mint">Mint</option>
+                    <option value="Çok iyi">Çok iyi</option>
+                    <option value="İyi">İyi</option>
+                    <option value="Hasarlı">Hasarlı</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="carPackagingStatus">Paket durumu</label>
+                  <select id="carPackagingStatus" name="packagingStatus">
+                    <option value="Kartonetli">Kartonetli</option>
+                    <option value="Kutulu">Kutulu</option>
+                    <option value="Açık / Loose">Açık / Loose</option>
+                    <option value="Blister hasarlı">Blister hasarlı</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="carQuantity">Adet</label>
+                  <div class="garage-quantity">
+                    <button id="garageQuantityDecrease" type="button" aria-label="Adedi azalt">−</button>
+                    <input id="carQuantity" name="quantity" type="number" min="1" max="99" value="1" inputmode="numeric" />
+                    <button id="garageQuantityIncrease" type="button" aria-label="Adedi artır">+</button>
+                  </div>
+                </div>
+                <div class="field garage-location-field">
+                  <label for="carLocation">Konum <span>Opsiyonel</span></label>
+                  <input id="carLocation" name="location" placeholder="Örn: Raf 1 • Dolap A" />
+                </div>
+                <div class="field garage-value-field">
+                  <label for="carEstimatedValue">Tahmini değer <span>Opsiyonel</span></label>
+                  <input id="carEstimatedValue" name="estimatedValue" type="number" min="0" step="1" placeholder="₺" />
+                </div>
+                <div class="garage-availability" aria-label="Araç uygunluk durumu">
+                  <label><input id="carForSale" name="forSale" type="checkbox" value="true" /><span>Satılık</span></label>
+                  <label><input id="carForTrade" name="forTrade" type="checkbox" value="true" /><span>Takaslık</span></label>
+                </div>
+              </section>
             </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="brandSelect">Marka</label>
-                <select id="brandSelect">
-                  <option value="">Tüm markalar</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="catalogSelect">Model</label>
-                <select id="catalogSelect">
-                  <option value="">Elle ekle / katalogda yok</option>
-                </select>
-              </div>
-              <span class="field-hint field-hint--wide">Aynı modelin renk, seri ve nadirlik farklarını görselli varyant olarak seç.</span>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="carModel">Model adı</label>
-                <input id="carModel" name="model" required placeholder="Nissan Skyline GT-R" />
-              </div>
-              <div class="field">
-                <label for="carOwner">Sahip</label>
-                <select id="carOwner" name="owner">
-                  <option>Saruhan</option>
-                  <option>Ali</option>
-                  <option>Ortak</option>
-                </select>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="carSeries">Seri / yıl</label>
-                <input id="carSeries" name="series" placeholder="J-Imports 2024" />
-              </div>
-              <div class="field">
-                <label for="carColor">Renk</label>
-                <input id="carColor" name="color" readonly placeholder="Katalog varyantından otomatik gelir" />
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="carCondition">Durum</label>
-                <select id="carCondition" name="condition">
-                  <option>Sıfır / Kartonetli</option>
-                  <option>Açık</option>
-                  <option>Hasarlı</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="carRarity">Nadirlik</label>
-                <select id="carRarity" name="rarity">
-                  <option>Regular</option>
-                  <option>Treasure Hunt</option>
-                  <option>Silver Series</option>
-                  <option>Premium</option>
-                  <option>Super Treasure Hunt</option>
-                  <option>Chase</option>
-                </select>
-              </div>
-            </div>
-            <div class="field">
-              <label>Seçilen varyant görseli</label>
+
+            <footer class="garage-drawer__footer">
+              <button class="button button--subtle" id="cancelCarEdit" type="button">Vazgeç</button>
+              <button class="button button--primary" id="carSubmitButton" type="submit">Garajıma ekle</button>
+            </footer>
+
+            <div class="garage-form-hidden" aria-hidden="true">
+              <select id="brandSelect"><option value="">Tüm markalar</option></select>
+              <select id="catalogSelect"><option value="">Katalogdan seç</option></select>
+              <input id="carCatalogId" name="catalogId" type="hidden" />
+              <input id="carBrand" name="brand" type="hidden" />
+              <input id="carModel" name="model" type="hidden" />
+              <input id="carOwner" name="owner" type="hidden" value="Saruhan" />
+              <input id="carSeries" name="series" type="hidden" />
+              <input id="carYear" name="year" type="hidden" />
+              <input id="carColor" name="color" type="hidden" />
+              <select id="carRarity" name="rarity"><option>Regular</option></select>
               <input id="carPhoto" name="photo" type="hidden" />
               <input id="carCropZoom" name="cropZoom" type="hidden" value="1" />
               <input id="carCropX" name="cropX" type="hidden" value="50" />
               <input id="carCropY" name="cropY" type="hidden" value="50" />
-              <div class="photo-preview" id="photoPreview">
-                <span class="mini-car mini-car--large" aria-hidden="true"></span>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="carSource">Nereden alındı?</label>
-                <input id="carSource" name="source" placeholder="Akasya Toyzz, takas, sahibinden" />
-              </div>
-              <div class="field">
-                <label for="carAddedDate">Garaja giriş</label>
-                <input id="carAddedDate" name="addedDate" type="date" />
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="carMarketType">Pazar türü</label>
-                <select id="carMarketType" name="marketType">
-                  <option value="">Pazarda değil</option>
-                  <option>Satılık</option>
-                  <option>Takaslık</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="carListingStatus">Pazar durumu</label>
-                <select id="carListingStatus" name="listingStatus">
-                  <option>Kapalı</option>
-                  <option>Yayında</option>
-                  <option>Rezerve</option>
-                  <option>Satıldı</option>
-                  <option>Takaslandı</option>
-                </select>
-              </div>
-            </div>
-            <div class="field" id="salePriceField">
-              <label for="carSalePrice">Satış fiyatı</label>
-              <input id="carSalePrice" name="salePrice" placeholder="250 TL" />
-            </div>
-            <div class="field">
-              <label for="carTradeWish">Takas / satış notu</label>
-              <textarea id="carTradeWish" name="tradeWish" rows="2" placeholder="Şu modellerle takas olur, kutu durumu, pazarlık notu"></textarea>
-            </div>
-            <div class="field">
-              <label for="carReference">Wiki / referans sayfası</label>
-              <input id="carReference" name="reference" type="url" placeholder="https://hotwheels.fandom.com/wiki/..." />
-            </div>
-            <div class="field">
-              <label for="carNotes">Not</label>
-              <textarea id="carNotes" name="notes" rows="3" placeholder="Nereden alındı, takas notu, kutu durumu"></textarea>
-            </div>
-            <div class="form-actions">
-              <button class="button button--primary" id="carSubmitButton" type="submit">Garaja ekle</button>
-              <button class="button button--subtle" id="cancelCarEdit" type="button">Vazgeç</button>
+              <input id="carSource" name="source" type="hidden" />
+              <input id="carAddedDate" name="addedDate" type="hidden" />
+              <select id="carMarketType" name="marketType"><option value="">Pazarda değil</option></select>
+              <select id="carListingStatus" name="listingStatus"><option>Kapalı</option></select>
+              <div id="salePriceField"><input id="carSalePrice" name="salePrice" type="hidden" /></div>
+              <input id="carTradeWish" name="tradeWish" type="hidden" />
+              <input id="carReference" name="reference" type="hidden" />
+              <input id="carNotes" name="notes" type="hidden" />
             </div>
           </form>
 
@@ -947,6 +1087,7 @@
               <button class="is-active" type="button" data-admin-tab="home">Ana sayfa</button>
               <button type="button" data-admin-tab="featured">Öne çıkanlar</button>
               <button type="button" data-admin-tab="catalog">Katalog</button>
+              <button type="button" data-admin-tab="vehicle-suggestions">Araç önerileri</button>
               <button type="button" data-admin-tab="content">İçerik</button>
               <button type="button" data-admin-tab="manage">Yönetim</button>
               <button type="button" data-admin-tab="rewards">Puan & Rozet</button>
@@ -1086,6 +1227,19 @@
             </div>
             </div>
 
+            <div class="admin-section" data-admin-section="vehicle-suggestions">
+              <div class="section-heading section-heading--compact">
+                <div>
+                  <p class="eyebrow">KATALOG MODERASYONU</p>
+                  <h3>Araç önerileri</h3>
+                  <p>Topluluk önerilerini incele. Onaylanan araçlar doğrudan mevcut katalog tablosuna eklenir.</p>
+                </div>
+              </div>
+              <div class="explore-admin-suggestions" id="adminVehicleSuggestions">
+                <div class="explore-admin-empty">Öneriler bu sekme açıldığında yüklenecek.</div>
+              </div>
+            </div>
+
             <div class="admin-section" data-admin-section="content">
               <div class="field">
                 <label for="adminContentType">İçerik türü</label>
@@ -1180,6 +1334,7 @@
 
     <nav class="bottom-nav" aria-label="Mobil navigasyon">
       <button type="button" data-view="home">Ana Sayfa</button>
+      <button type="button" data-view="explore">Keşfet</button>
       <button type="button" data-view="collection">Garaj</button>
       <button type="button" data-view="market">Pazar</button>
       <button type="button" data-view="stores">Hunt Radar</button>
@@ -1233,6 +1388,7 @@
             <select id="modalListingCondition" name="condition">
               <option>Sıfır / Kartonetli</option>
               <option>Açık</option>
+              <option>Kutulu</option>
               <option>Hasarlı</option>
             </select>
           </div>
@@ -1432,7 +1588,88 @@
       </section>
     </div>
 
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="garage-drawer-backdrop" id="garageDrawerBackdrop" aria-hidden="true"></div>
+
+    <div class="garage-detail-modal" id="garageDetailModal" aria-hidden="true">
+      <section class="garage-detail-modal__panel" role="dialog" aria-modal="true" aria-labelledby="garageDetailTitle">
+        <button class="garage-drawer__close garage-detail-modal__close" id="closeGarageDetail" type="button" aria-label="Araç detayını kapat">×</button>
+        <div class="garage-detail-modal__media car-card__media" id="garageDetailMedia"></div>
+        <div class="garage-detail-modal__body">
+          <p class="eyebrow">KOLEKSİYON ARACI</p>
+          <h2 id="garageDetailTitle">Araç detayı</h2>
+          <p id="garageDetailSubtitle"></p>
+          <div class="garage-detail-modal__facts" id="garageDetailFacts"></div>
+          <div class="garage-detail-modal__actions" id="garageDetailActions"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="vehicle-detail-backdrop" id="vehicleDetailBackdrop" aria-hidden="true"></div>
+    <aside class="vehicle-detail" id="vehicleDetailDrawer" aria-hidden="true" aria-labelledby="vehicleDetailTitle">
+      <header class="vehicle-detail__header">
+        <div>
+          <p class="eyebrow">CATALOG VEHICLE</p>
+          <span>Hunt Radar vehicle profile</span>
+        </div>
+        <button id="vehicleDetailClose" type="button" aria-label="Araç detayını kapat">×</button>
+      </header>
+      <div class="vehicle-detail__scroll">
+        <div class="vehicle-detail__media" id="vehicleDetailMedia"></div>
+        <div class="vehicle-detail__title-row">
+          <div>
+            <h2 id="vehicleDetailTitle">Araç detayı</h2>
+            <p id="vehicleDetailSubtitle"></p>
+          </div>
+          <span class="vehicle-badge" id="vehicleDetailBadge">Regular</span>
+        </div>
+        <dl class="vehicle-detail__facts" id="vehicleDetailFacts"></dl>
+        <div class="vehicle-detail__source">
+          <span>Kaynak</span>
+          <div id="vehicleDetailSource">Kaynak bilgisi yok</div>
+        </div>
+      </div>
+      <footer class="vehicle-detail__actions" id="vehicleDetailActions"></footer>
+    </aside>
+
+    <div class="vehicle-suggestion-modal" id="vehicleSuggestionModal" aria-hidden="true">
+      <form class="vehicle-suggestion-modal__panel" id="vehicleSuggestionForm">
+        <header>
+          <div>
+            <p class="eyebrow">KATALOG ÖNERİSİ</p>
+            <h2>Yeni araç öner</h2>
+            <p>Önerin admin onayından geçmeden katalogda yayınlanmaz.</p>
+          </div>
+          <button id="vehicleSuggestionClose" type="button" aria-label="Öneri penceresini kapat">×</button>
+        </header>
+        <div class="vehicle-suggestion-modal__body">
+          <div class="field">
+            <label for="suggestionModel">Araç / model adı</label>
+            <input id="suggestionModel" name="model_name" required minlength="2" maxlength="160" placeholder="BMW M4 GT3" />
+          </div>
+          <div class="grid-2">
+            <div class="field"><label for="suggestionBrand">Marka</label><input id="suggestionBrand" name="brand" placeholder="BMW" /></div>
+            <div class="field"><label for="suggestionYear">Release year</label><input id="suggestionYear" name="release_year" type="number" min="1968" max="2100" placeholder="2026" required /></div>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label for="suggestionToyNumber">Toy number</label><input id="suggestionToyNumber" name="toy_number" /></div>
+            <div class="field"><label for="suggestionItemNumber">Item number</label><input id="suggestionItemNumber" name="item_number" /></div>
+          </div>
+          <div class="field"><label for="suggestionCastingNumber">Casting number</label><input id="suggestionCastingNumber" name="casting_number" /></div>
+          <div class="field"><label for="suggestionSource">Kaynak URL</label><input id="suggestionSource" name="source_url" type="url" placeholder="https://…" /></div>
+          <div class="field"><label for="suggestionNotes">Not</label><textarea id="suggestionNotes" name="notes" rows="3" placeholder="Renk, seri veya doğrulama notu"></textarea></div>
+        </div>
+        <footer>
+          <button class="button button--ghost" id="vehicleSuggestionCancel" type="button">Vazgeç</button>
+          <button class="button button--primary" type="submit">Admin onayına gönder</button>
+        </footer>
+      </form>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <span class="toast__icon" aria-hidden="true">✓</span>
+      <span class="toast__message" id="toastMessage"></span>
+      <button class="toast__close" id="closeToast" type="button" aria-label="Bildirimi kapat">×</button>
+    </div>
     <div class="listing-detail-modal" id="listingDetailModal" aria-hidden="true">
       <section class="listing-detail-modal__panel" role="dialog" aria-modal="true" aria-labelledby="listingDetailTitle">
         <button class="delete-button listing-detail__close" id="closeListingDetail" type="button" aria-label="Pencereyi kapat">×</button>
@@ -1593,10 +1830,13 @@
     </template>
 
     <script src="./catalog-2026.js?v=8"></script>
-    <script src="./catalog-lines-2026.js?v=1"></script>
+    <script src="./catalog-lines-2026.js?v=3"></script>
+    <script src="./vehicle-components.js?v=6"></script>
+    <script src="./explore-service.js?v=5"></script>
+    <script src="./explore-page.js?v=2"></script>
     <script src="./reward-service.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=138"></script>
+    <script src="./app.js?v=148"></script>
   </body>
 </html>
 

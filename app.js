@@ -68,6 +68,7 @@ const DASHBOARD_ROUTES = {
   home: "ana-sayfa",
   stores: "hunt-radar",
   market: "pazar",
+  explore: "kesfet",
   collection: "garaj",
   wishlist: "istek-listesi",
   community: "topluluk",
@@ -78,6 +79,7 @@ const DASHBOARD_VIEW_TITLES = {
   home: "Ana Sayfa",
   stores: "Hunt Radar",
   market: "Pazar",
+  explore: "Keşfet",
   collection: "Garaj",
   wishlist: "İstek Listesi",
   community: "Topluluk",
@@ -85,6 +87,14 @@ const DASHBOARD_VIEW_TITLES = {
   admin: "Admin Paneli"
 };
 const DASHBOARD_VIEW_META = {
+  explore: {
+    eyebrow: "Premium araç keşfi",
+    title: "Keşfet",
+    description: "Marka, model, seri, case ve ürün kodlarıyla tüm Hot Wheels kataloğunu keşfet.",
+    icon: "◎",
+    primary: "Garajım",
+    secondary: "İstek Listem"
+  },
   collection: {
     eyebrow: "Kişisel koleksiyon",
     title: "Garaj",
@@ -473,6 +483,13 @@ let activeStoreCity = "Tümü";
 let activeStoreName = "Tümü";
 let activeStoreEvidence = "Tümü";
 let activeCollectionOwner = "Tümü";
+let activeGarageFilter = "Tümü";
+let activeGarageSort = "newest";
+let currentGarageDetail = null;
+let garageCatalogSearchQuery = "";
+let garageCatalogVisibleGroupCount = 12;
+const garageCatalogExpandedGroups = new Set();
+const garageCatalogVisibleVariantCounts = new Map();
 let activeMarketType = "Tümü";
 let activeMarketFavorite = "Tüm ilanlar";
 let activeMarketCondition = "Tümü";
@@ -602,6 +619,26 @@ const dashboardViewDescription = document.querySelector("#dashboardViewDescripti
 const dashboardViewIcon = document.querySelector("#dashboardViewIcon");
 const dashboardPrimaryAction = document.querySelector("#dashboardPrimaryAction");
 const dashboardSecondaryAction = document.querySelector("#dashboardSecondaryAction");
+const garageDashboard = document.querySelector("#garageDashboard");
+const exploreModule = document.querySelector("#exploreModule");
+const openGarageDrawerButton = document.querySelector("#openGarageDrawer");
+const closeGarageDrawerButton = document.querySelector("#closeGarageDrawer");
+const garageDrawerBackdrop = document.querySelector("#garageDrawerBackdrop");
+const garageSearchInput = document.querySelector("#garageSearchInput");
+const garageFilterChips = document.querySelector("#garageFilterChips");
+const garageSortSelect = document.querySelector("#garageSortSelect");
+const garageStatTotal = document.querySelector("#garageStatTotal");
+const garageStatRegular = document.querySelector("#garageStatRegular");
+const garageStatPremium = document.querySelector("#garageStatPremium");
+const garageStatTrade = document.querySelector("#garageStatTrade");
+const garageStatMarket = document.querySelector("#garageStatMarket");
+const garageDetailModal = document.querySelector("#garageDetailModal");
+const garageDetailMedia = document.querySelector("#garageDetailMedia");
+const garageDetailTitle = document.querySelector("#garageDetailTitle");
+const garageDetailSubtitle = document.querySelector("#garageDetailSubtitle");
+const garageDetailFacts = document.querySelector("#garageDetailFacts");
+const garageDetailActions = document.querySelector("#garageDetailActions");
+const closeGarageDetailButton = document.querySelector("#closeGarageDetail");
 const rewardUserOverview = document.querySelector("#rewardUserOverview");
 const rewardOverviewRankVisual = document.querySelector("#rewardOverviewRankVisual");
 const rewardOverviewAvatar = document.querySelector("#rewardOverviewAvatar");
@@ -616,6 +653,8 @@ const rewardOverviewVerification = document.querySelector("#rewardOverviewVerifi
 const rewardOverviewBadges = document.querySelector("#rewardOverviewBadges");
 const rewardOverviewLogin = document.querySelector("#rewardOverviewLogin");
 const toast = document.querySelector("#toast");
+const toastMessage = document.querySelector("#toastMessage");
+const closeToastButton = document.querySelector("#closeToast");
 const authModal = document.querySelector("#authModal");
 const profileModal = document.querySelector("#profileModal");
 const profileAvatar = document.querySelector("#profileAvatar");
@@ -749,6 +788,21 @@ const catalogSelect = document.querySelector("#catalogSelect");
 const catalogSearch = document.querySelector("#catalogSearch");
 const catalogResults = document.querySelector("#catalogResults");
 const photoPreview = document.querySelector("#photoPreview");
+const garageSelectedVehicle = document.querySelector("#garageSelectedVehicle");
+const garageSelectedModel = document.querySelector("#garageSelectedModel");
+const garageSelectedBrand = document.querySelector("#garageSelectedBrand");
+const garageSelectedSeries = document.querySelector("#garageSelectedSeries");
+const garageSelectedYear = document.querySelector("#garageSelectedYear");
+const garageSelectedColor = document.querySelector("#garageSelectedColor");
+const garageSelectedRarity = document.querySelector("#garageSelectedRarity");
+const garageQuantityInput = document.querySelector("#carQuantity");
+const garageQuantityDecrease = document.querySelector("#garageQuantityDecrease");
+const garageQuantityIncrease = document.querySelector("#garageQuantityIncrease");
+
+// Keep the drawer outside dashboard stacking contexts so it always sits above its backdrop.
+if (carForm?.parentElement !== document.body) {
+  document.body.appendChild(carForm);
+}
 const marketTypeSelect = document.querySelector("#carMarketType");
 const listingStatusSelect = document.querySelector("#carListingStatus");
 const salePriceField = document.querySelector("#salePriceField");
@@ -842,6 +896,7 @@ const adminCropY = document.querySelector("#adminCropY");
 
 const viewTitles = {
   home: "Ana Sayfa",
+  explore: "Keşfet",
   collection: "Garaj",
   wishlist: "İstek Listesi",
   stores: "Hunt Radar",
@@ -852,6 +907,7 @@ const viewTitles = {
 
 const viewCopies = {
   home: "Hunt Radar lobisi; garaj, pazar, radar ve topluluk modullerine buradan gec.",
+  explore: "Hot Wheels kataloğunu marka, model, seri ve ürün kodlarıyla keşfet.",
   collection: "Garajındaki modelleri profil, seri, renk ve durum bilgisiyle düzenli tut.",
   wishlist: "İstek Listesi'ndeki modelleri öncelik, hedef fiyat ve notlarla takip edin.",
   stores: "Bugün hangi rafta ne kaldı? Hunt Radar notlarını, son sevkiyat haberlerini ve güven durumunu hızlıca paylaşın.",
@@ -1025,6 +1081,7 @@ function buildCatalog() {
 function displayRaritySegment(segment) {
   const labels = {
     regular: "Regular",
+    chase: "Chase",
     silver_series: "Silver Series",
     premium: "Premium",
     treasure_hunt: "Treasure Hunt",
@@ -1111,6 +1168,9 @@ function normalizeRemoteCatalogItem(row) {
 
 async function loadHotWheelsCatalogFromSupabase() {
   if (!supabaseClient) return;
+  // The shipped catalog already powers the legacy Garage picker. Keşfet uses
+  // paginated RPC queries, so do not download the entire remote catalog on boot.
+  if (Array.isArray(window.HW_CATALOG_2026) && window.HW_CATALOG_2026.length) return;
   const { data, error } = await supabaseClient
     .from("hotwheels_catalog_items")
     .select("id, model_name, release_year, color, image_url, features, rarity_segment")
@@ -1179,9 +1239,20 @@ function normalizeState(data) {
       listingStatus: legacyMarketType ? "Yayında" : "Kapalı",
       tradeWish: "",
       listingPhoto: "",
+      quantity: 1,
+      location: "",
+      packagingStatus: car.packagingStatus || (/kartonet/i.test(car.condition || "") ? "Kartonetli" : /açık/i.test(car.condition || "") ? "Açık / Loose" : /kutu/i.test(car.condition || "") ? "Kutulu" : ""),
+      forSale: car.forSale === true || car.marketType === "Satılık",
+      forTrade: car.forTrade === true || car.marketType === "Takaslık",
+      estimatedValue: car.estimatedValue || car.salePrice || "",
       ...car,
+      quantity: Math.max(1, Number(car.quantity || 1)),
       condition: normalizeCondition(legacyMarketType ? "Sıfır / Kartonetli" : car.condition),
-      marketType: car.marketType || legacyMarketType
+      marketType: car.marketType || legacyMarketType,
+      packagingStatus: car.packagingStatus || (/kartonet/i.test(car.condition || "") ? "Kartonetli" : /açık/i.test(car.condition || "") ? "Açık / Loose" : /kutu/i.test(car.condition || "") ? "Kutulu" : ""),
+      forSale: car.forSale === true || car.marketType === "Satılık",
+      forTrade: car.forTrade === true || car.marketType === "Takaslık",
+      estimatedValue: car.estimatedValue || car.salePrice || ""
     };
   });
 
@@ -1765,6 +1836,7 @@ function render() {
   renderStorePagination();
 
   updateMetrics();
+  updateGarageDashboard();
   renderLeaderboard();
   renderRewardCenter();
   updateUserButton();
@@ -1863,10 +1935,12 @@ function renderStorePagination() {
 
 function syncAppShell() {
   const isHome = activeView === "home";
+  const isExplore = activeView === "explore";
   const isCommunity = activeView === "community";
   const isRewards = activeView === "rewards";
   const isAdmin = activeView === "admin";
   document.body.classList.toggle("is-home-view", isHome);
+  document.body.classList.toggle("is-explore-view", isExplore);
   document.body.classList.toggle("is-community-view", isCommunity);
   document.body.classList.toggle("is-rewards-view", isRewards);
   document.body.classList.toggle("is-admin-view", isAdmin);
@@ -1875,9 +1949,11 @@ function syncAppShell() {
   document.body.classList.toggle("is-collection-view", activeView === "collection");
   document.body.classList.toggle("is-wishlist-view", activeView === "wishlist");
   document.body.classList.toggle("is-module-view", !isHome && !isCommunity && !isRewards);
+  exploreModule?.classList.toggle("is-visible", isExplore);
   communityModule.classList.toggle("is-visible", isCommunity);
   rewardsModule.classList.toggle("is-visible", isRewards);
   if (isCommunity) syncCommunityHub();
+  if (isExplore) void window.HuntRadarExplore?.activate();
   if (dashboardPageTitle) dashboardPageTitle.textContent = DASHBOARD_VIEW_TITLES[activeView] || "Ana Sayfa";
   syncDashboardViewHeader();
 }
@@ -2289,6 +2365,10 @@ function focusActiveEntryForm(selector) {
 }
 
 function runDashboardViewAction(action = "primary") {
+  if (activeView === "explore") {
+    setActiveView(action === "secondary" ? "wishlist" : "collection", { clearSearch: true, scroll: true });
+    return;
+  }
   if (activeView === "stores" && action === "primary") {
     openRadarNoteModal();
     return;
@@ -2306,7 +2386,7 @@ function runDashboardViewAction(action = "primary") {
     return;
   }
   if (activeView === "collection" && action === "primary") {
-    focusActiveEntryForm("#catalogSearch");
+    navigateToView("explore", { clearSearch: true, scroll: true });
     return;
   }
   if (activeView === "wishlist" && action === "primary") {
@@ -2314,8 +2394,179 @@ function runDashboardViewAction(action = "primary") {
   }
 }
 
+function createGarageCollectionCard(item) {
+  if (window.HuntRadarVehicles) {
+    const vehicle = catalogVehicleIdentity(item);
+    const membership = getExploreMembership(vehicle);
+    return window.HuntRadarVehicles.createCard(vehicle, {
+      mode: "garage",
+      quantity: membership.quantity || garageQuantity(item),
+      onOpen: (selected) => window.HuntRadarExplore?.openDetail(selected, "garage"),
+      onGarageDelta: mutateExploreGarage,
+      onNotes: openExploreVehicleNotes
+    });
+  }
+  const card = document.createElement("article");
+  card.className = "garage-vehicle-card";
+  card.innerHTML = `
+    <div class="garage-vehicle-card__visual">
+      <div class="garage-vehicle-card__media car-card__media"></div>
+      <div class="garage-card-menu">
+        <button class="garage-card-menu__toggle" type="button" aria-label="Araç işlemleri" aria-expanded="false">•••</button>
+        <div class="garage-card-menu__panel" role="menu"></div>
+      </div>
+    </div>
+    <div class="garage-vehicle-card__body">
+      <div class="garage-vehicle-card__heading">
+        <div><h3></h3><p></p></div>
+        <span class="garage-vehicle-card__quantity"></span>
+      </div>
+      <div class="garage-vehicle-card__color"><i aria-hidden="true"></i><span></span></div>
+      <div class="garage-vehicle-card__badges"></div>
+    </div>
+  `;
+
+  const cardMedia = card.querySelector(".garage-vehicle-card__media");
+  renderCarMedia(cardMedia, item);
+  card.querySelector("h3").textContent = item.model || "İsimsiz araç";
+  card.querySelector(".garage-vehicle-card__heading p").textContent = garageSeriesYear(item);
+  card.querySelector(".garage-vehicle-card__quantity").textContent = `x${garageQuantity(item)}`;
+  const colorRow = card.querySelector(".garage-vehicle-card__color");
+  colorRow.querySelector("span").textContent = item.color || "Renk bilgisi yok";
+  colorRow.querySelector("i").style.setProperty("--garage-color", garageColorSwatch(item.color));
+  colorRow.classList.toggle("is-muted", !item.color);
+
+  const badges = card.querySelector(".garage-vehicle-card__badges");
+  const rarity = document.createElement("span");
+  rarity.className = `garage-badge garage-badge--${garageRarityTone(item)}`;
+  rarity.textContent = displayRarity(item.rarity) || "Regular";
+  const condition = document.createElement("span");
+  condition.className = "garage-badge garage-badge--condition";
+  condition.textContent = displayGarageCondition(item.condition);
+  badges.append(rarity, condition);
+
+  const menuToggle = card.querySelector(".garage-card-menu__toggle");
+  const menuPanel = card.querySelector(".garage-card-menu__panel");
+  addGarageMenuAction(menuPanel, "Detay", () => openGarageDetail(item));
+  if (isOwnedByCurrentUser("collection", item)) {
+    addGarageMenuAction(menuPanel, "Pazara koy", () => openMarketListingModal(item));
+    addGarageMenuAction(menuPanel, "Takaslık yap", () => openGarageTradeListing(item));
+    addGarageMenuAction(menuPanel, "Garajdan kaldır", () => void removeGarageItem(item), "danger");
+  }
+  menuToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = !menuPanel.classList.contains("is-visible");
+    closeGarageCardMenus();
+    menuPanel.classList.toggle("is-visible", willOpen);
+    menuToggle.setAttribute("aria-expanded", String(willOpen));
+  });
+
+  card.addEventListener("click", (event) => {
+    if (event.target.closest("button")) return;
+    openGarageDetail(item);
+  });
+  return card;
+}
+
+function addGarageMenuAction(target, label, action, tone = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.role = "menuitem";
+  button.textContent = label;
+  if (tone) button.classList.add(`garage-card-menu__action--${tone}`);
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeGarageCardMenus();
+    action();
+  });
+  target.appendChild(button);
+}
+
+function closeGarageCardMenus() {
+  document.querySelectorAll(".garage-card-menu__panel.is-visible").forEach((panel) => panel.classList.remove("is-visible"));
+  document.querySelectorAll(".garage-card-menu__toggle[aria-expanded='true']").forEach((button) => button.setAttribute("aria-expanded", "false"));
+}
+
+function openGarageTradeListing(item) {
+  openMarketListingModal(item);
+  marketListingForm.elements.marketType.value = "Takaslık";
+  syncMarketModalFields();
+}
+
+async function removeGarageItem(item) {
+  if (!isOwnedByCurrentUser("collection", item)) {
+    denyForeignRecordAction();
+    return;
+  }
+  const deleted = await deletePublicRecord("collection", item);
+  if (!deleted) return;
+  state.collection = state.collection.filter((entry) => entry.id !== item.id);
+  saveState();
+  closeGarageDetail();
+  render();
+  showToast("Araç garajından kaldırıldı.");
+}
+
+function openGarageDetail(item) {
+  currentGarageDetail = item;
+  renderCarMedia(garageDetailMedia, item);
+  garageDetailTitle.textContent = item.model || "Araç detayı";
+  garageDetailSubtitle.textContent = garageSeriesYear(item);
+  garageDetailFacts.innerHTML = "";
+  [
+    ["Renk", item.color || "Belirtilmedi"],
+    ["Nadirlik", displayRarity(item.rarity) || "Regular"],
+    ["Durum", displayGarageCondition(item.condition)],
+    ["Adet", `x${garageQuantity(item)}`],
+    ["Konum", item.location || "Belirtilmedi"]
+  ].forEach(([label, value]) => {
+    const fact = document.createElement("div");
+    const key = document.createElement("span");
+    const text = document.createElement("strong");
+    key.textContent = label;
+    text.textContent = value;
+    fact.append(key, text);
+    garageDetailFacts.appendChild(fact);
+  });
+  garageDetailActions.innerHTML = "";
+  if (isOwnedByCurrentUser("collection", item)) {
+    const marketButton = document.createElement("button");
+    marketButton.className = "button button--primary";
+    marketButton.type = "button";
+    marketButton.textContent = item.marketType ? "Pazar bilgisini düzenle" : "Pazara koy";
+    marketButton.addEventListener("click", () => {
+      closeGarageDetail();
+      openMarketListingModal(item);
+    });
+    garageDetailActions.appendChild(marketButton);
+  }
+  garageDetailModal.classList.add("is-visible");
+  garageDetailModal.setAttribute("aria-hidden", "false");
+}
+
+function closeGarageDetail() {
+  currentGarageDetail = null;
+  garageDetailModal.classList.remove("is-visible");
+  garageDetailModal.setAttribute("aria-hidden", "true");
+}
+
 function createCard(item) {
   if (activeView === "stores") return createStoreRadarCard(item);
+  if (activeView === "collection") return createGarageCollectionCard(item);
+  if (activeView === "wishlist" && window.HuntRadarVehicles) {
+    const vehicle = catalogVehicleIdentity(item);
+    const membership = getExploreMembership(vehicle);
+    return window.HuntRadarVehicles.createCard(vehicle, {
+      mode: "wishlist",
+      quantity: membership.quantity,
+      wishlisted: true,
+      onOpen: (selected) => window.HuntRadarExplore?.openDetail(selected, "wishlist"),
+      onGarageDelta: mutateExploreGarage,
+      onWishlistToggle: mutateExploreWishlist,
+      onNotes: openExploreVehicleNotes,
+      onRemove: mutateExploreWishlist
+    });
+  }
   const template = document.querySelector("#cardTemplate");
   const card = template.content.firstElementChild.cloneNode(true);
   const title = card.querySelector("h3");
@@ -2437,9 +2688,14 @@ function createCard(item) {
 
 function matchesViewFilters(item) {
   if (activeView === "collection") {
-    if (activeCollectionOwner === "Tümü") return true;
-    if (activeCollectionOwner === "Ortak") return ["Ortak", "İkimiz", "Saruhan + Ali"].includes(item.owner);
-    return displayPerson(item.owner) === activeCollectionOwner;
+    if (activeGarageFilter === "Regular") return !isGaragePremium(item) && !isGarageHunt(item) && !isGarageChase(item) && !isGarageSilver(item);
+    if (activeGarageFilter === "Premium") return isGaragePremium(item);
+    if (activeGarageFilter === "Chase") return isGarageChase(item);
+    if (activeGarageFilter === "Silver Series") return isGarageSilver(item);
+    if (activeGarageFilter === "TH/STH") return isGarageHunt(item);
+    if (activeGarageFilter === "Takaslık") return item.forTrade === true || item.marketType === "Takaslık";
+    if (activeGarageFilter === "Pazarda") return item.forSale === true || item.forTrade === true || ["Satılık", "Takaslık"].includes(item.marketType);
+    return true;
   }
 
   if (activeView === "market") {
@@ -2471,25 +2727,7 @@ function renderListFilters() {
   radarFilters.classList.toggle("is-visible", shouldShow);
 
   if (activeView === "collection") {
-    ["Tümü", "Saruhan", "Ali", "Ortak"].forEach((owner) => {
-      const count = owner === "Tümü"
-        ? state.collection.length
-        : state.collection.filter((car) => {
-            if (owner === "Ortak") return ["Ortak", "İkimiz", "Saruhan + Ali"].includes(car.owner);
-            return displayPerson(car.owner) === owner;
-          }).length;
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `radar-filter owner-filter owner-filter--${ownerTone(owner)}`;
-      button.classList.toggle("is-active", activeCollectionOwner === owner);
-      button.textContent = `${owner} ${count}`;
-      button.addEventListener("click", () => {
-        activeCollectionOwner = owner;
-        render();
-      });
-      radarFilters.appendChild(button);
-    });
+    radarFilters.classList.remove("is-visible");
     return;
   }
 
@@ -2795,6 +3033,13 @@ function sortActiveList(list) {
   if (activeView === "stores") {
     return [...list].sort((a, b) => marketDateValue(b) - marketDateValue(a));
   }
+  if (activeView === "collection") {
+    if (activeGarageSort === "model") {
+      return [...list].sort((a, b) => (a.model || "").localeCompare(b.model || "", "tr"));
+    }
+    if (activeGarageSort === "oldest") return [...list].reverse();
+    return list;
+  }
   if (activeView !== "market") return list;
   return [...list].sort((a, b) => {
     if (activeMarketSort === "Ucuzdan pahalıya") {
@@ -2854,8 +3099,64 @@ function displayRarity(value) {
 }
 
 function normalizeCondition(value) {
-  if (value === "Kutulu") return "Sıfır / Kartonetli";
   return value || "Sıfır / Kartonetli";
+}
+
+function displayGarageCondition(value) {
+  if (value === "Sıfır / Kartonetli") return "Kartonetli";
+  return value || "Kartonetli";
+}
+
+function garageQuantity(item) {
+  return Math.max(1, Number(item?.quantity || 1));
+}
+
+function isGaragePremium(item) {
+  return /premium|mattel creations/i.test(displayRarity(item?.rarity || ""));
+}
+
+function isGarageChase(item) {
+  return /chase/i.test([item?.rarity, item?.rarityLabel, item?.raritySegment, item?.variant, ...(Array.isArray(item?.features) ? item.features : [])].filter(Boolean).join(" "));
+}
+
+function isGarageSilver(item) {
+  return /silver series/i.test([displayRarity(item?.rarity || ""), item?.rarityLabel, item?.variant].filter(Boolean).join(" "));
+}
+
+function isGarageHunt(item) {
+  return /treasure hunt|\bTH\b|\bSTH\b/i.test([item?.rarity, item?.rarityLabel, item?.variant].filter(Boolean).join(" "));
+}
+
+function garageRarityTone(item) {
+  const rarity = [item?.rarity, item?.rarityLabel, item?.raritySegment, item?.variant].filter(Boolean).join(" ");
+  if (/chase/i.test(rarity)) return "chase";
+  if (/silver series|silver_series/i.test(rarity)) return "silver";
+  if (/super treasure hunt|\bSTH\b/i.test(rarity)) return "super";
+  if (/treasure hunt|\bTH\b/i.test(rarity)) return "hunt";
+  if (isGaragePremium(item)) return "premium";
+  return "regular";
+}
+
+function garageColorSwatch(color) {
+  const value = normalize(color || "");
+  if (/cok renk|multi|mixed|rainbow/.test(value)) return "conic-gradient(#e9533f, #e7bd45, #38a98e, #4f78d6, #a45bc0, #e9533f)";
+  if (/kirmizi|red/.test(value)) return "#df4d43";
+  if (/mavi|blue/.test(value)) return "#4f83d8";
+  if (/sari|yellow|gold/.test(value)) return "#e5bb3f";
+  if (/yesil|green/.test(value)) return "#4ca679";
+  if (/mor|purple/.test(value)) return "#9a65c4";
+  if (/turuncu|orange/.test(value)) return "#ed7a35";
+  if (/beyaz|white|pearl/.test(value)) return "#e9ecef";
+  if (/siyah|black/.test(value)) return "#252a30";
+  if (/gri|gray|grey|silver/.test(value)) return "#929aa2";
+  return "linear-gradient(135deg, #59636d, #30363d)";
+}
+
+function garageSeriesYear(item) {
+  const series = String(item?.series || "").trim();
+  const year = String(item?.year || "").trim();
+  if (!year || series.includes(year)) return series || year || "Seri bilgisi yok";
+  return `${series || "Seri bilgisi yok"} · ${year}`;
 }
 
 function ownerTone(value) {
@@ -5133,13 +5434,23 @@ function closeProfileModal() {
 
 function showToast(message) {
   if (!message) return;
-  toast.textContent = message;
+  const isDanger = /hata|başarısız|bulunmuyor|yüklenemedi|kaldırılamadı|kontrol et/i.test(message);
+  const isSuccess = /eklendi|kaydedildi|güncellendi|kopyalandı|kaldırıldı|puanı/i.test(message);
+  toast.dataset.tone = isDanger ? "danger" : isSuccess ? "success" : "info";
+  toast.querySelector(".toast__icon").textContent = isDanger ? "!" : isSuccess ? "✓" : "i";
+  toastMessage.textContent = message;
   toast.classList.add("is-visible");
   window.clearTimeout(showToast.timeoutId);
   showToast.timeoutId = window.setTimeout(() => {
-    toast.classList.remove("is-visible");
+    hideToast();
   }, 2800);
 }
+
+function hideToast() {
+  toast.classList.remove("is-visible");
+}
+
+closeToastButton?.addEventListener("click", hideToast);
 
 async function awardReward(type, meta = {}, successMessage = "") {
   if (!Rewards || !currentUser) return null;
@@ -5864,14 +6175,31 @@ function renderCarMedia(target, item) {
       if (consumeAppliedFallback(image)) return;
       if (useImageFallback(image)) return;
       target.classList.add("is-placeholder");
-      target.innerHTML = '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
+      target.innerHTML = target.classList.contains("garage-vehicle-card__media")
+        ? garageCardPlaceholderMarkup(item.model)
+        : '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
     });
     target.appendChild(image);
     return;
   }
 
   target.classList.add("is-placeholder");
-  target.innerHTML = '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
+  target.innerHTML = target.classList.contains("garage-vehicle-card__media")
+    ? garageCardPlaceholderMarkup(item.model)
+    : '<span class="mini-car mini-car--large" aria-hidden="true"></span>';
+}
+
+function garageCardPlaceholderMarkup(model = "Koleksiyon aracı") {
+  return `
+    <span class="garage-card-placeholder" aria-label="${escapeHtml(model)} görseli bulunamadı">
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="m2 4 3 12h14l3-12-6 5-4-7-4 7-6-5Z"></path>
+        <path d="M5 20h14"></path>
+      </svg>
+      <strong>${escapeHtml(model)}</strong>
+      <small>Görsel bekleniyor</small>
+    </span>
+  `;
 }
 
 function formatDate(value) {
@@ -5884,6 +6212,25 @@ function formatDateTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function updateGarageDashboard() {
+  if (!garageDashboard) return;
+  const totalFor = (predicate) => state.collection
+    .filter(predicate)
+    .reduce((total, item) => total + garageQuantity(item), 0);
+  garageStatTotal.textContent = String(totalFor(() => true));
+  garageStatRegular.textContent = String(totalFor((item) => !isGaragePremium(item) && !isGarageHunt(item) && !isGarageChase(item) && !isGarageSilver(item)));
+  garageStatPremium.textContent = String(totalFor(isGaragePremium));
+  garageStatTrade.textContent = String(totalFor((item) => item.forTrade === true || item.marketType === "Takaslık"));
+  garageStatMarket.textContent = String(totalFor((item) => item.forSale === true || item.forTrade === true || ["Satılık", "Takaslık"].includes(item.marketType)));
+  garageFilterChips?.querySelectorAll("[data-garage-filter]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.garageFilter === activeGarageFilter);
+  });
+  if (garageSortSelect && garageSortSelect.value !== activeGarageSort) garageSortSelect.value = activeGarageSort;
+  if (activeView === "collection" && garageSearchInput && garageSearchInput.value !== searchInput.value) {
+    garageSearchInput.value = searchInput.value;
+  }
 }
 
 function escapeHtml(value) {
@@ -5926,12 +6273,20 @@ function updateMetrics() {
 }
 
 function formToObject(form) {
-  return Object.fromEntries(new FormData(form).entries());
+  const result = Object.fromEntries(new FormData(form).entries());
+  form.querySelectorAll('input[type="checkbox"][name]').forEach((field) => {
+    result[field.name] = field.checked;
+  });
+  return result;
 }
 
 function setFormValues(form, values) {
   [...form.elements].forEach((field) => {
     if (!field.name || !(field.name in values)) return;
+    if (field.type === "checkbox") {
+      field.checked = Boolean(values[field.name]);
+      return;
+    }
     field.value = values[field.name] || "";
   });
 }
@@ -5963,9 +6318,19 @@ function normalizeCarEntry(entry) {
   const accountFields = currentUser
     ? { ownerUserId: currentUser.id, ownerUsername: currentUser.username }
     : {};
+  const garageFields = {
+    owner: entry.owner || currentUser?.username || "Saruhan",
+    quantity: Math.max(1, Number(entry.quantity || 1)),
+    location: String(entry.location || "").trim(),
+    packagingStatus: String(entry.packagingStatus || "").trim(),
+    forSale: entry.forSale === true || entry.forSale === "true",
+    forTrade: entry.forTrade === true || entry.forTrade === "true",
+    estimatedValue: String(entry.estimatedValue || "").trim()
+  };
   if (!entry.marketType) {
     return {
       ...entry,
+      ...garageFields,
       ...accountFields,
       listingStatus: "Kapalı",
       salePrice: "",
@@ -5975,10 +6340,338 @@ function normalizeCarEntry(entry) {
 
   return {
     ...entry,
+    ...garageFields,
     ...accountFields,
     listingStatus: entry.listingStatus || "Yayında",
     salePrice: entry.marketType === "Satılık" ? formatCurrency(entry.salePrice) : ""
   };
+}
+
+const GARAGE_EXPLORE_RPC_MISSING_CODES = new Set(["42883", "42P01", "PGRST202", "PGRST205"]);
+const LOCAL_VEHICLE_SUGGESTIONS_KEY = "hunt-radar-vehicle-suggestions-v1";
+let garageExploreMembershipRpcAvailable = true;
+
+function catalogVehicleIdentity(vehicle = {}) {
+  return window.HuntRadarVehicles?.normalize(vehicle) || vehicle;
+}
+
+function catalogEntryMatchesVehicle(entry = {}, rawVehicle = {}) {
+  const vehicle = catalogVehicleIdentity(rawVehicle);
+  const entryCatalogId = String(entry.catalogId || "");
+  const vehicleCatalogId = String(vehicle.catalogId || vehicle.id || "");
+  if (entryCatalogId && vehicleCatalogId) return entryCatalogId === vehicleCatalogId;
+  if (normalize(entry.model) !== normalize(vehicle.model)) return false;
+  const entryYear = String(entry.year || "").trim();
+  const vehicleYear = String(vehicle.year || "").trim();
+  const entryColor = normalize(entry.color);
+  const vehicleColor = normalize(vehicle.color);
+  const hasStableLegacySignal = Boolean((entryYear && vehicleYear) || (entryColor && vehicleColor));
+  if (!hasStableLegacySignal) return false;
+  if (entryYear && vehicleYear && entryYear !== vehicleYear) return false;
+  if (entryColor && vehicleColor && entryColor !== vehicleColor) return false;
+  return true;
+}
+
+function currentUserRecord(type, vehicle) {
+  if (!currentUser) return null;
+  return (state[type] || []).find((entry) => (
+    isOwnedByCurrentUser(type, entry) && catalogEntryMatchesVehicle(entry, vehicle)
+  )) || null;
+}
+
+function getExploreMembership(vehicle) {
+  const collectionEntry = currentUserRecord("collection", vehicle);
+  const wishlistEntry = currentUserRecord("wishlist", vehicle);
+  return {
+    quantity: collectionEntry ? garageQuantity(collectionEntry) : 0,
+    wishlisted: Boolean(wishlistEntry),
+    collectionEntry,
+    wishlistEntry
+  };
+}
+
+function vehicleCollectionRecord(rawVehicle, id = crypto.randomUUID()) {
+  const vehicle = catalogVehicleIdentity(rawVehicle);
+  const now = new Date().toISOString();
+  return ownedRecord("collection", normalizeCarEntry({
+    id,
+    catalogId: vehicle.catalogId,
+    brand: vehicle.brand,
+    model: vehicle.model,
+    series: vehicle.series,
+    year: vehicle.year,
+    color: vehicle.color,
+    rarity: vehicle.rarity,
+    photo: vehicle.imageUrl,
+    reference: vehicle.sourceUrl,
+    source: vehicle.sourceName || "Keşfet",
+    quantity: 1,
+    condition: "İyi",
+    packagingStatus: "Kartonetli",
+    forSale: false,
+    forTrade: false,
+    estimatedValue: "",
+    location: "",
+    notes: "",
+    addedDate: now.slice(0, 10),
+    createdAt: now,
+    updatedAt: now
+  }));
+}
+
+function vehicleWishlistRecord(rawVehicle, id = crypto.randomUUID()) {
+  const vehicle = catalogVehicleIdentity(rawVehicle);
+  return ownedRecord("wishlist", {
+    id,
+    catalogId: vehicle.catalogId,
+    brand: vehicle.brand,
+    model: vehicle.model,
+    series: vehicle.series,
+    year: vehicle.year,
+    color: vehicle.color,
+    rarity: vehicle.rarity,
+    photo: vehicle.imageUrl,
+    reference: vehicle.sourceUrl,
+    priority: "Denk gelirse",
+    budget: "",
+    notes: "",
+    createdAt: new Date().toISOString()
+  });
+}
+
+function runAfterAuth(action, message = "Bu işlem için önce giriş yapmalısın.") {
+  return new Promise((resolve) => {
+    if (currentUser) {
+      Promise.resolve(action()).then(resolve);
+      return;
+    }
+    pendingAuthAction = () => Promise.resolve(action()).then(resolve);
+    openAuthModal("login", message);
+  });
+}
+
+async function callMembershipRpc(vehicle, target, action) {
+  if (!supabaseClient || !garageExploreMembershipRpcAvailable) return { fallback: true };
+  const catalogId = catalogVehicleIdentity(vehicle).catalogId;
+  if (!catalogId) return { fallback: true };
+  const { data, error } = await supabaseClient.rpc("mutate_vehicle_membership", {
+    p_catalog_id: catalogId,
+    p_target: target,
+    p_action: action
+  });
+  if (error) {
+    if (GARAGE_EXPLORE_RPC_MISSING_CODES.has(error.code)) {
+      garageExploreMembershipRpcAvailable = false;
+      return { fallback: true };
+    }
+    throw error;
+  }
+  return { fallback: false, data: data || {} };
+}
+
+function refreshAfterVehicleMutation(vehicle) {
+  saveState();
+  updateMetrics();
+  updateGarageDashboard();
+  if (activeView !== "explore") render();
+  window.HuntRadarExplore?.membershipChanged(vehicle);
+}
+
+async function mutateExploreGarage(rawVehicle, delta) {
+  return runAfterAuth(async () => {
+    const vehicle = catalogVehicleIdentity(rawVehicle);
+    const beforeCollection = structuredClone(state.collection);
+    let membership = getExploreMembership(vehicle);
+    let entry = membership.collectionEntry;
+    let created = false;
+    let removed = false;
+
+    if (!entry && delta < 0) return false;
+    if (!entry) {
+      entry = vehicleCollectionRecord(vehicle);
+      state.collection.unshift(entry);
+      created = true;
+    } else {
+      const quantity = Math.max(0, garageQuantity(entry) + delta);
+      if (quantity <= 0) {
+        state.collection = state.collection.filter((item) => item.id !== entry.id);
+        removed = true;
+      } else {
+        entry.quantity = quantity;
+        entry.updatedAt = new Date().toISOString();
+      }
+    }
+    refreshAfterVehicleMutation(vehicle);
+
+    try {
+      const action = removed ? "remove" : created ? "add" : delta > 0 ? "increment" : "decrement";
+      const remote = await callMembershipRpc(vehicle, "collection", action);
+      if (remote.fallback) {
+        const synced = removed
+          ? await deletePublicRecord("collection", entry)
+          : (supabaseClient ? await syncPublicRecord("collection", entry) : true);
+        if (!synced) throw new Error("Garaj kaydı eşitlenemedi.");
+      } else if (entry && remote.data?.record_id && entry.id !== remote.data.record_id) {
+        entry.id = remote.data.record_id;
+      }
+      if (created) await rewardNewEntry("collection", entry);
+      refreshAfterVehicleMutation(vehicle);
+      const quantity = getExploreMembership(vehicle).quantity;
+      showToast(quantity
+        ? `${vehicle.model} garajına eklendi. Adet: ${quantity}`
+        : `${vehicle.model} garajından kaldırıldı.`);
+      return true;
+    } catch (error) {
+      state.collection = beforeCollection;
+      refreshAfterVehicleMutation(vehicle);
+      console.error("Keşfet Garaj işlemi başarısız:", error);
+      showToast("Garaj işlemi kaydedilemedi. Değişiklik geri alındı.");
+      return false;
+    }
+  }, "Aracı Garajına eklemek için hesabına giriş yap.");
+}
+
+async function mutateExploreWishlist(rawVehicle) {
+  return runAfterAuth(async () => {
+    const vehicle = catalogVehicleIdentity(rawVehicle);
+    const beforeWishlist = structuredClone(state.wishlist);
+    const membership = getExploreMembership(vehicle);
+    const existing = membership.wishlistEntry;
+    const removing = Boolean(existing);
+    const entry = existing || vehicleWishlistRecord(vehicle);
+    if (removing) state.wishlist = state.wishlist.filter((item) => item.id !== existing.id);
+    else state.wishlist.unshift(entry);
+    refreshAfterVehicleMutation(vehicle);
+
+    try {
+      const remote = await callMembershipRpc(vehicle, "wishlist", "toggle");
+      if (remote.fallback) {
+        const synced = removing
+          ? await deletePublicRecord("wishlist", entry)
+          : (supabaseClient ? await syncPublicRecord("wishlist", entry) : true);
+        if (!synced) throw new Error("Wishlist kaydı eşitlenemedi.");
+      } else if (!removing && remote.data?.record_id) {
+        entry.id = remote.data.record_id;
+      }
+      refreshAfterVehicleMutation(vehicle);
+      showToast(removing
+        ? `${vehicle.model} istek listesinden çıkarıldı.`
+        : `${vehicle.model} istek listene eklendi.`);
+      return true;
+    } catch (error) {
+      state.wishlist = beforeWishlist;
+      refreshAfterVehicleMutation(vehicle);
+      console.error("Keşfet Wishlist işlemi başarısız:", error);
+      showToast("Wishlist işlemi kaydedilemedi. Değişiklik geri alındı.");
+      return false;
+    }
+  }, "Wishlist kullanmak için hesabına giriş yap.");
+}
+
+function openExploreVehicleNotes(vehicle) {
+  const entry = getExploreMembership(vehicle).collectionEntry;
+  if (!entry) {
+    showToast("Not eklemek için aracı önce Garajına eklemelisin.");
+    return;
+  }
+  window.HuntRadarVehicles?.closeDetail();
+  startCarEdit(entry);
+}
+
+function readLocalVehicleSuggestions() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_VEHICLE_SUGGESTIONS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalVehicleSuggestions(items) {
+  localStorage.setItem(LOCAL_VEHICLE_SUGGESTIONS_KEY, JSON.stringify(items));
+}
+
+async function submitExploreVehicleSuggestion(payload) {
+  return runAfterAuth(async () => {
+    const record = {
+      id: crypto.randomUUID(),
+      user_id: currentUser.id,
+      model_name: String(payload.model_name || "").trim(),
+      brand: String(payload.brand || "").trim() || null,
+      release_year: payload.release_year ? Number(payload.release_year) : null,
+      toy_number: String(payload.toy_number || "").trim() || null,
+      item_number: String(payload.item_number || "").trim() || null,
+      casting_number: String(payload.casting_number || "").trim() || null,
+      source_url: String(payload.source_url || "").trim() || null,
+      notes: String(payload.notes || "").trim() || null,
+      status: "pending",
+      created_at: new Date().toISOString()
+    };
+    if (!record.model_name) return false;
+    if (supabaseClient) {
+      const { error } = await supabaseClient.from("vehicle_suggestions").insert(record);
+      if (!error) return true;
+      if (!GARAGE_EXPLORE_RPC_MISSING_CODES.has(error.code)) {
+        console.error("Araç önerisi kaydedilemedi:", error);
+        showToast("Araç önerisi gönderilemedi.");
+        return false;
+      }
+    }
+    const local = readLocalVehicleSuggestions();
+    local.unshift({ ...record, local: true });
+    writeLocalVehicleSuggestions(local);
+    return true;
+  }, "Araç önermek için hesabına giriş yap.");
+}
+
+async function listExploreVehicleSuggestions() {
+  if (!isAdminUser()) return [];
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from("vehicle_suggestions")
+      .select("id,user_id,model_name,brand,release_year,toy_number,item_number,casting_number,source_url,notes,status,created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (!error) return data || [];
+    if (!GARAGE_EXPLORE_RPC_MISSING_CODES.has(error.code)) console.warn("Araç önerileri okunamadı:", error.message);
+  }
+  return readLocalVehicleSuggestions();
+}
+
+async function reviewExploreVehicleSuggestion(item, status, catalogId) {
+  if (!isAdminUser()) return false;
+  if (supabaseClient && !item.local) {
+    const { error } = await supabaseClient.rpc("review_vehicle_suggestion", {
+      p_suggestion_id: item.id,
+      p_status: status,
+      p_catalog_id: catalogId,
+      p_catalog_data: {
+        model_name: item.model_name,
+        brand: item.brand,
+        release_year: item.release_year,
+        toy_number: item.toy_number,
+        item_number: item.item_number,
+        casting_number: item.casting_number,
+        source_url: item.source_url,
+        color: "",
+        rarity_segment: "regular"
+      }
+    });
+    if (!error) {
+      showToast(status === "approved" ? "Araç önerisi kataloğa onaylandı." : "Araç önerisi reddedildi.");
+      return true;
+    }
+    if (!GARAGE_EXPLORE_RPC_MISSING_CODES.has(error.code)) {
+      console.error("Araç önerisi incelenemedi:", error);
+      showToast(error.message || "Öneri incelenemedi.");
+      return false;
+    }
+  }
+  const local = readLocalVehicleSuggestions().map((suggestion) => (
+    suggestion.id === item.id ? { ...suggestion, status, reviewed_at: new Date().toISOString() } : suggestion
+  ));
+  writeLocalVehicleSuggestions(local);
+  showToast(status === "approved" ? "Yerel öneri onaylandı." : "Yerel öneri reddedildi.");
+  return true;
 }
 
 function setupCatalogSelect() {
@@ -6014,6 +6707,7 @@ function setupAdminPanel() {
 function setAdminTab(tab) {
   adminTabs.forEach((button) => button.classList.toggle("is-active", button.dataset.adminTab === tab));
   adminSections.forEach((section) => section.classList.toggle("is-active", section.dataset.adminSection === tab));
+  if (tab === "vehicle-suggestions") void window.HuntRadarExplore?.refreshAdminSuggestions();
 }
 
 function renderAdminCenter() {
@@ -6290,7 +6984,21 @@ function applyCatalogSelection() {
 function applyCatalogItem(selected) {
   applyCatalogRules(selected?.id);
   if (!selected) {
-    setFormValues(carForm, { color: "", photo: "", cropZoom: "1", cropX: "50", cropY: "50" });
+    setFormValues(carForm, {
+      catalogId: "",
+      brand: "",
+      model: "",
+      series: "",
+      year: "",
+      color: "",
+      rarity: "Regular",
+      photo: "",
+      reference: "",
+      cropZoom: "1",
+      cropX: "50",
+      cropY: "50"
+    });
+    syncGarageSelectedVehicle(null);
     applyImageRules();
     updatePhotoPreview();
     return;
@@ -6299,65 +7007,258 @@ function applyCatalogItem(selected) {
   renderCatalogOptions();
   catalogSelect.value = selected.id;
   setFormValues(carForm, {
+    catalogId: selected.id,
+    brand: selected.brand || "",
     model: getCatalogModel(selected),
-    series: [selected.series, selected.seriesNo ? `${selected.year || ""} ${selected.seriesNo}`.trim() : ""].filter(Boolean).join(" · "),
+    series: selected.series || selected.assortment || "",
+    year: selected.year || "",
     color: getCatalogColor(selected),
     rarity: getCatalogRarity(selected),
     photo: getCatalogPhoto(selected),
     reference: selected.reference,
     ...getCatalogCrop(selected)
   });
+  syncGarageSelectedVehicle(selected);
   applyImageRules();
   updatePhotoPreview();
   closeCatalogResults();
+}
+
+function syncGarageSelectedVehicle(selected) {
+  const hasSelection = Boolean(selected || carForm.elements.model.value);
+  const fallback = selected || {
+    brand: carForm.elements.brand?.value || "",
+    model: carForm.elements.model.value,
+    series: carForm.elements.series.value,
+    year: carForm.elements.year?.value || "",
+    color: carForm.elements.color.value,
+    rarity: carForm.elements.rarity.value
+  };
+  garageSelectedVehicle?.classList.toggle("is-empty", !hasSelection);
+  garageSelectedModel.textContent = hasSelection ? getCatalogModel(fallback) : "Henüz araç seçilmedi";
+  garageSelectedBrand.textContent = fallback.brand || "-";
+  garageSelectedSeries.textContent = fallback.series || fallback.assortment || "-";
+  garageSelectedYear.textContent = fallback.year || "-";
+  garageSelectedColor.textContent = hasSelection ? getCatalogColor(fallback) || "Belirtilmedi" : "-";
+  garageSelectedRarity.textContent = hasSelection ? getCatalogVariantLabel(fallback) : "Katalog";
+  garageSelectedRarity.className = `garage-selected__rarity${hasSelection ? ` garage-selected__rarity--${garageRarityTone(fallback)}` : ""}`;
+}
+
+function catalogSearchText(car) {
+  return normalize([
+    car.brand,
+    car.model,
+    car.series,
+    car.assortment,
+    car.mix,
+    car.seriesNo,
+    car.year,
+    car.toyNo,
+    car.colNo,
+    car.color,
+    car.rarity,
+    car.rarityLabel,
+    car.variant,
+    car.category,
+    car.source
+  ].join(" "));
+}
+
+function catalogVariantIdentity(car) {
+  const stableCode = [car.toyNo, car.colNo].filter(Boolean).join("|");
+  return [
+    car.brand,
+    getCatalogModel(car),
+    car.year,
+    car.series,
+    car.assortment,
+    car.mix,
+    car.seriesNo,
+    getCatalogColor(car),
+    getCatalogVariantLabel(car),
+    stableCode,
+    stableCode ? "" : getCatalogPhoto(car)
+  ].map((value) => normalize(value)).join("|");
+}
+
+function uniqueCatalogVariants(matches) {
+  const unique = new Map();
+  matches.forEach((car) => {
+    const key = catalogVariantIdentity(car);
+    if (!unique.has(key)) unique.set(key, car);
+  });
+  return [...unique.values()];
+}
+
+function catalogGroupKey(car) {
+  return `${normalize(car.brand)}|${normalize(getCatalogModel(car))}`;
+}
+
+function catalogMatchScore(car, query) {
+  const model = normalize(getCatalogModel(car));
+  const brand = normalize(car.brand);
+  if (model === query) return 0;
+  if (model.startsWith(query)) return 1;
+  if (brand === query) return 2;
+  if (model.includes(query)) return 3;
+  if (brand.startsWith(query)) return 4;
+  return 5;
+}
+
+function groupCatalogMatches(matches, query) {
+  const groups = new Map();
+  matches.forEach((car) => {
+    const key = catalogGroupKey(car);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        brand: car.brand || "Hot Wheels",
+        model: getCatalogModel(car),
+        score: catalogMatchScore(car, query),
+        variants: []
+      });
+    }
+    const group = groups.get(key);
+    group.score = Math.min(group.score, catalogMatchScore(car, query));
+    group.variants.push(car);
+  });
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      variants: group.variants.sort((a, b) => {
+        const yearDifference = Number(b.year || 0) - Number(a.year || 0);
+        if (yearDifference) return yearDifference;
+        return [a.series, a.color, a.rarity].filter(Boolean).join(" ")
+          .localeCompare([b.series, b.color, b.rarity].filter(Boolean).join(" "), "tr");
+      })
+    }))
+    .sort((a, b) => a.score - b.score || a.model.localeCompare(b.model, "tr"));
+}
+
+function createCatalogResultButton(car) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "catalog-result";
+  button.classList.toggle("is-selected", carForm.elements.catalogId.value === car.id);
+  button.innerHTML = catalogResultTemplate(car);
+  button.addEventListener("click", () => {
+    catalogSearch.value = catalogOptionLabel(car);
+    applyCatalogItem(car);
+  });
+  return button;
+}
+
+function catalogGroupMediaTemplate(car) {
+  const photo = getCatalogPhoto(car);
+  if (!photo) return '<span class="mini-car" aria-hidden="true"></span>';
+  return `<img ${imageSourceAttributes(photo)} alt="${escapeHtml(getCatalogModel(car))} görseli" loading="lazy" onerror="handleCatalogResultImageError(this)" />`;
+}
+
+function rerenderCatalogSearchPreservingScroll() {
+  const scrollTop = catalogResults.scrollTop;
+  renderCatalogSearchResults();
+  window.requestAnimationFrame(() => {
+    catalogResults.scrollTop = scrollTop;
+  });
+}
+
+function renderCatalogModelGroup(group, autoExpand = false) {
+  if (group.variants.length === 1) return createCatalogResultButton(group.variants[0]);
+
+  const expanded = autoExpand || garageCatalogExpandedGroups.has(group.key);
+  const section = document.createElement("details");
+  section.className = "catalog-model-group";
+  section.open = expanded;
+
+  const representative = group.variants.find((car) => getCatalogPhoto(car)) || group.variants[0];
+  const toggle = document.createElement("summary");
+  toggle.className = "catalog-model-group__toggle";
+  toggle.innerHTML = `
+    <span class="catalog-result__media">${catalogGroupMediaTemplate(representative)}</span>
+    <span class="catalog-model-group__body">
+      <strong>${escapeHtml(group.model)}</strong>
+      <span>${escapeHtml(group.brand)}</span>
+    </span>
+    <span class="catalog-model-group__count">${group.variants.length} varyant</span>
+    <span class="catalog-model-group__chevron" aria-hidden="true"></span>
+  `;
+  section.addEventListener("toggle", () => {
+    if (section.open) garageCatalogExpandedGroups.add(group.key);
+    else garageCatalogExpandedGroups.delete(group.key);
+  });
+  section.appendChild(toggle);
+
+  const variants = document.createElement("div");
+  variants.className = "catalog-model-group__variants";
+  const visibleCount = garageCatalogVisibleVariantCounts.get(group.key) || 12;
+  group.variants.slice(0, visibleCount).forEach((car) => variants.appendChild(createCatalogResultButton(car)));
+
+  if (visibleCount < group.variants.length) {
+    const remaining = group.variants.length - visibleCount;
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "catalog-results__more catalog-results__more--variants";
+    more.textContent = `${remaining} varyant daha göster`;
+    more.addEventListener("click", () => {
+      garageCatalogVisibleVariantCounts.set(group.key, visibleCount + 12);
+      garageCatalogExpandedGroups.add(group.key);
+      rerenderCatalogSearchPreservingScroll();
+    });
+    variants.appendChild(more);
+  }
+  section.appendChild(variants);
+
+  return section;
 }
 
 function renderCatalogSearchResults() {
   const query = normalize(catalogSearch.value.trim());
   catalogResults.innerHTML = "";
 
+  if (query !== garageCatalogSearchQuery) {
+    garageCatalogSearchQuery = query;
+    garageCatalogVisibleGroupCount = 12;
+    garageCatalogExpandedGroups.clear();
+    garageCatalogVisibleVariantCounts.clear();
+  }
+
   if (query.length < 2) {
     catalogResults.classList.remove("is-visible");
     return;
   }
 
-  const matches = ALL_CATALOG
-    .filter((car) => normalize([
-      car.brand,
-      car.model,
-      car.series,
-      car.assortment,
-      car.mix,
-      car.seriesNo,
-      car.year,
-      car.toyNo,
-      car.colNo,
-      car.color,
-      car.rarity,
-      car.rarityLabel,
-      car.variant,
-      car.category,
-      car.source
-    ].join(" ")).includes(query))
-    .slice(0, 8);
+  const matches = uniqueCatalogVariants(ALL_CATALOG.filter((car) => catalogSearchText(car).includes(query)));
+  const groups = groupCatalogMatches(matches, query);
 
-  if (!matches.length) {
+  if (!groups.length) {
     catalogResults.classList.add("is-visible");
-    catalogResults.innerHTML = '<div class="catalog-empty">Katalogda bulunamadı, elle ekleyebilirsin.</div>';
+    catalogResults.innerHTML = '<div class="catalog-empty">Bu aramayla eşleşen katalog aracı bulunamadı.</div>';
     return;
   }
 
-  matches.forEach((car) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "catalog-result";
-    button.innerHTML = catalogResultTemplate(car);
-    button.addEventListener("click", () => {
-      catalogSearch.value = catalogOptionLabel(car);
-      applyCatalogItem(car);
-    });
-    catalogResults.appendChild(button);
+  const summary = document.createElement("div");
+  summary.className = "catalog-results__summary";
+  summary.innerHTML = `<strong>${groups.length} model</strong><span>${matches.length} varyant bulundu</span>`;
+  catalogResults.appendChild(summary);
+
+  const autoExpand = groups.length === 1;
+  groups.slice(0, garageCatalogVisibleGroupCount).forEach((group) => {
+    catalogResults.appendChild(renderCatalogModelGroup(group, autoExpand));
   });
+
+  if (garageCatalogVisibleGroupCount < groups.length) {
+    const remaining = groups.length - garageCatalogVisibleGroupCount;
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "catalog-results__more";
+    more.textContent = `${remaining} model daha göster`;
+    more.addEventListener("click", () => {
+      garageCatalogVisibleGroupCount += 12;
+      rerenderCatalogSearchPreservingScroll();
+    });
+    catalogResults.appendChild(more);
+  }
 
   catalogResults.classList.add("is-visible");
 }
@@ -6449,6 +7350,7 @@ function catalogResultTemplate(car) {
       <span class="catalog-result__chips">${facts.map((fact) => `<em>${fact}</em>`).join("")}</span>
       <span class="catalog-result__codes">${codes.join(" · ")}</span>
     </span>
+    <span class="catalog-result__select">Seç</span>
   `;
 }
 
@@ -6698,6 +7600,40 @@ function setAdminStatus(message) {
   adminSaveStatus.classList.toggle("is-visible", Boolean(message));
 }
 
+function openGarageDrawer(options = {}) {
+  if (!options.preserve && !editingCarId) resetGarageForm();
+  document.body.classList.add("is-garage-drawer-open");
+  garageDrawerBackdrop?.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => catalogSearch?.focus(), 180);
+}
+
+function closeGarageDrawer() {
+  document.body.classList.remove("is-garage-drawer-open");
+  garageDrawerBackdrop?.setAttribute("aria-hidden", "true");
+  closeCatalogResults();
+}
+
+function resetGarageForm() {
+  editingCarId = null;
+  carForm.reset();
+  catalogSearch.value = "";
+  brandSelect.value = "";
+  catalogSelect.value = "";
+  renderCatalogOptions();
+  applyCatalogRules("");
+  applyCatalogItem(null);
+  garageQuantityInput.value = "1";
+  syncMarketFields();
+  carSubmitButton.textContent = "Garajıma ekle";
+  cancelCarEdit.classList.remove("is-visible");
+  carForm.querySelector("h2").textContent = "Kataloğa göre araç ekle";
+}
+
+function changeGarageQuantity(delta) {
+  const next = Math.min(99, Math.max(1, Number(garageQuantityInput.value || 1) + delta));
+  garageQuantityInput.value = String(next);
+}
+
 function startCarEdit(item) {
   if (!isOwnedByCurrentUser("collection", item)) {
     denyForeignRecordAction();
@@ -6706,7 +7642,9 @@ function startCarEdit(item) {
   editingCarId = item.id;
   marketPickMode = false;
   setActiveView("collection", { clearSearch: true, scroll: true });
-  const catalogItem = ALL_CATALOG.find((car) => car.model === item.model);
+  const catalogItem = ALL_CATALOG.find((car) => car.id === item.catalogId)
+    || ALL_CATALOG.find((car) => car.model === item.model && getCatalogPhoto(car) === item.photo)
+    || ALL_CATALOG.find((car) => car.model === item.model);
   brandSelect.value = catalogItem?.brand || "";
   renderCatalogOptions();
   catalogSelect.value = catalogItem?.id || "";
@@ -6714,26 +7652,18 @@ function startCarEdit(item) {
     ...item,
     rarity: displayRarity(item.rarity)
   });
+  syncGarageSelectedVehicle(catalogItem || null);
+  updatePhotoPreview();
   carSubmitButton.textContent = "Değişiklikleri kaydet";
   cancelCarEdit.classList.add("is-visible");
-  carForm.querySelector("h2").textContent = "Arabayı düzenle";
+  carForm.querySelector("h2").textContent = "Garaj aracını düzenle";
   syncMarketFields();
+  openGarageDrawer({ preserve: true });
 }
 
 function stopCarEdit() {
-  editingCarId = null;
-  carForm.reset();
-  catalogSearch.value = "";
-  closeCatalogResults();
-  brandSelect.value = "";
-  catalogSelect.value = "";
-  renderCatalogOptions();
-  applyCatalogRules("");
-  updatePhotoPreview();
-  syncMarketFields();
-  carSubmitButton.textContent = "Garaja ekle";
-  cancelCarEdit.classList.remove("is-visible");
-  carForm.querySelector("h2").textContent = "Araba ekle";
+  resetGarageForm();
+  closeGarageDrawer();
 }
 
 function storeFormToObject(form, photos = []) {
@@ -6807,6 +7737,10 @@ function addEntry(type, entry) {
   const record = ownedRecord(type, {
     id: crypto.randomUUID(),
     ...entry,
+    ...(type === "collection" ? {
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString()
+    } : {}),
     ...(type === "stores" ? {
       date: now.toLocaleDateString("tr-TR"),
       createdAt: now.toISOString(),
@@ -6914,7 +7848,10 @@ function setActiveView(view, options = {}) {
     return;
   }
   const enteringStores = view === "stores" && activeView !== "stores";
+  const leavingExplore = view !== "explore" && activeView === "explore";
   activeView = view;
+
+  if (leavingExplore) window.HuntRadarExplore?.deactivate();
 
   if (options.clearSearch) {
     searchInput.value = "";
@@ -6930,6 +7867,10 @@ function setActiveView(view, options = {}) {
 
   if (view !== "collection") {
     activeCollectionOwner = "Tümü";
+    activeGarageFilter = "Tümü";
+    activeGarageSort = "newest";
+    closeGarageDrawer();
+    closeGarageDetail();
   }
 
   if (view !== "market") {
@@ -6975,6 +7916,8 @@ function setActiveView(view, options = {}) {
         ? communityModule
         : activeView === "rewards"
           ? rewardsModule
+          : activeView === "explore"
+            ? exploreModule
           : document.querySelector("#workspace");
     target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -7318,6 +8261,11 @@ messageForm.addEventListener("submit", (event) => {
 
 carForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!carForm.elements.catalogId.value || !carForm.elements.model.value) {
+    showToast("Önce katalogdan bir araç seçmelisin.");
+    catalogSearch.focus();
+    return;
+  }
   requireAuth(() => {
     const entry = normalizeCarEntry(formToObject(event.currentTarget));
     if (editingCarId) {
@@ -7341,16 +8289,58 @@ carForm.addEventListener("submit", (event) => {
       });
       stopCarEdit();
       render();
+      showToast("Garaj kaydı güncellendi.");
       return;
     }
 
+    const existingCatalogEntry = state.collection.find((car) => (
+      isOwnedByCurrentUser("collection", car)
+      && entry.catalogId
+      && car.catalogId === entry.catalogId
+    ));
+    if (existingCatalogEntry) {
+      existingCatalogEntry.quantity = Math.min(999, garageQuantity(existingCatalogEntry) + Math.max(1, Number(entry.quantity || 1)));
+      existingCatalogEntry.updatedAt = new Date().toISOString();
+      saveState();
+      void syncPublicRecord("collection", existingCatalogEntry);
+      resetGarageForm();
+      closeGarageDrawer();
+      render();
+      showToast(`${existingCatalogEntry.model} garajında ${existingCatalogEntry.quantity} adet oldu.`);
+      return;
+    }
     addEntry("collection", entry);
-    event.currentTarget.reset();
-    syncMarketFields();
+    resetGarageForm();
+    closeGarageDrawer();
+    showToast("Araç garajına eklendi.");
   });
 });
 
 cancelCarEdit.addEventListener("click", stopCarEdit);
+openGarageDrawerButton?.addEventListener("click", () => navigateToView("explore", { clearSearch: true, scroll: true }));
+closeGarageDrawerButton?.addEventListener("click", closeGarageDrawer);
+garageDrawerBackdrop?.addEventListener("click", closeGarageDrawer);
+garageQuantityDecrease?.addEventListener("click", () => changeGarageQuantity(-1));
+garageQuantityIncrease?.addEventListener("click", () => changeGarageQuantity(1));
+garageQuantityInput?.addEventListener("change", () => changeGarageQuantity(0));
+garageFilterChips?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-garage-filter]");
+  if (!button) return;
+  activeGarageFilter = button.dataset.garageFilter;
+  render();
+});
+garageSortSelect?.addEventListener("change", () => {
+  activeGarageSort = garageSortSelect.value;
+  render();
+});
+garageSearchInput?.addEventListener("input", () => {
+  searchInput.value = garageSearchInput.value;
+  render();
+});
+closeGarageDetailButton?.addEventListener("click", closeGarageDetail);
+garageDetailModal?.addEventListener("click", (event) => {
+  if (event.target === garageDetailModal) closeGarageDetail();
+});
 catalogSelect.addEventListener("change", applyCatalogSelection);
 catalogSearch.addEventListener("input", renderCatalogSearchResults);
 catalogSearch.addEventListener("keydown", (event) => {
@@ -7458,6 +8448,7 @@ storePhotoPicker.addEventListener("drop", (event) => addStorePhotoFiles(event.da
 
 document.addEventListener("click", () => {
   closeStoreFilterMenus();
+  closeGarageCardMenus();
   document.querySelectorAll(".store-radar-card__more.is-open").forEach((menu) => {
     menu.classList.remove("is-open");
     menu.querySelector(".store-radar-card__more-trigger")?.setAttribute("aria-expanded", "false");
@@ -7467,6 +8458,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeStoreFilterMenus();
   if (event.key === "Escape") closeDashboardMenu();
   if (event.key === "Escape") closeAccountMenu();
+  if (event.key === "Escape" && document.body.classList.contains("is-garage-drawer-open")) closeGarageDrawer();
+  if (event.key === "Escape" && garageDetailModal?.classList.contains("is-visible")) closeGarageDetail();
   if (event.key === "Escape" && savedRadarModal?.classList.contains("is-visible")) closeSavedRadarModal();
   if (event.key === "Escape" && storeDetailModal?.classList.contains("is-visible")) closeStoreDetail();
   if (event.key === "Escape" && radarNoteModalBackdrop.classList.contains("is-visible")) {
@@ -7490,6 +8483,19 @@ searchInput.addEventListener("input", () => {
     return;
   }
   scheduleStoreSearch();
+});
+
+window.HuntRadarExplore?.configure({
+  supabase: supabaseClient,
+  getMembership: getExploreMembership,
+  onGarageDelta: mutateExploreGarage,
+  onWishlistToggle: mutateExploreWishlist,
+  onNotes: openExploreVehicleNotes,
+  submitSuggestion: submitExploreVehicleSuggestion,
+  listSuggestions: listExploreVehicleSuggestions,
+  reviewSuggestion: reviewExploreVehicleSuggestion,
+  isAdmin: () => isAdminUser(),
+  showToast
 });
 
 setupCatalogSelect();

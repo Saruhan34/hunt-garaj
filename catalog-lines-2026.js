@@ -3085,7 +3085,11 @@ window.HW_LINES_2026 = {
           "casting": "’95 Mitsubishi Eclipse",
           "image": "https://orangetrackdiecast.com/wp-content/uploads/2025/10/jhw68_hotwheels2026fastfuriouspremium_mix1_1_95mitsubishieclipse.jpg",
           "sourceLinks": [],
-          "features": [],
+          "features": [
+            "CHASE"
+          ],
+          "rarity": "Chase",
+          "raritySegment": "chase",
           "extra": {},
           "rawColumns": {
             "#": "1/5",
@@ -3192,7 +3196,11 @@ window.HW_LINES_2026 = {
           "casting": "’95 Mazda RX-7",
           "image": "https://orangetrackdiecast.com/wp-content/uploads/2025/12/jhw71_hotwheels2026-fastandfuriouspremium-mix2-1-1995mazdarx7.jpg",
           "sourceLinks": [],
-          "features": [],
+          "features": [
+            "CHASE"
+          ],
+          "rarity": "Chase",
+          "raritySegment": "chase",
           "extra": {},
           "rawColumns": {
             "#": "1/5",
@@ -3289,7 +3297,11 @@ window.HW_LINES_2026 = {
           "casting": "’70 Dodge Charger R/T",
           "image": "https://orangetrackdiecast.com/wp-content/uploads/2026/01/jhw74_2026hotwheelsfastandfuriouspremium_1970dodgechargerrt.jpg",
           "sourceLinks": [],
-          "features": [],
+          "features": [
+            "CHASE"
+          ],
+          "rarity": "Chase",
+          "raritySegment": "chase",
           "extra": {},
           "rawColumns": {
             "#": "1/5",
@@ -11633,7 +11645,11 @@ window.HW_LINES_2026 = {
       "casting": "’95 Mitsubishi Eclipse",
       "image": "https://orangetrackdiecast.com/wp-content/uploads/2025/10/jhw68_hotwheels2026fastfuriouspremium_mix1_1_95mitsubishieclipse.jpg",
       "sourceLinks": [],
-      "features": [],
+      "features": [
+        "CHASE"
+      ],
+      "rarity": "Chase",
+      "raritySegment": "chase",
       "extra": {},
       "rawColumns": {
         "#": "1/5",
@@ -11753,7 +11769,11 @@ window.HW_LINES_2026 = {
       "casting": "’95 Mazda RX-7",
       "image": "https://orangetrackdiecast.com/wp-content/uploads/2025/12/jhw71_hotwheels2026-fastandfuriouspremium-mix2-1-1995mazdarx7.jpg",
       "sourceLinks": [],
-      "features": [],
+      "features": [
+        "CHASE"
+      ],
+      "rarity": "Chase",
+      "raritySegment": "chase",
       "extra": {},
       "rawColumns": {
         "#": "1/5",
@@ -11863,7 +11883,11 @@ window.HW_LINES_2026 = {
       "casting": "’70 Dodge Charger R/T",
       "image": "https://orangetrackdiecast.com/wp-content/uploads/2026/01/jhw74_2026hotwheelsfastandfuriouspremium_1970dodgechargerrt.jpg",
       "sourceLinks": [],
-      "features": [],
+      "features": [
+        "CHASE"
+      ],
+      "rarity": "Chase",
+      "raritySegment": "chase",
       "extra": {},
       "rawColumns": {
         "#": "1/5",
