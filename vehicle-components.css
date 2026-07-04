@@ -273,9 +273,9 @@
 
 .vehicle-badge--chase {
   border-color: rgba(255, 255, 255, 0.26);
-  background: linear-gradient(135deg, rgba(248, 251, 252, 0.25), rgba(35, 39, 43, 0.74));
+  background: #9da3a8;
   color: #ffffff;
-  box-shadow: 0 0 22px rgba(235, 242, 246, 0.14);
+  box-shadow: none;
 }
 
 .vehicle-badge--silver,
@@ -283,6 +283,21 @@
   border-color: rgba(201, 217, 231, 0.38);
   background: linear-gradient(135deg, rgba(95, 106, 118, 0.72), rgba(32, 37, 43, 0.94));
   color: #eef5fa;
+}
+
+.vehicle-card__readonly,
+.vehicle-detail__readonly {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #dce2e7;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .vehicle-card__wishlist {

@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=137" />
-    <link rel="stylesheet" href="./vehicle-components.css?v=9" />
+    <link rel="stylesheet" href="./styles.css?v=142" />
+    <link rel="stylesheet" href="./vehicle-components.css?v=12" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
   <body class="dashboard-shell">
@@ -377,23 +377,104 @@
 
       <section class="garage-dashboard app-module-only" id="garageDashboard" aria-labelledby="garageDashboardTitle">
         <header class="garage-dashboard__hero">
-          <div class="garage-dashboard__copy">
-            <p class="eyebrow">KİŞİSEL KOLEKSİYON</p>
-            <h1 id="garageDashboardTitle">Garaj</h1>
-            <p>Koleksiyonundaki araçları görüntüle, filtrele ve yönet.</p>
+          <div class="public-garage-profile is-hidden" id="publicGarageProfileHeader">
+            <div class="public-garage-profile__avatar reward-avatar" id="publicGarageProfileAvatar">HR</div>
+            <div class="public-garage-profile__identity">
+              <div class="public-garage-profile__eyebrow">
+                <span>KOLEKSİYONER GARAJI</span>
+                <em>Herkese açık koleksiyon</em>
+              </div>
+              <h1 id="publicGarageProfileTitle">@koleksiyoner Garajı</h1>
+              <div class="public-garage-profile__rank">
+                <span id="publicGarageRankVisual" aria-hidden="true"></span>
+                <div><strong id="publicGarageRankName">R1 Çaylak Avcı</strong><small id="publicGarageRadarPoints">0 Radar Puanı</small></div>
+              </div>
+              <div class="public-garage-profile__meta">
+                <span id="publicGarageBadgeCount">0 rozet</span>
+                <span id="publicGarageJoinedAt">Katılım tarihi bilinmiyor</span>
+                <span id="publicGarageUpdatedAt">Koleksiyon güncellemesi yok</span>
+              </div>
+              <div class="public-garage-profile__badges" id="publicGarageFeaturedBadges" aria-label="Öne çıkan rozetler"></div>
+            </div>
           </div>
-          <button class="button garage-dashboard__add" id="openGarageDrawer" type="button">
-            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-            Araç Ekle
-          </button>
+          <div class="garage-dashboard__copy">
+            <p class="eyebrow" id="garageDashboardEyebrow">KİŞİSEL KOLEKSİYON</p>
+            <h1 id="garageDashboardTitle">Garaj</h1>
+            <p id="garageDashboardCopy">Koleksiyonundaki araçları görüntüle, filtrele ve yönet.</p>
+          </div>
+          <div class="garage-dashboard__actions">
+            <button class="button button--subtle garage-dashboard__discover" id="toggleCollectorSearch" type="button" aria-controls="collectorSearchPanel" aria-expanded="false">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m14.5 14.5 5 5M10 7v6M7 10h6"/></svg>
+              Başka Koleksiyon Ara
+            </button>
+            <button class="button button--subtle garage-dashboard__own is-hidden" id="openOwnGarage" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v8H4z"/><path d="M9 19v-5h6v5"/></svg>
+              Garajıma Dön
+            </button>
+            <button class="button button--subtle garage-dashboard__share is-hidden" id="sharePublicGarage" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg>
+              Bağlantıyı Paylaş
+            </button>
+            <button class="button garage-dashboard__add" id="openGarageDrawer" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+              Araç Ekle
+            </button>
+          </div>
         </header>
 
+        <section class="collector-search-panel" id="collectorSearchPanel" aria-labelledby="collectorSearchTitle" hidden>
+          <div class="collector-search-panel__heading">
+            <div>
+              <p class="eyebrow">KOLEKSİYONER DİZİNİ</p>
+              <h2 id="collectorSearchTitle">Kullanıcı adıyla garaj ara</h2>
+            </div>
+            <button class="delete-button" id="closeCollectorSearch" type="button" aria-label="Koleksiyoner aramasını kapat">×</button>
+          </div>
+          <form class="collector-search-form" id="collectorSearchForm">
+            <label for="collectorSearchInput">Kullanıcı adı</label>
+            <div>
+              <span class="collector-search-prefix" aria-hidden="true">@</span>
+              <input id="collectorSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="ör. saruhan34" />
+              <button class="button button--primary" type="submit">Ara</button>
+            </div>
+          </form>
+          <p class="collector-search-status" id="collectorSearchStatus">Aramak için en az 2 karakter yaz.</p>
+          <div class="collector-search-results" id="collectorSearchResults"></div>
+        </section>
+
+        <div class="public-garage-notice is-hidden" id="publicGarageNotice" role="status">
+          <strong id="publicGarageNoticeTitle">Koleksiyoner garajı</strong>
+          <span id="publicGarageNoticeCopy">Bu garaj salt okunur görüntüleniyor.</span>
+        </div>
+
+        <section class="public-garage-comparison is-hidden" id="publicGarageComparison" aria-labelledby="publicGarageComparisonTitle">
+          <div class="public-garage-comparison__copy">
+            <span class="public-garage-comparison__icon" aria-hidden="true">◇</span>
+            <div>
+              <p class="eyebrow">KOLEKSİYON KARŞILAŞTIRMASI</p>
+              <h2 id="publicGarageComparisonTitle">Garajlarınız nasıl eşleşiyor?</h2>
+              <p id="publicGarageComparisonCopy">Karşılaştırma hazırlanıyor...</p>
+            </div>
+          </div>
+          <div class="public-garage-comparison__numbers">
+            <span><strong id="publicGarageCommonCount">0</strong> ortak araç</span>
+            <span><strong id="publicGarageMissingCount">0</strong> sende olmayan</span>
+          </div>
+          <div class="public-garage-comparison__progress" aria-hidden="true"><span id="publicGarageComparisonProgress"></span></div>
+          <button class="button button--subtle is-visible" id="toggleMissingGarageVehicles" type="button" aria-pressed="false">
+            Eksik Araçları Göster
+          </button>
+        </section>
+
         <div class="garage-stats" aria-label="Garaj istatistikleri">
-          <article class="garage-stat garage-stat--total"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 17h14M3 12l2.4-6h13.2L21 12v5h-2M5 17H3v-5h18M7 12h10" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></svg></span><div><span>Toplam Araç</span><strong id="garageStatTotal">0</strong></div></article>
-          <article class="garage-stat garage-stat--regular"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></svg></span><div><span>Regular</span><strong id="garageStatRegular">0</strong></div></article>
-          <article class="garage-stat garage-stat--premium"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 4 4 5 2-3 5-1 6H7l-1-6-3-5 5-2 4-4Z" /><path d="m3 8 4 11 5-17 5 17 4-11M7 19h10" /></svg></span><div><span>Premium</span><strong id="garageStatPremium">0</strong></div></article>
-          <article class="garage-stat garage-stat--trade"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m17 3 4 4-4 4" /><path d="M3 7h18M7 21l-4-4 4-4" /><path d="M21 17H3" /></svg></span><div><span>Takaslık</span><strong id="garageStatTrade">0</strong></div></article>
-          <article class="garage-stat garage-stat--market"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 10h18M5 10v10h14V10M4 4h16l1 6H3l1-6Z" /><path d="M9 20v-6h6v6" /></svg></span><div><span>Pazarda</span><strong id="garageStatMarket">0</strong></div></article>
+          <article class="garage-stat garage-stat--total"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 17h14M3 12l2.4-6h13.2L21 12v5h-2M5 17H3v-5h18M7 12h10" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></svg></span><div><span>Toplam Araç</span><strong id="garageStatTotal">0</strong><i><b id="garageStatTotalProgress"></b></i></div></article>
+          <article class="garage-stat garage-stat--regular"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></svg></span><div><span>Regular</span><strong id="garageStatRegular">0</strong><i><b id="garageStatRegularProgress"></b></i></div></article>
+          <article class="garage-stat garage-stat--premium"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 4 4 5 2-3 5-1 6H7l-1-6-3-5 5-2 4-4Z" /><path d="m3 8 4 11 5-17 5 17 4-11M7 19h10" /></svg></span><div><span>Premium</span><strong id="garageStatPremium">0</strong><i><b id="garageStatPremiumProgress"></b></i></div></article>
+          <article class="garage-stat garage-stat--chase garage-stat--public is-hidden"><span class="garage-stat__icon" aria-hidden="true">C</span><div><span>Chase</span><strong id="garageStatChase">0</strong><i><b id="garageStatChaseProgress"></b></i></div></article>
+          <article class="garage-stat garage-stat--th garage-stat--public is-hidden"><span class="garage-stat__icon" aria-hidden="true">TH</span><div><span>Treasure Hunt</span><strong id="garageStatTh">0</strong><i><b id="garageStatThProgress"></b></i></div></article>
+          <article class="garage-stat garage-stat--sth garage-stat--public is-hidden"><span class="garage-stat__icon" aria-hidden="true">STH</span><div><span>Super Treasure Hunt</span><strong id="garageStatSth">0</strong><i><b id="garageStatSthProgress"></b></i></div></article>
+          <article class="garage-stat garage-stat--trade garage-stat--own"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m17 3 4 4-4 4" /><path d="M3 7h18M7 21l-4-4 4-4" /><path d="M21 17H3" /></svg></span><div><span>Takaslık</span><strong id="garageStatTrade">0</strong></div></article>
+          <article class="garage-stat garage-stat--market garage-stat--own"><span class="garage-stat__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 10h18M5 10v10h14V10M4 4h16l1 6H3l1-6Z" /><path d="M9 20v-6h6v6" /></svg></span><div><span>Pazarda</span><strong id="garageStatMarket">0</strong></div></article>
         </div>
 
         <div class="garage-controls">
@@ -1545,6 +1626,17 @@
           <span><strong id="profileCollectionCount">0</strong>Garaj kaydı</span>
           <span><strong id="profileCreatedAt">-</strong>Üyelik tarihi</span>
         </div>
+        <section class="profile-privacy-card">
+          <div>
+            <span>Garaj görünürlüğü</span>
+            <strong id="profileGarageVisibilityLabel">Herkese açık</strong>
+            <small>Yalnızca giriş yapan kullanıcılar garajını görüntüleyebilir. İstek listeniz daima gizlidir.</small>
+          </div>
+          <label class="profile-privacy-switch" for="profileGarageVisibility">
+            <input id="profileGarageVisibility" type="checkbox" checked />
+            <span aria-hidden="true"></span>
+          </label>
+        </section>
         <p class="field-hint" id="profileRoleHint">Profil rolünüz ve doğrulama durumunuz Supabase üzerinden yönetilir.</p>
       </section>
     </div>
@@ -1568,6 +1660,7 @@
         </div>
         <div class="public-profile-actions">
           <button class="button button--primary" id="publicProfileMessage" type="button">Mesaj g&ouml;nder</button>
+          <button class="button button--subtle" id="publicProfileOpenGarage" type="button">Garajı aç</button>
         </div>
         <div class="public-profile-sections">
           <section>
@@ -1589,6 +1682,18 @@
     </div>
 
     <div class="garage-drawer-backdrop" id="garageDrawerBackdrop" aria-hidden="true"></div>
+
+    <div class="market-modal legacy-garage-modal" id="legacyGarageModal" aria-hidden="true">
+      <section class="market-modal__panel legacy-garage-modal__panel" role="dialog" aria-modal="true" aria-labelledby="legacyGarageTitle">
+        <p class="eyebrow">ESKİ GARAJ KAYITLARI</p>
+        <h2 id="legacyGarageTitle">Bu cihazdaki eski garajı hesabına aktar</h2>
+        <p>Önceki yerel sürümden kalan araçlar bulundu. Bunları yalnızca bu hesabın özel garajına taşıyabilirsin.</p>
+        <div class="legacy-garage-modal__actions">
+          <button class="button button--subtle" id="skipLegacyGarageImport" type="button">Şimdilik geç</button>
+          <button class="button button--primary" id="importLegacyGarage" type="button">Hesabıma aktar</button>
+        </div>
+      </section>
+    </div>
 
     <div class="garage-detail-modal" id="garageDetailModal" aria-hidden="true">
       <section class="garage-detail-modal__panel" role="dialog" aria-modal="true" aria-labelledby="garageDetailTitle">
@@ -1831,12 +1936,12 @@
 
     <script src="./catalog-2026.js?v=8"></script>
     <script src="./catalog-lines-2026.js?v=3"></script>
-    <script src="./vehicle-components.js?v=6"></script>
+    <script src="./vehicle-components.js?v=8"></script>
     <script src="./explore-service.js?v=5"></script>
-    <script src="./explore-page.js?v=2"></script>
-    <script src="./reward-service.js?v=9"></script>
+    <script src="./explore-page.js?v=3"></script>
+    <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=148"></script>
+    <script src="./app.js?v=153"></script>
   </body>
 </html>
 

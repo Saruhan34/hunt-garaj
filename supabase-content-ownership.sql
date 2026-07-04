@@ -22,11 +22,38 @@ on public.content_records(owner_id);
 alter table public.content_records enable row level security;
 
 drop policy if exists "public content is readable" on public.content_records;
-create policy "public content is readable"
+
+drop policy if exists "owners read their own content" on public.content_records;
+create policy "owners read their own content"
+on public.content_records
+for select
+to authenticated
+using ((select auth.uid()) = owner_id);
+
+drop policy if exists "community content is readable" on public.content_records;
+create policy "community content is readable"
 on public.content_records
 for select
 to anon, authenticated
-using (true);
+using (content_type in ('stores', 'market', 'comments'));
+
+drop policy if exists "signed in users read visible garages" on public.content_records;
+create policy "signed in users read visible garages"
+on public.content_records
+for select
+to authenticated
+using (
+  content_type = 'collection'
+  and (
+    (data ->> 'forSale') = 'true'
+    or (data ->> 'forTrade') = 'true'
+    or data ->> 'marketType' in ('Satılık', 'Takaslık')
+    or exists (
+      select 1 from public.profiles p
+      where p.id = owner_id and p.garage_visibility = 'public'
+    )
+  )
+);
 
 drop policy if exists "users create only their own content" on public.content_records;
 create policy "users create only their own content"

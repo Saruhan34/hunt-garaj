@@ -58,12 +58,13 @@
     return context.getMembership?.(vehicle) || { quantity: 0, wishlisted: false };
   }
 
-  function cardOptions(vehicle, mode = "explore") {
+  function cardOptions(vehicle, mode = "explore", eagerImage = false) {
     const membership = membershipFor(vehicle);
     return {
       mode,
       quantity: Number(membership.quantity || 0),
       wishlisted: Boolean(membership.wishlisted),
+      eagerImage,
       onOpen: (item) => openDetail(item, mode),
       onGarageDelta: handleGarageDelta,
       onWishlistToggle: handleWishlistToggle,
@@ -82,7 +83,7 @@
     const grid = element("#exploreVehicleGrid");
     if (!grid) return;
     grid.innerHTML = "";
-    state.items.forEach((vehicle) => grid.appendChild(Vehicles.createCard(vehicle, cardOptions(vehicle))));
+    state.items.forEach((vehicle, index) => grid.appendChild(Vehicles.createCard(vehicle, cardOptions(vehicle, "explore", index < 12))));
   }
 
   function activeFilterEntries() {

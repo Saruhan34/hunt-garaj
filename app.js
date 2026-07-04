@@ -1,5 +1,8 @@
 ﻿const STORAGE_KEY = "hunt-garaj-v1";
 const CATALOG_OVERRIDE_KEY = "hunt-garaj-catalog-overrides-v1";
+const PRIVATE_STORAGE_PREFIX = "hunt-radar-private-v1";
+const LEGACY_GARAGE_DECISION_PREFIX = "hunt-radar-legacy-garage-v1";
+const LEGACY_PRIVATE_SNAPSHOT_KEY = "hunt-radar-legacy-private-snapshot-v1";
 const USERS_KEY = "hunt-garaj-users-v1";
 const CURRENT_USER_KEY = "hunt-garaj-current-user-v1";
 const SUPABASE_URL = "https://lqksregvjhuswyvjjjqa.supabase.co";
@@ -476,6 +479,8 @@ const starterData = {
   messages: []
 };
 
+const legacyPrivateSnapshot = loadLegacyPrivateSnapshot();
+persistLegacyPrivateSnapshot(legacyPrivateSnapshot);
 let state = loadState();
 let activeView = "home";
 let activeStoreStatus = "Tümü";
@@ -504,6 +509,16 @@ let storeVerificationSummaries = {};
 let radarNotePhotos = {};
 let pendingStorePhotoFiles = [];
 let remoteStorePageItems = [];
+let remoteCollectionListings = [];
+let publicGarageItems = [];
+let publicGarageProfile = null;
+let publicGarageRewards = null;
+let publicGarageUsername = "";
+let publicGarageLoading = false;
+let publicGarageMissingOnly = false;
+let publicGarageRequestId = 0;
+let publicGarageOwnKeys = new Set();
+let collectorSearchTimer = 0;
 let savedRadarItems = [];
 let storeCurrentPage = 1;
 let storeTotalCount = 0;
@@ -638,6 +653,42 @@ const garageDetailTitle = document.querySelector("#garageDetailTitle");
 const garageDetailSubtitle = document.querySelector("#garageDetailSubtitle");
 const garageDetailFacts = document.querySelector("#garageDetailFacts");
 const garageDetailActions = document.querySelector("#garageDetailActions");
+const garageDashboardEyebrow = document.querySelector("#garageDashboardEyebrow");
+const garageDashboardTitle = document.querySelector("#garageDashboardTitle");
+const garageDashboardCopy = document.querySelector("#garageDashboardCopy");
+const garageDashboardOwnCopy = garageDashboard?.querySelector(".garage-dashboard__copy");
+const garageAddButton = document.querySelector("#openGarageDrawer");
+const toggleCollectorSearchButton = document.querySelector("#toggleCollectorSearch");
+const openOwnGarageButton = document.querySelector("#openOwnGarage");
+const sharePublicGarageButton = document.querySelector("#sharePublicGarage");
+const collectorSearchPanel = document.querySelector("#collectorSearchPanel");
+const closeCollectorSearchButton = document.querySelector("#closeCollectorSearch");
+const collectorSearchForm = document.querySelector("#collectorSearchForm");
+const collectorSearchInput = document.querySelector("#collectorSearchInput");
+const collectorSearchStatus = document.querySelector("#collectorSearchStatus");
+const collectorSearchResults = document.querySelector("#collectorSearchResults");
+const publicGarageNotice = document.querySelector("#publicGarageNotice");
+const publicGarageNoticeTitle = document.querySelector("#publicGarageNoticeTitle");
+const publicGarageNoticeCopy = document.querySelector("#publicGarageNoticeCopy");
+const publicGarageProfileHeader = document.querySelector("#publicGarageProfileHeader");
+const publicGarageProfileAvatar = document.querySelector("#publicGarageProfileAvatar");
+const publicGarageProfileTitle = document.querySelector("#publicGarageProfileTitle");
+const publicGarageRankVisual = document.querySelector("#publicGarageRankVisual");
+const publicGarageRankName = document.querySelector("#publicGarageRankName");
+const publicGarageRadarPoints = document.querySelector("#publicGarageRadarPoints");
+const publicGarageBadgeCount = document.querySelector("#publicGarageBadgeCount");
+const publicGarageJoinedAt = document.querySelector("#publicGarageJoinedAt");
+const publicGarageUpdatedAt = document.querySelector("#publicGarageUpdatedAt");
+const publicGarageFeaturedBadges = document.querySelector("#publicGarageFeaturedBadges");
+const publicGarageComparison = document.querySelector("#publicGarageComparison");
+const publicGarageComparisonCopy = document.querySelector("#publicGarageComparisonCopy");
+const publicGarageCommonCount = document.querySelector("#publicGarageCommonCount");
+const publicGarageMissingCount = document.querySelector("#publicGarageMissingCount");
+const publicGarageComparisonProgress = document.querySelector("#publicGarageComparisonProgress");
+const toggleMissingGarageVehiclesButton = document.querySelector("#toggleMissingGarageVehicles");
+const garageStatChase = document.querySelector("#garageStatChase");
+const garageStatTh = document.querySelector("#garageStatTh");
+const garageStatSth = document.querySelector("#garageStatSth");
 const closeGarageDetailButton = document.querySelector("#closeGarageDetail");
 const rewardUserOverview = document.querySelector("#rewardUserOverview");
 const rewardOverviewRankVisual = document.querySelector("#rewardOverviewRankVisual");
@@ -677,6 +728,8 @@ const profileRewardActivity = document.querySelector("#profileRewardActivity");
 const avatarOptions = document.querySelector("#avatarOptions");
 const saveProfileAvatar = document.querySelector("#saveProfileAvatar");
 const profileAvatarUpload = document.querySelector("#profileAvatarUpload");
+const profileGarageVisibility = document.querySelector("#profileGarageVisibility");
+const profileGarageVisibilityLabel = document.querySelector("#profileGarageVisibilityLabel");
 const publicProfileModal = document.querySelector("#publicProfileModal");
 const publicProfileTitle = document.querySelector("#publicProfileTitle");
 const publicProfileSubtitle = document.querySelector("#publicProfileSubtitle");
@@ -688,6 +741,7 @@ const publicProfileCollectionCount = document.querySelector("#publicProfileColle
 const publicProfileListings = document.querySelector("#publicProfileListings");
 const publicProfileCollection = document.querySelector("#publicProfileCollection");
 const publicProfileMessage = document.querySelector("#publicProfileMessage");
+const publicProfileOpenGarage = document.querySelector("#publicProfileOpenGarage");
 const authForm = document.querySelector("#authForm");
 const authTitle = document.querySelector("#authTitle");
 const authSubtitle = document.querySelector("#authSubtitle");
@@ -704,6 +758,9 @@ const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
 const logoutUser = document.querySelector("#logoutUser");
 const adminPanel = document.querySelector("#adminPanel");
 const profileRoleHint = document.querySelector("#profileRoleHint");
+const legacyGarageModal = document.querySelector("#legacyGarageModal");
+const importLegacyGarageButton = document.querySelector("#importLegacyGarage");
+const skipLegacyGarageImportButton = document.querySelector("#skipLegacyGarageImport");
 const adminTabs = document.querySelectorAll("[data-admin-tab]");
 const adminSections = document.querySelectorAll("[data-admin-section]");
 const adminHeroEyebrow = document.querySelector("#adminHeroEyebrow");
@@ -923,15 +980,118 @@ const personLabels = {
   "İkimiz": "Saruhan + Ali"
 };
 
+function privateStorageKey(userId) {
+  return `${PRIVATE_STORAGE_PREFIX}:${String(userId || "guest")}`;
+}
+
+function legacyGarageDecisionKey(userId) {
+  return `${LEGACY_GARAGE_DECISION_PREFIX}:${String(userId || "guest")}`;
+}
+
+function loadLegacyPrivateSnapshot() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LEGACY_PRIVATE_SNAPSHOT_KEY) || localStorage.getItem(STORAGE_KEY) || "null");
+    return {
+      collection: Array.isArray(saved?.collection) ? saved.collection : [],
+      wishlist: Array.isArray(saved?.wishlist) ? saved.wishlist : []
+    };
+  } catch {
+    return { collection: [], wishlist: [] };
+  }
+}
+
+function persistLegacyPrivateSnapshot(snapshot) {
+  if (!snapshot?.collection?.length && !snapshot?.wishlist?.length) return;
+  localStorage.setItem(LEGACY_PRIVATE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+}
+
+function loadUserPrivateState(userId) {
+  if (!userId) return { collection: [], wishlist: [] };
+  try {
+    const saved = JSON.parse(localStorage.getItem(privateStorageKey(userId)) || "null");
+    return {
+      collection: Array.isArray(saved?.collection) ? saved.collection : [],
+      wishlist: Array.isArray(saved?.wishlist) ? saved.wishlist : []
+    };
+  } catch {
+    return { collection: [], wishlist: [] };
+  }
+}
+
+function activateUserPrivateState(user = currentUser) {
+  const privateState = loadUserPrivateState(user?.id);
+  state.collection = normalizeState({ collection: privateState.collection }).collection;
+  state.wishlist = normalizeState({ wishlist: privateState.wishlist }).wishlist;
+}
+
+function legacyRecordsForCurrentUser(type) {
+  if (!currentUser) return [];
+  return (legacyPrivateSnapshot[type] || []).filter((record) => {
+    const ownerId = recordOwnerId(type, record);
+    const ownerUsername = recordOwnerUsername(type, record);
+    if (ownerId) return String(ownerId) === String(currentUser.id);
+    if (ownerUsername) return normalize(ownerUsername) === normalize(currentUser.username);
+    return true;
+  });
+}
+
+function closeLegacyGarageModal(decision = "") {
+  if (decision && currentUser?.id) localStorage.setItem(legacyGarageDecisionKey(currentUser.id), decision);
+  legacyGarageModal?.classList.remove("is-visible");
+  legacyGarageModal?.setAttribute("aria-hidden", "true");
+}
+
+function maybeOfferLegacyGarageImport() {
+  if (!currentUser || !legacyGarageModal) return;
+  if (localStorage.getItem(legacyGarageDecisionKey(currentUser.id))) return;
+  const hasLegacyRecords = legacyRecordsForCurrentUser("collection").length
+    || legacyRecordsForCurrentUser("wishlist").length;
+  if (!hasLegacyRecords) return;
+  legacyGarageModal.classList.add("is-visible");
+  legacyGarageModal.setAttribute("aria-hidden", "false");
+}
+
+async function importLegacyGarageForCurrentUser() {
+  if (!currentUser) return;
+  const imported = [];
+  ["collection", "wishlist"].forEach((type) => {
+    const existingCatalogIds = new Set(state[type].map((record) => String(record.catalogId || "")).filter(Boolean));
+    legacyRecordsForCurrentUser(type).forEach((record) => {
+      if (record.catalogId && existingCatalogIds.has(String(record.catalogId))) return;
+      const migrated = ownedRecord(type, {
+        ...record,
+        id: crypto.randomUUID(),
+        createdAt: record.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      state[type].push(migrated);
+      if (migrated.catalogId) existingCatalogIds.add(String(migrated.catalogId));
+      imported.push([type, migrated]);
+    });
+  });
+  saveState();
+  await Promise.all(imported.map(([type, record]) => syncPublicRecord(type, record)));
+  await loadOwnedPrivateContentFromSupabase();
+  localStorage.removeItem(LEGACY_PRIVATE_SNAPSHOT_KEY);
+  closeLegacyGarageModal("imported");
+  render();
+  showToast(imported.length ? `${imported.length} eski kayıt hesabına aktarıldı.` : "Aktarılacak yeni kayıt bulunamadı.");
+}
+
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return normalizeState(structuredClone(starterData));
+  const initial = !saved
+    ? normalizeState(structuredClone(starterData))
+    : (() => {
+      try {
+        return normalizeState(JSON.parse(saved));
+      } catch {
+        return normalizeState(structuredClone(starterData));
+      }
+    })();
 
-  try {
-    return normalizeState(JSON.parse(saved));
-  } catch {
-    return normalizeState(structuredClone(starterData));
-  }
+  if (!supabaseClient) return initial;
+  return { ...initial, collection: [], wishlist: [] };
 }
 
 function loadCatalogOverrides() {
@@ -1319,6 +1479,16 @@ function normalizeState(data) {
 }
 
 function saveState() {
+  if (supabaseClient) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, collection: [], wishlist: [] }));
+    if (currentUser?.id) {
+      localStorage.setItem(privateStorageKey(currentUser.id), JSON.stringify({
+        collection: state.collection,
+        wishlist: state.wishlist
+      }));
+    }
+    return;
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -1526,24 +1696,57 @@ async function deletePublicRecord(type, record) {
 
 async function loadPublicContentFromSupabase() {
   if (!supabaseClient) return;
+  const [publicResult, collectionListingsResult] = await Promise.all([
+    supabaseClient
+      .from(CONTENT_TABLE)
+      .select("id, content_type, owner_id, owner_username, data, created_at, updated_at")
+      .in("content_type", ["market", "comments"]),
+    currentUser
+      ? supabaseClient.rpc("get_collection_market_listings")
+      : Promise.resolve({ data: [], error: null })
+  ]);
+  if (publicResult.error) {
+    if (publicResult.error.code !== "42P01") console.warn("Supabase içerikleri okunamadı:", publicResult.error.message);
+    return;
+  }
+  ["market", "comments"].forEach((type) => {
+    state[type] = (publicResult.data || [])
+      .filter((row) => row.content_type === type)
+      .map((row) => ownedRemoteRecord(type, row));
+  });
+  if (collectionListingsResult.error && !["42883", "PGRST202"].includes(collectionListingsResult.error.code)) {
+    console.warn("Garaj pazar ilanları okunamadı:", collectionListingsResult.error.message);
+  }
+  remoteCollectionListings = (collectionListingsResult.data || []).map((row) => ({
+    ...ownedRemoteRecord("collection", row),
+    listingSource: "collection"
+  }));
+  saveState();
+}
+
+async function loadOwnedPrivateContentFromSupabase() {
+  if (!supabaseClient || !currentUser) {
+    state.collection = [];
+    state.wishlist = [];
+    saveState();
+    return;
+  }
   const { data, error } = await supabaseClient
     .from(CONTENT_TABLE)
     .select("id, content_type, owner_id, owner_username, data, created_at, updated_at")
-    .neq("content_type", "stores");
+    .in("content_type", ["collection", "wishlist"])
+    .eq("owner_id", currentUser.id)
+    .order("created_at", { ascending: false });
   if (error) {
-    if (error.code !== "42P01") console.warn("Supabase içerikleri okunamadı:", error.message);
+    if (error.code !== "42P01") console.warn("Kişisel garaj yüklenemedi:", error.message);
     return;
   }
-  const supported = ["collection", "wishlist", "market", "comments"];
-  supported.forEach((type) => {
-    const remote = (data || [])
-      .filter((row) => row.content_type === type)
-      .map((row) => ownedRemoteRecord(type, row));
-    if (!remote.length) return;
-    const merged = new Map(state[type].map((item) => [String(item.id), item]));
-    remote.forEach((item) => merged.set(String(item.id), item));
-    state[type] = [...merged.values()];
-  });
+  state.collection = (data || [])
+    .filter((row) => row.content_type === "collection")
+    .map((row) => ownedRemoteRecord("collection", row));
+  state.wishlist = (data || [])
+    .filter((row) => row.content_type === "wishlist")
+    .map((row) => ownedRemoteRecord("wishlist", row));
   saveState();
 }
 
@@ -1780,13 +1983,16 @@ function matchesSearch(item) {
 }
 
 function allMarketListings() {
-  const collectionListings = state.collection
+  const ownCollectionListings = state.collection
     .filter((car) => ["Satılık", "Takaslık"].includes(car.marketType))
     .map((car) => ({ ...car, listingSource: "collection" }));
   const directListings = state.market
     .filter((listing) => ["Satılık", "Takaslık"].includes(listing.marketType))
     .map((listing) => ({ ...listing, listingSource: "market", standalone: true }));
-  return [...directListings, ...collectionListings];
+  const collectionListings = new Map(
+    [...remoteCollectionListings, ...ownCollectionListings].map((item) => [String(item.id), item])
+  );
+  return [...directListings, ...collectionListings.values()];
 }
 
 function getActiveList() {
@@ -1802,11 +2008,13 @@ function getActiveList() {
     return remoteStorePageItems;
   }
 
+  if (activeView === "collection" && publicGarageUsername) return publicGarageItems;
   return state[activeView] || [];
 }
 
 function render() {
   syncAppShell();
+  if (publicGarageUsername) publicGarageOwnKeys = ownGarageVehicleKeys();
   const isRemoteStoreList = activeView === "stores" && Boolean(supabaseClient);
   const filteredList = isRemoteStoreList
     ? getActiveList()
@@ -1819,10 +2027,18 @@ function render() {
   cards.innerHTML = "";
   listTitle.textContent = viewTitles[activeView] || viewTitles.collection;
   viewCopy.textContent = viewCopies[activeView] || "";
-  visibleCount.textContent = activeView === "stores" ? `${storeTotalCount} kayıt` : `${list.length} kayıt`;
+  visibleCount.textContent = activeView === "stores"
+    ? `${storeTotalCount} kayıt`
+    : publicGarageLoading && activeView === "collection"
+      ? "Yükleniyor"
+      : `${list.length} kayıt`;
   emptyState.textContent = activeView === "stores"
     ? "Bu filtrelerle eşleşen radar notu bulunamadı."
-    : "Henüz kayıt yok.";
+    : publicGarageUsername && publicGarageProfile?.garage_visibility === "private"
+      ? "Bu koleksiyoner garajını gizli tutuyor."
+      : publicGarageLoading
+        ? "Garaj yükleniyor..."
+        : "Henüz kayıt yok.";
   emptyState.classList.toggle("is-visible", !storePageLoading && list.length === 0);
   renderListFilters();
 
@@ -2398,12 +2614,17 @@ function createGarageCollectionCard(item) {
   if (window.HuntRadarVehicles) {
     const vehicle = catalogVehicleIdentity(item);
     const membership = getExploreMembership(vehicle);
+    const readOnly = Boolean(publicGarageUsername);
+    const quantity = readOnly ? garageQuantity(item) : (membership.quantity || garageQuantity(item));
     return window.HuntRadarVehicles.createCard(vehicle, {
-      mode: "garage",
-      quantity: membership.quantity || garageQuantity(item),
-      onOpen: (selected) => window.HuntRadarExplore?.openDetail(selected, "garage"),
-      onGarageDelta: mutateExploreGarage,
-      onNotes: openExploreVehicleNotes
+      mode: readOnly ? "public-garage" : "garage",
+      readOnly,
+      quantity,
+      onOpen: (selected) => readOnly
+        ? window.HuntRadarVehicles.openDetail(selected, { mode: "public-garage", readOnly: true, quantity })
+        : window.HuntRadarExplore?.openDetail(selected, "garage"),
+      onGarageDelta: readOnly ? undefined : mutateExploreGarage,
+      onNotes: readOnly ? undefined : openExploreVehicleNotes
     });
   }
   const card = document.createElement("article");
@@ -2688,6 +2909,7 @@ function createCard(item) {
 
 function matchesViewFilters(item) {
   if (activeView === "collection") {
+    if (publicGarageUsername && publicGarageMissingOnly && publicGarageOwnKeys.has(garageVehicleIdentityKey(item))) return false;
     if (activeGarageFilter === "Regular") return !isGaragePremium(item) && !isGarageHunt(item) && !isGarageChase(item) && !isGarageSilver(item);
     if (activeGarageFilter === "Premium") return isGaragePremium(item);
     if (activeGarageFilter === "Chase") return isGarageChase(item);
@@ -3111,6 +3333,34 @@ function garageQuantity(item) {
   return Math.max(1, Number(item?.quantity || 1));
 }
 
+function garageVehicleIdentityKey(item = {}) {
+  if (item.catalogId) return `catalog:${String(item.catalogId)}`;
+  return `legacy:${[
+    item.brand,
+    item.model,
+    item.series,
+    item.year || item.releaseYear,
+    item.color,
+    item.variant || item.rarityLabel
+  ].map((value) => normalize(value)).join("|")}`;
+}
+
+function ownGarageVehicleKeys() {
+  return new Set(state.collection.map(garageVehicleIdentityKey));
+}
+
+function publicGarageComparisonStats() {
+  const ownKeys = ownGarageVehicleKeys();
+  const publicKeys = new Set(publicGarageItems.map(garageVehicleIdentityKey));
+  const common = [...publicKeys].filter((key) => ownKeys.has(key)).length;
+  return {
+    common,
+    missing: Math.max(0, publicKeys.size - common),
+    total: publicKeys.size,
+    percent: publicKeys.size ? Math.round((common / publicKeys.size) * 100) : 0
+  };
+}
+
 function isGaragePremium(item) {
   return /premium|mattel creations/i.test(displayRarity(item?.rarity || ""));
 }
@@ -3125,6 +3375,14 @@ function isGarageSilver(item) {
 
 function isGarageHunt(item) {
   return /treasure hunt|\bTH\b|\bSTH\b/i.test([item?.rarity, item?.rarityLabel, item?.variant].filter(Boolean).join(" "));
+}
+
+function isGarageSuperHunt(item) {
+  return /super treasure hunt|\bSTH\b/i.test([item?.rarity, item?.rarityLabel, item?.raritySegment, item?.variant].filter(Boolean).join(" "));
+}
+
+function isGarageTreasureHunt(item) {
+  return isGarageHunt(item) && !isGarageSuperHunt(item);
 }
 
 function garageRarityTone(item) {
@@ -4273,17 +4531,55 @@ function findUserByUsername(username) {
 }
 
 function collectionItemsForUsername(username) {
-  return state.collection.filter((item) => {
-    if (item.ownerUsername) return normalize(item.ownerUsername) === normalize(username);
-    if (item.sellerUsername) return normalize(item.sellerUsername) === normalize(username);
-    return currentUser && normalize(currentUser.username) === normalize(username);
-  });
+  if (currentUser && normalize(currentUser.username) === normalize(username)) return state.collection;
+  if (publicGarageUsername && normalize(publicGarageUsername) === normalize(username)) return publicGarageItems;
+  return [];
 }
 
-function openPublicProfile(username) {
-  const user = findUserByUsername(username) || { username };
+async function publicProfileByUsername(username) {
+  if (!supabaseClient || !currentUser) return findUserByUsername(username) || { username, garage_visibility: "public" };
+  const { data, error } = await supabaseClient.rpc("search_public_profiles", {
+    p_query: String(username || "").trim(),
+    p_limit: 5
+  });
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) console.warn("Kullanıcı profili okunamadı:", error.message);
+    return findUserByUsername(username) || { username, garage_visibility: "public" };
+  }
+  return (data || []).find((profile) => normalize(profile.username) === normalize(username)) || null;
+}
+
+async function publicGarageRecords(username) {
+  if (!supabaseClient || !currentUser) return collectionItemsForUsername(username);
+  const { data, error } = await supabaseClient.rpc("get_public_garage", { p_username: username });
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) console.warn("Açık garaj okunamadı:", error.message);
+    return [];
+  }
+  return (data || []).map((row) => ownedRemoteRecord("collection", row));
+}
+
+async function publicGaragePageByUsername(username) {
+  if (!supabaseClient || !currentUser) return null;
+  const { data, error } = await supabaseClient.rpc("get_public_garage_page", { p_username: username });
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) console.warn("Koleksiyoner garaj profili okunamadı:", error.message);
+    return null;
+  }
+  if (!data?.profile) return null;
+  return {
+    profile: data.profile,
+    rewards: data.rewards || {},
+    items: (Array.isArray(data.garage) ? data.garage : []).map((row) => ownedRemoteRecord("collection", row))
+  };
+}
+
+async function openPublicProfile(username) {
+  const user = await publicProfileByUsername(username) || { username, garage_visibility: "private" };
   const listings = allMarketListings().filter((item) => normalize(item.sellerUsername) === normalize(username));
-  const collection = collectionItemsForUsername(username);
+  const collection = user.garage_visibility === "public" || normalize(currentUser?.username) === normalize(username)
+    ? await publicGarageRecords(username)
+    : [];
   const listingCount = listings.length;
   const collectionCount = collection.length;
   const isOwnProfile = currentUser && normalize(currentUser.username) === normalize(user.username);
@@ -4292,8 +4588,14 @@ function openPublicProfile(username) {
   closeListingDetailModal();
   publicProfileMessage.disabled = Boolean(isOwnProfile);
   publicProfileMessage.textContent = isOwnProfile ? "Kendi profilin" : "Mesaj gönder";
+  if (publicProfileOpenGarage) {
+    publicProfileOpenGarage.disabled = user.garage_visibility === "private" && !isOwnProfile;
+    publicProfileOpenGarage.textContent = isOwnProfile ? "Garajıma git" : user.garage_visibility === "private" ? "Garaj gizli" : "Garajı aç";
+  }
   publicProfileTitle.textContent = `@${user.username}`;
-  publicProfileSubtitle.textContent = "Garaj ve aktif pazar ilanları.";
+  publicProfileSubtitle.textContent = user.garage_visibility === "private" && !isOwnProfile
+    ? "Bu kullanıcının garajı gizli. Aktif pazar ilanları görüntülenebilir."
+    : "Garaj ve aktif pazar ilanları.";
   if (Rewards) {
     applyAvatarElement(publicProfileAvatar, Rewards.getAvatar(user), user);
   } else {
@@ -4313,6 +4615,154 @@ function closePublicProfileModal() {
   publicProfileModal.classList.remove("is-visible");
   publicProfileModal.setAttribute("aria-hidden", "true");
   currentPublicProfileUsername = "";
+}
+
+function setCollectorSearchOpen(open) {
+  if (!collectorSearchPanel) return;
+  collectorSearchPanel.hidden = !open;
+  toggleCollectorSearchButton?.setAttribute("aria-expanded", String(open));
+  if (open) window.setTimeout(() => collectorSearchInput?.focus(), 0);
+}
+
+function collectorRarityLabel(value) {
+  const normalized = replaceRarityKey(value);
+  return {
+    chase: "Chase",
+    super_treasure_hunt: "STH",
+    sth: "STH",
+    treasure_hunt: "TH",
+    th: "TH",
+    premium: "Premium",
+    silver_series: "Silver Series"
+  }[normalized] || "Regular";
+}
+
+function replaceRarityKey(value) {
+  return String(value || "regular").trim().toLocaleLowerCase("en-US").replace(/[\s-]+/g, "_");
+}
+
+function renderCollectorSearchResults(profiles = []) {
+  if (!collectorSearchResults) return;
+  collectorSearchResults.innerHTML = "";
+  profiles.forEach((profile) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "collector-result";
+    const isPrivate = profile.garage_visibility === "private";
+    const visibility = isPrivate ? "Gizli garaj" : `${Number(profile.vehicle_count || 0)} araç`;
+    row.innerHTML = `
+      <span class="collector-result__avatar">${escapeHtml(userInitials(profile.username))}</span>
+      <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(visibility)}</small></span>
+      <span class="collector-result__action">${escapeHtml(isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
+      <span class="collector-result__arrow" aria-hidden="true">→</span>
+    `;
+    row.addEventListener("click", () => navigateToPublicGarage(profile.username));
+    collectorSearchResults.appendChild(row);
+  });
+}
+
+async function searchCollectorProfiles(query = collectorSearchInput?.value || "") {
+  const term = String(query || "").trim().replace(/^@/, "");
+  if (!collectorSearchStatus || !collectorSearchResults) return;
+  if (term.length < 2) {
+    collectorSearchStatus.textContent = "Aramak için en az 2 karakter yaz.";
+    renderCollectorSearchResults([]);
+    return;
+  }
+  if (!currentUser) {
+    collectorSearchStatus.textContent = "Koleksiyoner aramak için giriş yapmalısın.";
+    renderCollectorSearchResults([]);
+    openAuthModal("login", "Koleksiyoner garajlarını görmek için giriş yapmalısın.");
+    return;
+  }
+  collectorSearchStatus.textContent = "Koleksiyonerler aranıyor...";
+  if (!supabaseClient) {
+    const localProfiles = users
+      .filter((user) => normalize(user.username).startsWith(normalize(term)))
+      .slice(0, 12)
+      .map((user) => ({ ...user, garage_visibility: "public", vehicle_count: collectionItemsForUsername(user.username).length }));
+    renderCollectorSearchResults(localProfiles);
+    collectorSearchStatus.textContent = localProfiles.length ? `${localProfiles.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı.";
+    return;
+  }
+  const { data, error } = await supabaseClient.rpc("search_public_profiles", { p_query: term, p_limit: 12 });
+  if (error) {
+    console.warn("Koleksiyoner araması başarısız:", error.message);
+    collectorSearchStatus.textContent = "Kullanıcı araması şu anda kullanılamıyor.";
+    renderCollectorSearchResults([]);
+    return;
+  }
+  renderCollectorSearchResults(data || []);
+  collectorSearchStatus.textContent = data?.length ? `${data.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı.";
+}
+
+function publicGarageHash(username) {
+  return `#/kullanici/${encodeURIComponent(String(username || "").trim())}/garaj`;
+}
+
+function navigateToPublicGarage(username) {
+  if (!username) return;
+  setCollectorSearchOpen(false);
+  window.history.pushState(null, "", publicGarageHash(username));
+  applyDashboardRoute({ replaceUnknown: false });
+}
+
+function clearPublicGarageContext() {
+  publicGarageUsername = "";
+  publicGarageProfile = null;
+  publicGarageRewards = null;
+  publicGarageItems = [];
+  publicGarageLoading = false;
+  publicGarageMissingOnly = false;
+  publicGarageOwnKeys = new Set();
+  publicGarageRequestId += 1;
+}
+
+async function loadPublicGarage(username) {
+  const requestId = ++publicGarageRequestId;
+  publicGarageUsername = username;
+  publicGarageLoading = true;
+  publicGarageMissingOnly = false;
+  publicGarageRewards = null;
+  publicGarageItems = [];
+  render();
+  if (!currentUser) {
+    publicGarageLoading = false;
+    if (authInitialized) openAuthModal("login", "Koleksiyoner garajlarını görmek için giriş yapmalısın.");
+    render();
+    return;
+  }
+  if (normalize(username) === normalize(currentUser.username)) {
+    clearPublicGarageContext();
+    navigateToView("collection", { replace: true, clearSearch: true });
+    return;
+  }
+  const page = await publicGaragePageByUsername(username);
+  if (requestId !== publicGarageRequestId) return;
+  if (page) {
+    publicGarageProfile = page.profile;
+    publicGarageRewards = page.rewards;
+    publicGarageItems = page.profile.garage_visibility === "public" ? page.items : [];
+    publicGarageLoading = false;
+    render();
+    return;
+  }
+
+  const [profile, items] = await Promise.all([
+    publicProfileByUsername(username),
+    publicGarageRecords(username)
+  ]);
+  if (requestId !== publicGarageRequestId) return;
+  publicGarageProfile = profile;
+  if (!publicGarageProfile) {
+    publicGarageLoading = false;
+    showToast("Bu kullanıcı bulunamadı.");
+    render();
+    return;
+  }
+  publicGarageItems = publicGarageProfile.garage_visibility === "public" ? items : [];
+  publicGarageLoading = false;
+  render();
 }
 
 function renderPublicProfileList(target, items, type) {
@@ -4523,6 +4973,7 @@ async function loginUser({ email, password }) {
 
 function completeAuth(user, message) {
   saveCurrentUser(user);
+  if (!supabaseClient) activateUserPrivateState(user);
   setAuthStatus(message);
   const action = pendingAuthAction;
   pendingAuthAction = null;
@@ -4539,6 +4990,11 @@ async function logoutCurrentUser() {
     await supabaseClient.auth.signOut();
   }
   saveCurrentUser(null);
+  activateUserPrivateState(null);
+  remoteCollectionListings = [];
+  clearPublicGarageContext();
+  saveState();
+  render();
   closeAuthModal();
   closeAccountMenu();
   showToast("Oturum kapatıldı.");
@@ -5166,6 +5622,7 @@ function normalizeSupabaseProfile(authUser, profile = {}) {
     username,
     email: authUser.email || profile.email || "",
     role: profile.role || "user",
+    garageVisibility: profile.garage_visibility || "public",
     createdAt: profile.created_at || authUser.created_at || new Date().toISOString(),
     emailConfirmedAt: authUser.email_confirmed_at || null
   };
@@ -5175,7 +5632,7 @@ async function ensureSupabaseProfile(authUser) {
   if (!supabaseClient || !authUser) return null;
   const { data: profile, error } = await supabaseClient
     .from("profiles")
-    .select("id, email, username, role, created_at")
+    .select("id, username, role, garage_visibility, created_at")
     .eq("id", authUser.id)
     .maybeSingle();
 
@@ -5194,7 +5651,7 @@ async function ensureSupabaseProfile(authUser) {
       email: authUser.email,
       username
     })
-    .select("id, email, username, role, created_at")
+    .select("id, username, role, garage_visibility, created_at")
     .single();
 
   if (insertError) {
@@ -5229,19 +5686,26 @@ async function initSupabaseAuth() {
   if (data.session?.user) {
     currentUser = await ensureSupabaseProfile(data.session.user);
     saveCurrentUser(currentUser);
+    activateUserPrivateState(currentUser);
     await Rewards?.refresh();
     await loadRewardNotifications();
     await loadStoreVerificationSummaries();
     if (isAdminUser()) void syncManagedAssetsToSupabase();
     await syncOwnedLocalContentToSupabase();
+    await loadOwnedPrivateContentFromSupabase();
+    await loadPublicContentFromSupabase();
+    maybeOfferLegacyGarageImport();
     updateUserButton();
     render();
   } else {
     saveCurrentUser(null);
+    activateUserPrivateState(null);
+    remoteCollectionListings = [];
   }
   authInitialized = true;
   updateUserButton();
   syncAdminVisibility();
+  if (publicGarageUsernameFromHash()) applyDashboardRoute({ replaceUnknown: false });
 
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === "PASSWORD_RECOVERY") {
@@ -5251,14 +5715,24 @@ async function initSupabaseAuth() {
     currentUser = session?.user ? await ensureSupabaseProfile(session.user) : null;
     authInitialized = true;
     saveCurrentUser(currentUser);
+    activateUserPrivateState(currentUser);
     if (currentUser) await Rewards?.refresh();
     if (currentUser) await loadRewardNotifications();
     await loadStoreVerificationSummaries();
     if (isAdminUser()) void syncManagedAssetsToSupabase();
-    if (currentUser) await syncOwnedLocalContentToSupabase();
+    if (currentUser) {
+      await syncOwnedLocalContentToSupabase();
+      await loadOwnedPrivateContentFromSupabase();
+      maybeOfferLegacyGarageImport();
+    } else {
+      remoteCollectionListings = [];
+      clearPublicGarageContext();
+    }
+    await loadPublicContentFromSupabase();
     updateUserButton();
     syncAdminVisibility();
     render();
+    if (publicGarageUsernameFromHash()) applyDashboardRoute({ replaceUnknown: false });
   });
 }
 
@@ -5369,11 +5843,49 @@ function openProfileModal() {
   profileListingCount.textContent = String(allMarketListings().filter((listing) => normalize(listing.sellerUsername) === normalize(currentUser.username)).length);
   profileCollectionCount.textContent = String(collectionItemsForUsername(currentUser.username).length);
   profileCreatedAt.textContent = formatProfileDate(currentUser.createdAt);
+  if (profileGarageVisibility) profileGarageVisibility.checked = currentUser.garageVisibility !== "private";
+  if (profileGarageVisibilityLabel) {
+    profileGarageVisibilityLabel.textContent = currentUser.garageVisibility === "private" ? "Özel" : "Herkese açık";
+  }
   profileRoleHint.textContent = `Rol: ${currentUser.role || "user"} · ${currentUser.emailConfirmedAt ? "E-posta doğrulandı" : "E-posta doğrulama bekleniyor"}`;
   pendingProfileAvatar = Rewards?.getAvatar(currentUser) || null;
   renderProfileRewards();
   profileModal.classList.add("is-visible");
   profileModal.setAttribute("aria-hidden", "false");
+}
+
+async function updateGarageVisibility(isPublic) {
+  if (!currentUser || !profileGarageVisibility) return;
+  const nextVisibility = isPublic ? "public" : "private";
+  profileGarageVisibility.disabled = true;
+  if (!supabaseClient) {
+    currentUser.garageVisibility = nextVisibility;
+    profileGarageVisibilityLabel.textContent = isPublic ? "Herkese açık" : "Özel";
+    profileGarageVisibility.disabled = false;
+    showToast("Garaj görünürlüğün güncellendi.");
+    return;
+  }
+  const { data, error } = await supabaseClient.rpc("set_garage_visibility", { p_visibility: nextVisibility });
+  profileGarageVisibility.disabled = false;
+  if (error) {
+    profileGarageVisibility.checked = !isPublic;
+    showToast("Garaj görünürlüğü güncellenemedi.");
+    console.warn("Garaj görünürlüğü güncellenemedi:", error.message);
+    return;
+  }
+  currentUser.garageVisibility = data || nextVisibility;
+  profileGarageVisibilityLabel.textContent = currentUser.garageVisibility === "private" ? "Özel" : "Herkese açık";
+  showToast(currentUser.garageVisibility === "private" ? "Garajın artık özel." : "Garajın koleksiyonerler tarafından görüntülenebilir.");
+}
+
+async function syncPublicAvatar(avatar) {
+  if (!supabaseClient || !currentUser || avatar?.type === "custom" || !avatar?.id) return false;
+  const { error } = await supabaseClient.rpc("set_public_avatar", { p_avatar_id: avatar.id });
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) console.warn("Açık profil avatarı kaydedilemedi:", error.message);
+    return false;
+  }
+  return true;
 }
 
 function renderProfileRewards() {
@@ -6214,14 +6726,113 @@ function formatDateTime(value) {
   return date.toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+function publicGarageRewardStats() {
+  const payload = publicGarageRewards;
+  if (!payload || !Object.keys(payload).length) {
+    return Rewards && publicGarageProfile
+      ? Rewards.statsFor(publicGarageProfile, state)
+      : { points: 0, events: [] };
+  }
+  const counts = payload.event_counts || {};
+  const count = (types) => types.reduce((total, type) => total + Number(counts[type] || 0), 0);
+  return {
+    points: Number(payload.radar_points || 0),
+    events: [],
+    storeReports: count(["radar_photo", "radar_text", "radar_premium", "radar_th", "radar_sth", "radar_empty"]),
+    photoReports: count(["radar_photo", "radar_premium", "radar_th", "radar_sth"]),
+    emptyShelfReports: count(["radar_empty"]),
+    completedDeals: count(["deal_completed"]),
+    forumHelpful: count(["helpful_forum"]),
+    sellerScore: Number(payload.seller_score || 0),
+    verificationScore: Number(payload.verification_score || 0),
+    premiumFinds: count(["radar_premium"]),
+    thFinds: count(["radar_th", "radar_sth"])
+  };
+}
+
+function formatRelativeCollectionTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Koleksiyon güncellemesi yok";
+  const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const formatter = new Intl.RelativeTimeFormat("tr-TR", { numeric: "auto" });
+  if (Math.abs(seconds) < 60) return "Son güncelleme: az önce";
+  const minutes = Math.round(seconds / 60);
+  if (Math.abs(minutes) < 60) return `Son güncelleme: ${formatter.format(minutes, "minute")}`;
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return `Son güncelleme: ${formatter.format(hours, "hour")}`;
+  const days = Math.round(hours / 24);
+  if (Math.abs(days) < 30) return `Son güncelleme: ${formatter.format(days, "day")}`;
+  return `Son güncelleme: ${formatProfileDate(value)}`;
+}
+
+function setGarageStatProgress(id, value, total) {
+  const target = document.querySelector(`#${id}`);
+  if (!target) return;
+  target.style.width = `${total ? Math.min(100, Math.round((value / total) * 100)) : 0}%`;
+}
+
+function renderPublicGarageProfile(profileName) {
+  if (!publicGarageProfileHeader || !publicGarageProfile) return;
+  const stats = publicGarageRewardStats();
+  const rank = Rewards?.rankFor(stats.points) || Rewards?.RANKS?.[0];
+  const badges = Rewards?.badgesForStats
+    ? Rewards.badgesForStats(stats)
+    : Rewards?.badgesFor(publicGarageProfile, state) || [];
+  const featuredOrder = Rewards?.settings()?.featuredBadges || [];
+  const featuredBadges = [...badges]
+    .sort((a, b) => {
+      const aIndex = featuredOrder.indexOf(a.id);
+      const bIndex = featuredOrder.indexOf(b.id);
+      return (aIndex < 0 ? 99 : aIndex) - (bIndex < 0 ? 99 : bIndex);
+    })
+    .slice(0, 3);
+  const lastUpdated = publicGarageItems.reduce((latest, item) => {
+    const date = new Date(item.updatedAt || item.createdAt || 0).getTime();
+    return Number.isFinite(date) ? Math.max(latest, date) : latest;
+  }, 0);
+
+  applyAvatarElement(
+    publicGarageProfileAvatar,
+    { type: "preset", id: publicGarageProfile.avatar_id || "garage-shield" },
+    publicGarageProfile
+  );
+  publicGarageProfileTitle.textContent = `@${profileName} Garajı`;
+  publicGarageRankVisual.innerHTML = rankImageMarkup(rank, "public-garage-rank-image");
+  publicGarageRankName.textContent = rank?.title || "R1 Çaylak Avcı";
+  publicGarageRadarPoints.textContent = `${Number(stats.points || 0)} Radar Puanı`;
+  publicGarageBadgeCount.textContent = `${badges.length} rozet`;
+  publicGarageJoinedAt.textContent = publicGarageProfile.created_at
+    ? `Katılım: ${formatProfileDate(publicGarageProfile.created_at)}`
+    : "Katılım tarihi bilinmiyor";
+  publicGarageUpdatedAt.textContent = formatRelativeCollectionTime(lastUpdated || "");
+  publicGarageFeaturedBadges.innerHTML = featuredBadges.length
+    ? featuredBadges.map((badge) => `
+      <span class="public-garage-featured-badge reward-tone--${escapeHtml(badge.tone || "gold")}" title="${escapeHtml(badge.title)}">
+        <img src="${escapeHtml(rewardBadgeAssetPath(badge.id))}" alt="" loading="lazy" decoding="async" />
+        <strong>${escapeHtml(badge.title)}</strong>
+      </span>
+    `).join("")
+    : '<span class="public-garage-featured-badge is-muted">Henüz kazanılmış rozet yok</span>';
+}
+
 function updateGarageDashboard() {
   if (!garageDashboard) return;
-  const totalFor = (predicate) => state.collection
+  const garageItems = publicGarageUsername ? publicGarageItems : state.collection;
+  const totalFor = (predicate) => garageItems
     .filter(predicate)
     .reduce((total, item) => total + garageQuantity(item), 0);
-  garageStatTotal.textContent = String(totalFor(() => true));
-  garageStatRegular.textContent = String(totalFor((item) => !isGaragePremium(item) && !isGarageHunt(item) && !isGarageChase(item) && !isGarageSilver(item)));
-  garageStatPremium.textContent = String(totalFor(isGaragePremium));
+  const total = totalFor(() => true);
+  const regular = totalFor((item) => !isGaragePremium(item) && !isGarageHunt(item) && !isGarageChase(item) && !isGarageSilver(item));
+  const premium = totalFor(isGaragePremium);
+  const chase = totalFor(isGarageChase);
+  const treasureHunt = totalFor(isGarageTreasureHunt);
+  const superTreasureHunt = totalFor(isGarageSuperHunt);
+  garageStatTotal.textContent = String(total);
+  garageStatRegular.textContent = String(regular);
+  garageStatPremium.textContent = String(premium);
+  if (garageStatChase) garageStatChase.textContent = String(chase);
+  if (garageStatTh) garageStatTh.textContent = String(treasureHunt);
+  if (garageStatSth) garageStatSth.textContent = String(superTreasureHunt);
   garageStatTrade.textContent = String(totalFor((item) => item.forTrade === true || item.marketType === "Takaslık"));
   garageStatMarket.textContent = String(totalFor((item) => item.forSale === true || item.forTrade === true || ["Satılık", "Takaslık"].includes(item.marketType)));
   garageFilterChips?.querySelectorAll("[data-garage-filter]").forEach((button) => {
@@ -6230,6 +6841,53 @@ function updateGarageDashboard() {
   if (garageSortSelect && garageSortSelect.value !== activeGarageSort) garageSortSelect.value = activeGarageSort;
   if (activeView === "collection" && garageSearchInput && garageSearchInput.value !== searchInput.value) {
     garageSearchInput.value = searchInput.value;
+  }
+  const viewingPublicGarage = Boolean(publicGarageUsername);
+  const profileName = publicGarageProfile?.username || publicGarageUsername;
+  garageDashboardOwnCopy?.classList.toggle("is-hidden", viewingPublicGarage);
+  publicGarageProfileHeader?.classList.toggle("is-hidden", !viewingPublicGarage);
+  garageDashboard.classList.toggle("is-public-garage", viewingPublicGarage);
+  garageDashboard.querySelectorAll(".garage-stat--public").forEach((stat) => stat.classList.toggle("is-hidden", !viewingPublicGarage));
+  garageDashboard.querySelectorAll(".garage-stat--own").forEach((stat) => stat.classList.toggle("is-hidden", viewingPublicGarage));
+  if (!viewingPublicGarage) {
+    if (garageDashboardEyebrow) garageDashboardEyebrow.textContent = "KİŞİSEL KOLEKSİYON";
+    if (garageDashboardTitle) garageDashboardTitle.textContent = "Garaj";
+    if (garageDashboardCopy) garageDashboardCopy.textContent = "Koleksiyonundaki araçları görüntüle, filtrele ve yönet.";
+  }
+  garageAddButton?.classList.toggle("is-hidden", viewingPublicGarage);
+  openOwnGarageButton?.classList.toggle("is-hidden", !viewingPublicGarage);
+  sharePublicGarageButton?.classList.toggle("is-hidden", !viewingPublicGarage || publicGarageProfile?.garage_visibility !== "public");
+  const canShowPublicDetails = viewingPublicGarage && !publicGarageLoading && publicGarageProfile?.garage_visibility === "public";
+  publicGarageNotice?.classList.toggle("is-hidden", !viewingPublicGarage);
+  publicGarageComparison?.classList.toggle("is-hidden", !canShowPublicDetails);
+  if (viewingPublicGarage && publicGarageProfileTitle) publicGarageProfileTitle.textContent = `@${profileName} Garajı`;
+  if (viewingPublicGarage && publicGarageProfile) renderPublicGarageProfile(profileName);
+  if (canShowPublicDetails) {
+    const comparison = publicGarageComparisonStats();
+    publicGarageCommonCount.textContent = String(comparison.common);
+    publicGarageMissingCount.textContent = String(comparison.missing);
+    publicGarageComparisonProgress.style.width = `${comparison.percent}%`;
+    publicGarageComparisonCopy.textContent = comparison.total
+      ? `Sizin bu koleksiyonla ${comparison.common} ortak aracınız bulunuyor. Bu garajdaki ${comparison.missing} araç henüz sizin koleksiyonunuzda yok.`
+      : "Bu koleksiyonda henüz karşılaştırılabilecek araç bulunmuyor.";
+    toggleMissingGarageVehiclesButton.disabled = comparison.missing === 0;
+    toggleMissingGarageVehiclesButton.classList.toggle("is-active", publicGarageMissingOnly);
+    toggleMissingGarageVehiclesButton.setAttribute("aria-pressed", String(publicGarageMissingOnly));
+    toggleMissingGarageVehiclesButton.textContent = publicGarageMissingOnly ? "Tüm Araçları Göster" : "Eksik Araçları Göster";
+  }
+  setGarageStatProgress("garageStatTotalProgress", total, total);
+  setGarageStatProgress("garageStatRegularProgress", regular, total);
+  setGarageStatProgress("garageStatPremiumProgress", premium, total);
+  setGarageStatProgress("garageStatChaseProgress", chase, total);
+  setGarageStatProgress("garageStatThProgress", treasureHunt, total);
+  setGarageStatProgress("garageStatSthProgress", superTreasureHunt, total);
+  if (viewingPublicGarage && publicGarageNoticeTitle && publicGarageNoticeCopy) {
+    publicGarageNoticeTitle.textContent = publicGarageLoading ? "Garaj yükleniyor" : `@${profileName} garajı`;
+    publicGarageNoticeCopy.textContent = publicGarageLoading
+      ? "Araçlar güvenli biçimde getiriliyor."
+      : publicGarageProfile?.garage_visibility === "private"
+        ? "Bu kullanıcı garajını gizli tutuyor. Aktif pazar ilanları yine görüntülenebilir."
+        : `Şu anda @${profileName} adlı koleksiyonerin herkese açık koleksiyonunu görüntülüyorsun. Araçları inceleyebilir ancak değişiklik yapamazsın.`;
   }
 }
 
@@ -7794,7 +8452,19 @@ function dashboardHashForView(view) {
   return `#/${DASHBOARD_ROUTES[view] || DASHBOARD_ROUTES.home}`;
 }
 
+function publicGarageUsernameFromHash(hash = window.location.hash) {
+  const route = String(hash || "").replace(/^#\/?/, "").split(/[?#]/)[0].trim();
+  const match = route.match(/^kullanici\/([^/]+)\/garaj$/i);
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
 function dashboardViewFromHash(hash = window.location.hash) {
+  if (publicGarageUsernameFromHash(hash)) return "collection";
   const route = String(hash || "").replace(/^#\/?/, "").split(/[?#]/)[0].trim();
   return DASHBOARD_VIEWS_BY_ROUTE[route] || "";
 }
@@ -7817,6 +8487,7 @@ function toggleDashboardMenu() {
 function navigateToView(view, options = {}) {
   const safeView = DASHBOARD_ROUTES[view] ? view : "home";
   const targetView = safeView === "admin" && authInitialized && !isAdminUser() ? "home" : safeView;
+  if (!options.preservePublicGarage) clearPublicGarageContext();
   const targetHash = dashboardHashForView(targetView);
   if (window.location.hash !== targetHash) {
     const method = options.replace ? "replaceState" : "pushState";
@@ -7831,6 +8502,7 @@ function applyDashboardRoute({ replaceUnknown = true } = {}) {
     return;
   }
   const routedView = dashboardViewFromHash();
+  const routedPublicGarage = publicGarageUsernameFromHash();
   if (!routedView) {
     navigateToView("home", { replace: replaceUnknown, clearSearch: true });
     return;
@@ -7840,6 +8512,14 @@ function applyDashboardRoute({ replaceUnknown = true } = {}) {
     return;
   }
   setActiveView(routedView, { fromRoute: true });
+  if (routedPublicGarage) {
+    if (normalize(publicGarageUsername) !== normalize(routedPublicGarage) || (!publicGarageItems.length && !publicGarageLoading)) {
+      void loadPublicGarage(routedPublicGarage);
+    }
+  } else if (publicGarageUsername) {
+    clearPublicGarageContext();
+    render();
+  }
 }
 
 function setActiveView(view, options = {}) {
@@ -8137,9 +8817,13 @@ document.querySelector("#closeProfileModal").addEventListener("click", closeProf
 profileModal.addEventListener("click", (event) => {
   if (event.target === profileModal) closeProfileModal();
 });
-saveProfileAvatar.addEventListener("click", () => {
+profileGarageVisibility?.addEventListener("change", () => {
+  void updateGarageVisibility(profileGarageVisibility.checked);
+});
+saveProfileAvatar.addEventListener("click", async () => {
   if (!currentUser || !pendingProfileAvatar) return;
   Rewards?.setAvatar(currentUser, pendingProfileAvatar);
+  await syncPublicAvatar(pendingProfileAvatar);
   updateUserButton();
   renderProfileRewards();
   renderLeaderboard();
@@ -8159,6 +8843,54 @@ publicProfileModal.addEventListener("click", (event) => {
   if (event.target === publicProfileModal) closePublicProfileModal();
 });
 publicProfileMessage.addEventListener("click", () => openMessageThreadForUser(currentPublicProfileUsername));
+publicProfileOpenGarage?.addEventListener("click", () => {
+  const username = currentPublicProfileUsername;
+  closePublicProfileModal();
+  if (!username || normalize(username) === normalize(currentUser?.username)) {
+    navigateToView("collection", { clearSearch: true, scroll: true });
+    return;
+  }
+  navigateToPublicGarage(username);
+});
+toggleCollectorSearchButton?.addEventListener("click", () => {
+  setCollectorSearchOpen(Boolean(collectorSearchPanel?.hidden));
+});
+closeCollectorSearchButton?.addEventListener("click", () => setCollectorSearchOpen(false));
+collectorSearchForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  window.clearTimeout(collectorSearchTimer);
+  void searchCollectorProfiles();
+});
+collectorSearchInput?.addEventListener("input", () => {
+  window.clearTimeout(collectorSearchTimer);
+  collectorSearchTimer = window.setTimeout(() => void searchCollectorProfiles(), 300);
+});
+openOwnGarageButton?.addEventListener("click", () => navigateToView("collection", { clearSearch: true, scroll: true }));
+sharePublicGarageButton?.addEventListener("click", async () => {
+  const url = `${window.location.href.split("#")[0]}${publicGarageHash(publicGarageProfile?.username || publicGarageUsername)}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: `@${publicGarageProfile?.username || publicGarageUsername} Hunt Radar Garajı`,
+        text: "Bu koleksiyonerin Hunt Radar garajına göz at.",
+        url
+      });
+      showToast("Garaj bağlantısı paylaşıldı.");
+    } else {
+      await navigator.clipboard.writeText(url);
+      showToast("Garaj bağlantısı kopyalandı.");
+    }
+  } catch {
+    showToast("Paylaşım tamamlanmadı.");
+  }
+});
+toggleMissingGarageVehiclesButton?.addEventListener("click", () => {
+  if (!publicGarageUsername) return;
+  publicGarageMissingOnly = !publicGarageMissingOnly;
+  render();
+});
+importLegacyGarageButton?.addEventListener("click", () => void importLegacyGarageForCurrentUser());
+skipLegacyGarageImportButton?.addEventListener("click", () => closeLegacyGarageModal("skipped"));
 
 marketListingForm.addEventListener("submit", (event) => {
   event.preventDefault();

@@ -4,10 +4,14 @@ Supabase SQL Editor içinde dosyaları aşağıdaki sırayla çalıştır:
 
 1. `supabase-auth.sql`
 2. `supabase-content-ownership.sql`
-3. `supabase-storage.sql`
-4. `supabase-reward-system.sql`
-5. `supabase-radar-note-photos.sql`
-6. `supabase-garage-explore.sql`
+3. `supabase-user-garages.sql`
+4. `supabase-profile-access-hardening.sql`
+5. `supabase-content-access-hardening.sql`
+6. `supabase-storage.sql`
+7. `supabase-reward-system.sql`
+8. `supabase-radar-note-photos.sql`
+9. `supabase-garage-explore.sql`
+10. `supabase-public-garage-social-profile.sql`
 
 Mevcut bir Hunt Radar kurulumu ödül sistemi için güncelleniyorsa son sürüm
 `supabase-reward-system.sql` dosyasını yeniden çalıştırmak yeterlidir. Dosya
@@ -60,3 +64,32 @@ Migration sonrasında şu kontrolleri yap:
 Eski `supabase-hotwheels-catalog-import.sql` ve batch dosyalarını bu migration
 için yeniden çalıştırma; ilk import dosyaları katalog tablosunu temizleyen
 bootstrap komutları içerir.
+
+## Kullanıcıya özel garajlar
+
+`supabase-user-garages.sql` ortak garaj havuzunu kullanıcı bazlı erişime çevirir:
+
+- Garage ve Wishlist kayıtları sahibine göre ayrılır.
+- Wishlist daima yalnızca sahibine görünür.
+- Açık garajlar yalnızca giriş yapan kullanıcılar tarafından görüntülenebilir.
+- Özel garajların araçları gizlenir; aktif satış/takas kayıtları pazar için görünür kalır.
+- Kullanıcı araması e-posta döndürmeyen `search_public_profiles` RPC'si üzerinden çalışır.
+- `get_public_garage`, `get_my_garage`, `get_collection_market_listings` ve
+  `set_garage_visibility` RPC'leri oluşturulur.
+
+`supabase-public-garage-social-profile.sql` premium koleksiyoner profilini tamamlar:
+
+- Güvenli preset avatar tercihini `profiles.avatar_id` alanında saklar.
+- Profil, Radar Puanı, rozet hesaplama özeti ve açık garaj araçlarını tek çağrıda
+  döndüren `get_public_garage_page` RPC'sini oluşturur.
+- İstatistik, ortak araç ve eksik araç hesapları mevcut araç listesi üzerinden
+  tarayıcıda yapılır; kart başına ek sorgu çalıştırılmaz.
+
+Migration sonrasında iki farklı kullanıcıyla şu kontrolleri yap:
+
+1. Kullanıcı A kendi garajında yalnızca kendi kayıtlarını görmeli.
+2. Kullanıcı B aynı cihazda oturum açtığında Kullanıcı A'nın özel state'i görünmemeli.
+3. Açık garaj kullanıcı adıyla bulunup salt okunur açılmalı.
+4. Özel garajın araçları ve istatistikleri görünmemeli.
+5. Özel garaj sahibinin aktif pazar ilanı görünmeye devam etmeli.
+6. Başka kullanıcı UPDATE/DELETE işlemi yapamamalı.

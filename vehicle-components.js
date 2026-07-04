@@ -203,7 +203,9 @@
       const image = document.createElement("img");
       image.alt = `${vehicle.model} görseli`;
       image.loading = eager ? "eager" : "lazy";
+      image.fetchPriority = eager ? "high" : "auto";
       image.decoding = "async";
+      image.referrerPolicy = "no-referrer";
       const classifyImage = () => {
         if (!image.naturalWidth || !image.naturalHeight) return;
         const ratio = image.naturalWidth / image.naturalHeight;
@@ -253,6 +255,7 @@
   function createCard(raw, options = {}) {
     const vehicle = normalize(raw);
     const mode = options.mode || "explore";
+    const readOnly = options.readOnly === true || mode === "public-garage";
     const quantity = Math.max(0, Number(options.quantity || 0));
     const tone = rarityTone(vehicle);
     const card = document.createElement("article");
@@ -262,14 +265,14 @@
 
     const visual = document.createElement("div");
     visual.className = "vehicle-card__visual";
-    visual.appendChild(createMedia(vehicle));
+    visual.appendChild(createMedia(vehicle, options.eagerImage === true));
 
     const rarity = document.createElement("span");
     rarity.className = `vehicle-badge vehicle-badge--${tone}`;
     rarity.textContent = vehicle.rarity;
     visual.appendChild(rarity);
 
-    if (mode !== "garage") {
+    if (mode !== "garage" && !readOnly) {
       const wishlistButton = createIconButton(
         options.wishlisted ? "İstek listesinden çıkar" : "İstek listesine ekle",
         `vehicle-card__wishlist${options.wishlisted ? " is-active" : ""}`,
@@ -308,7 +311,7 @@
     appendChip(meta, vehicle.toyNumber, "number");
     body.appendChild(meta);
 
-    if (mode === "garage") {
+    if (mode === "garage" || mode === "public-garage") {
       const garageMeta = document.createElement("div");
       garageMeta.className = "vehicle-card__garage-meta";
       [
@@ -337,7 +340,12 @@
 
     const actions = document.createElement("div");
     actions.className = "vehicle-card__actions";
-    if (quantity > 0) {
+    if (readOnly) {
+      const readOnlyLabel = document.createElement("span");
+      readOnlyLabel.className = "vehicle-card__readonly";
+      readOnlyLabel.textContent = quantity > 0 ? `${quantity} adet` : "Koleksiyonda";
+      actions.appendChild(readOnlyLabel);
+    } else if (quantity > 0) {
       const stepper = document.createElement("div");
       stepper.className = "vehicle-quantity";
       const decrease = createIconButton("Adedi azalt", "vehicle-quantity__button", "−");
@@ -457,7 +465,13 @@
 
     actions.innerHTML = "";
     const quantity = Math.max(0, Number(options.quantity || 0));
-    if (quantity > 0) {
+    const readOnly = options.readOnly === true || options.mode === "public-garage";
+    if (readOnly) {
+      const readOnlyLabel = document.createElement("span");
+      readOnlyLabel.className = "vehicle-detail__readonly";
+      readOnlyLabel.textContent = quantity > 0 ? `${quantity} adet koleksiyonda` : "Koleksiyonda";
+      actions.appendChild(readOnlyLabel);
+    } else if (quantity > 0) {
       const stepper = document.createElement("div");
       stepper.className = "vehicle-detail__stepper vehicle-quantity";
       const minus = createIconButton("Adedi azalt", "vehicle-quantity__button", "−");
@@ -482,7 +496,7 @@
     notes.className = "button button--ghost";
     notes.textContent = "Notlar";
     notes.addEventListener("click", () => options.onNotes?.(vehicle));
-    if (options.mode !== "garage") {
+    if (!readOnly && options.mode !== "garage") {
       const wishlist = document.createElement("button");
       wishlist.type = "button";
       wishlist.className = `button button--ghost vehicle-detail__wishlist${options.wishlisted ? " is-active" : ""}`;
@@ -490,7 +504,7 @@
       wishlist.addEventListener("click", () => void options.onWishlistToggle?.(vehicle));
       actions.append(wishlist);
     }
-    actions.append(notes);
+    if (!readOnly) actions.append(notes);
 
     drawer.classList.add("is-visible");
     drawer.setAttribute("aria-hidden", "false");

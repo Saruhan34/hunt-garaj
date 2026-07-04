@@ -5,6 +5,8 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique,
   username text unique,
+  garage_visibility text not null default 'public' check (garage_visibility in ('public', 'private')),
+  avatar_id text not null default 'garage-shield' check (avatar_id ~ '^[a-z0-9-]{1,40}$'),
   role text not null default 'user' check (role in ('user', 'admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -272,6 +272,10 @@
 
   function badgesFor(user, appState) {
     const stats = statsFor(user, appState);
+    return badgesForStats(stats);
+  }
+
+  function badgesForStats(stats = {}) {
     return currentSettings.badges.filter((badge) => badgeEarned(badge, stats));
   }
 
@@ -292,7 +296,7 @@
   }
 
   window.rewardService = { DEFAULT_RULES, DEFAULT_RANKS, DEFAULT_BADGES, DEFAULT_AVATARS, DEFAULT_LIMITS, configure, connect, refresh, settings, addEvent, statsFor, rankFor, nextRankFor, rankProgress, userKey, readState };
-  window.badgeService = { badgesFor, allBadgesFor };
+  window.badgeService = { badgesFor, badgesForStats, allBadgesFor };
   window.leaderboardService = { leaderboard };
   window.avatarService = { setAvatar, getAvatar };
   window.HuntRadarRewards = {
@@ -301,6 +305,6 @@
     get BADGES() { return currentSettings.badges; },
     get AVATARS() { return currentSettings.avatars; },
     configure, connect, refresh, settings, addEvent, setAvatar, getAvatar, statsFor, rankFor, nextRankFor, rankProgress,
-    badgesFor, allBadgesFor, leaderboard, userKey
+    badgesFor, badgesForStats, allBadgesFor, leaderboard, userKey
   };
 })();

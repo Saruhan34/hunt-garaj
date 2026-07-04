@@ -43,6 +43,24 @@ alter table if exists public.hotwheels_catalog_items
     ), 'D')
   ) stored;
 
+-- Keep rarity values aligned with the shared Garage / Explore card system.
+alter table if exists public.hotwheels_catalog_items
+  drop constraint if exists hotwheels_catalog_items_rarity_segment_check;
+
+alter table if exists public.hotwheels_catalog_items
+  add constraint hotwheels_catalog_items_rarity_segment_check
+  check (rarity_segment = any (array[
+    'regular'::text,
+    'silver_series'::text,
+    'premium'::text,
+    'chase'::text,
+    'treasure_hunt'::text,
+    'super_treasure_hunt'::text,
+    'zamac'::text,
+    'red_edition'::text,
+    'exclusive'::text
+  ]));
+
 create index if not exists hotwheels_catalog_search_idx
   on public.hotwheels_catalog_items using gin (search_vector);
 
