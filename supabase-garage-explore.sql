@@ -112,6 +112,46 @@ create index if not exists content_records_catalog_membership_idx
   where content_type in ('collection', 'wishlist')
     and nullif(data ->> 'catalogId', '') is not null;
 
+-- Repair duplicate memberships created by older clients before enforcing uniqueness.
+with duplicate_groups as (
+  select
+    owner_id,
+    content_type,
+    data ->> 'catalogId' as catalog_id,
+    min(id) as keep_id,
+    sum(greatest(1, case
+      when coalesce(data ->> 'quantity', '') ~ '^[0-9]+$' then (data ->> 'quantity')::integer
+      else 1
+    end))::integer as total_quantity
+  from public.content_records
+  where content_type in ('collection', 'wishlist')
+    and nullif(data ->> 'catalogId', '') is not null
+  group by owner_id, content_type, data ->> 'catalogId'
+  having count(*) > 1
+)
+update public.content_records cr
+set data = jsonb_set(cr.data, '{quantity}', to_jsonb(least(999, dg.total_quantity)), true),
+    updated_at = now()
+from duplicate_groups dg
+where cr.id = dg.keep_id
+  and cr.owner_id = dg.owner_id
+  and cr.content_type = 'collection';
+
+with duplicate_groups as (
+  select owner_id, content_type, data ->> 'catalogId' as catalog_id, min(id) as keep_id
+  from public.content_records
+  where content_type in ('collection', 'wishlist')
+    and nullif(data ->> 'catalogId', '') is not null
+  group by owner_id, content_type, data ->> 'catalogId'
+  having count(*) > 1
+)
+delete from public.content_records cr
+using duplicate_groups dg
+where cr.owner_id = dg.owner_id
+  and cr.content_type = dg.content_type
+  and cr.data ->> 'catalogId' = dg.catalog_id
+  and cr.id <> dg.keep_id;
+
 create unique index if not exists content_records_catalog_membership_unique_idx
   on public.content_records (owner_id, content_type, ((data ->> 'catalogId')))
   where content_type in ('collection', 'wishlist')
@@ -333,6 +373,7 @@ declare
   v_record public.content_records%rowtype;
   v_record_id text;
   v_quantity integer := 0;
+  v_merged_quantity integer := 0;
   v_exists boolean := false;
   v_now timestamptz := now();
 begin
@@ -369,6 +410,35 @@ begin
   limit 1
   for update;
   v_exists := found;
+
+  -- Older clients could create more than one row for the same catalog vehicle.
+  -- Collapse those rows inside the same advisory lock before applying the action.
+  if v_exists then
+    select coalesce(sum(greatest(1, case
+      when coalesce(cr.data ->> 'quantity', '') ~ '^[0-9]+$'
+        then (cr.data ->> 'quantity')::integer
+      else 1
+    end)), 1)::integer
+    into v_merged_quantity
+    from public.content_records cr
+    where cr.owner_id = v_user_id
+      and cr.content_type = p_target
+      and cr.data ->> 'catalogId' = p_catalog_id;
+
+    delete from public.content_records
+    where owner_id = v_user_id
+      and content_type = p_target
+      and data ->> 'catalogId' = p_catalog_id
+      and id <> v_record.id;
+
+    if p_target = 'collection' then
+      update public.content_records
+      set data = jsonb_set(data, '{quantity}', to_jsonb(least(999, v_merged_quantity)), true),
+          updated_at = v_now
+      where id = v_record.id and owner_id = v_user_id;
+      v_record.data := jsonb_set(v_record.data, '{quantity}', to_jsonb(least(999, v_merged_quantity)), true);
+    end if;
+  end if;
 
   if p_target = 'wishlist' then
     if (p_action in ('remove', 'toggle') and v_exists) then

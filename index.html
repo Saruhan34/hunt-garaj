@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=142" />
+    <link rel="stylesheet" href="./styles.css?v=144" />
     <link rel="stylesheet" href="./vehicle-components.css?v=12" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
@@ -1519,48 +1519,64 @@
 
     <div class="market-modal auth-modal" id="authModal" aria-hidden="true">
       <form class="market-modal__panel auth-modal__panel" id="authForm">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Üyelik</p>
-            <h2 id="authTitle">Giriş yap</h2>
-            <p class="view-copy" id="authSubtitle">Pazar ilanı oluşturmak için hesabına gir.</p>
-          </div>
-          <button class="delete-button" id="closeAuthModal" type="button" aria-label="Pencereyi kapat">×</button>
+        <button class="auth-modal__close" id="closeAuthModal" type="button" aria-label="Pencereyi kapat">×</button>
+        <div class="auth-modal__main">
+          <aside class="auth-story" aria-label="Hunt Radar özellikleri">
+            <div class="auth-story__visual">
+              <img src="./assets/auth-collector-hero.png" alt="Gece şehrinde radar ışıkları altındaki siyah spor otomobil" />
+            </div>
+            <div class="auth-story__features">
+              <article><span>⌂</span><div><strong>Garajını yönet</strong><p>Araçlarını ekle, düzenle ve koleksiyonunu büyüt.</p></div></article>
+              <article><span>◎</span><div><strong>Radar bildir</strong><p>Radarları haritada işaretle, koleksiyoncuları haberdar et.</p></div></article>
+              <article><span>◆</span><div><strong>Rozet kazan</strong><p>Aktivitenle rozetler kazan, seviyeni göster.</p></div></article>
+              <article><span>♙</span><div><strong>Koleksiyoncuları keşfet</strong><p>Tutkulu koleksiyoncularla bağlantı kur.</p></div></article>
+            </div>
+          </aside>
+          <section class="auth-access">
+            <div class="auth-brand-crop" aria-label="Hunt Radar">
+              <img src="./assets/auth-hunt-radar-logo.png" alt="Hunt Radar" />
+            </div>
+            <header class="auth-access__heading">
+              <h2 id="authTitle">Koleksiyonuna Devam Et</h2>
+              <p id="authSubtitle">Garajını yönet, radarları takip et ve koleksiyoncuları keşfet.</p>
+            </header>
+            <div class="market-choice auth-choice" role="radiogroup" aria-label="Üyelik türü">
+              <label><input type="radio" name="authMode" value="login" checked /><span>Giriş yap</span></label>
+              <label><input type="radio" name="authMode" value="register" /><span>Kayıt ol</span></label>
+            </div>
+            <button class="auth-google" id="googleLoginButton" type="button"><b>G</b><span>Google ile 3 saniyede giriş yap</span></button>
+            <div class="auth-divider"><span>veya</span></div>
+            <div class="auth-fields">
+              <div class="field auth-register-field" id="authUsernameField">
+                <label class="auth-input-shell" for="authUsername"><span>@</span><input id="authUsername" name="username" autocomplete="username" placeholder="Kullanıcı adınız" /></label>
+                <span class="field-hint">Profilinde ve ilanlarında bu ad görünür.</span>
+              </div>
+              <div class="field">
+                <label class="auth-input-shell" for="authEmail"><span>✉</span><input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="E-posta adresiniz" /></label>
+              </div>
+              <div class="field auth-password-field">
+                <label class="auth-input-shell" for="authPassword"><span>♙</span><input id="authPassword" name="password" type="password" autocomplete="current-password" required placeholder="Şifreniz" /><button class="auth-password-toggle" id="authPasswordToggle" type="button" aria-label="Şifreyi göster" aria-pressed="false">◉</button></label>
+              </div>
+              <div class="field auth-reset-field" id="authNewPasswordField">
+                <label class="auth-input-shell" for="authNewPassword"><span>♙</span><input id="authNewPassword" name="newPassword" type="password" autocomplete="new-password" placeholder="Yeni şifreniz" /></label>
+              </div>
+            </div>
+            <div class="auth-login-options" id="authLoginOptions">
+              <label class="auth-remember"><input id="authRememberMe" type="checkbox" checked /><span></span>Beni hatırla</label>
+              <button id="forgotPasswordButton" type="button">Şifremi unuttum?</button>
+            </div>
+            <p class="auth-status" id="authStatus" aria-live="polite"></p>
+            <button class="auth-submit" id="authSubmitButton" type="submit"><span>Giriş yap</span><b>→</b></button>
+            <div class="auth-secure-note"><span>♢</span><div><strong>Güvenli giriş</strong><small>Verilerin güvenle saklanır.</small></div></div>
+            <button class="button button--subtle" id="logoutUser" type="button">Çıkış yap</button>
+          </section>
         </div>
-        <div class="market-choice auth-choice" role="radiogroup" aria-label="Üyelik türü">
-          <label>
-            <input type="radio" name="authMode" value="login" checked />
-            <span>Giriş yap</span>
-          </label>
-          <label>
-            <input type="radio" name="authMode" value="register" />
-            <span>Kayıt ol</span>
-          </label>
-        </div>
-        <div class="field auth-register-field" id="authUsernameField">
-          <label for="authUsername">Kullanıcı adı</label>
-          <input id="authUsername" name="username" autocomplete="username" placeholder="hotcollector34" />
-          <span class="field-hint">İlanlarda bu ad görünecek.</span>
-        </div>
-        <div class="field">
-          <label for="authEmail">E-posta</label>
-          <input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="ornek@mail.com" />
-        </div>
-        <div class="field">
-          <label for="authPassword">Şifre</label>
-          <input id="authPassword" name="password" type="password" autocomplete="current-password" required placeholder="En az 6 karakter" />
-        </div>
-        <div class="field auth-reset-field" id="authNewPasswordField">
-          <label for="authNewPassword">Yeni şifre</label>
-          <input id="authNewPassword" name="newPassword" type="password" autocomplete="new-password" placeholder="Yeni şifren" />
-        </div>
-        <p class="auth-status" id="authStatus" aria-live="polite"></p>
-        <div class="form-actions">
-          <button class="button button--primary" id="authSubmitButton" type="submit">Giriş yap</button>
-          <button class="button button--ghost" id="googleLoginButton" type="button">Google ile giriş yap</button>
-          <button class="button button--subtle is-visible" id="forgotPasswordButton" type="button">Şifremi unuttum</button>
-          <button class="button button--subtle is-visible" id="logoutUser" type="button">Çıkış yap</button>
-        </div>
+        <footer class="auth-proof" aria-label="Hunt Radar istatistikleri">
+          <div><span>▱</span><strong id="authStatVehicles">—</strong><small>Katalog Aracı</small></div>
+          <div><span>♙</span><strong id="authStatCollectors">—</strong><small>Koleksiyoner</small></div>
+          <div><span>◎</span><strong id="authStatReports">—</strong><small>Radar Bildirimi</small></div>
+          <div><span>♢</span><strong>%99.9</strong><small>Güvenli Altyapı</small></div>
+        </footer>
       </form>
     </div>
 
@@ -1941,7 +1957,7 @@
     <script src="./explore-page.js?v=3"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=153"></script>
+    <script src="./app.js?v=157"></script>
   </body>
 </html>
 

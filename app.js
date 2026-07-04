@@ -5,6 +5,7 @@ const LEGACY_GARAGE_DECISION_PREFIX = "hunt-radar-legacy-garage-v1";
 const LEGACY_PRIVATE_SNAPSHOT_KEY = "hunt-radar-legacy-private-snapshot-v1";
 const USERS_KEY = "hunt-garaj-users-v1";
 const CURRENT_USER_KEY = "hunt-garaj-current-user-v1";
+const AUTH_REMEMBER_KEY = "hunt-radar-auth-remember-v1";
 const SUPABASE_URL = "https://lqksregvjhuswyvjjjqa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Zj-Vq30wPbhXccBxnenbDQ_T2HNo_1W";
 const ADMIN_EMAIL = "saruhanckmak@gmail.com";
@@ -41,10 +42,34 @@ const MANAGED_ASSET_PATHS = [
 ];
 const Rewards = window.HuntRadarRewards;
 const RAW_HOT_WHEELS_LINES_2026 = window.HW_LINES_2026 || null;
+const authSessionStorage = {
+  getItem(key) {
+    const remember = localStorage.getItem(AUTH_REMEMBER_KEY) !== "false";
+    return (remember ? localStorage : sessionStorage).getItem(key);
+  },
+  setItem(key, value) {
+    const remember = localStorage.getItem(AUTH_REMEMBER_KEY) !== "false";
+    const target = remember ? localStorage : sessionStorage;
+    const other = remember ? sessionStorage : localStorage;
+    target.setItem(key, value);
+    other.removeItem(key);
+  },
+  removeItem(key) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+};
 const supabaseClient = window.supabase
   && !SUPABASE_URL.includes("BURAYA_")
   && !SUPABASE_ANON_KEY.includes("BURAYA_")
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        storage: authSessionStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    })
   : null;
 const STORE_STATUSES = ["Yeni sevkiyat", "Premium var", "Az stok", "Boş", "TH görüldü", "STH görüldü", "Bakmaya değmez"];
 const STORE_FILTER_CITIES = ["Tümü", "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Kocaeli", "Diğer"];
@@ -755,6 +780,12 @@ const authSubmitButton = document.querySelector("#authSubmitButton");
 const authStatus = document.querySelector("#authStatus");
 const googleLoginButton = document.querySelector("#googleLoginButton");
 const forgotPasswordButton = document.querySelector("#forgotPasswordButton");
+const authRememberMe = document.querySelector("#authRememberMe");
+const authLoginOptions = document.querySelector("#authLoginOptions");
+const authPasswordToggle = document.querySelector("#authPasswordToggle");
+const authStatVehicles = document.querySelector("#authStatVehicles");
+const authStatCollectors = document.querySelector("#authStatCollectors");
+const authStatReports = document.querySelector("#authStatReports");
 const logoutUser = document.querySelector("#logoutUser");
 const adminPanel = document.querySelector("#adminPanel");
 const profileRoleHint = document.querySelector("#profileRoleHint");
@@ -1362,7 +1393,8 @@ function saveUsers() {
 }
 
 function loadCurrentUser() {
-  const currentId = localStorage.getItem(CURRENT_USER_KEY);
+  const remember = localStorage.getItem(AUTH_REMEMBER_KEY) !== "false";
+  const currentId = (remember ? localStorage : sessionStorage).getItem(CURRENT_USER_KEY);
   if (!currentId) return null;
   return users.find((user) => user.id === currentId) || null;
 }
@@ -1370,9 +1402,14 @@ function loadCurrentUser() {
 function saveCurrentUser(user) {
   currentUser = user;
   if (user) {
-    localStorage.setItem(CURRENT_USER_KEY, user.id);
+    const remember = localStorage.getItem(AUTH_REMEMBER_KEY) !== "false";
+    const target = remember ? localStorage : sessionStorage;
+    const other = remember ? sessionStorage : localStorage;
+    target.setItem(CURRENT_USER_KEY, user.id);
+    other.removeItem(CURRENT_USER_KEY);
   } else {
     localStorage.removeItem(CURRENT_USER_KEY);
+    sessionStorage.removeItem(CURRENT_USER_KEY);
   }
   updateUserButton();
 }
@@ -1415,6 +1452,7 @@ function normalizeState(data) {
       estimatedValue: car.estimatedValue || car.salePrice || ""
     };
   });
+  safe.collection = consolidateCollectionRecords(safe.collection);
 
   safe.stores = safe.stores.map((store) => ({
     status: "Premium var",
@@ -1694,6 +1732,46 @@ async function deletePublicRecord(type, record) {
   return true;
 }
 
+async function syncConsolidatedCollectionRecord(vehicle, entry, removed = false) {
+  if (!supabaseClient || !currentUser) return true;
+  const { data, error } = await supabaseClient
+    .from(CONTENT_TABLE)
+    .select("id, content_type, owner_id, owner_username, data, created_at, updated_at")
+    .eq("content_type", "collection")
+    .eq("owner_id", currentUser.id);
+  if (error) {
+    console.warn("Garaj kayıtları birleştirilemedi:", error.message);
+    return false;
+  }
+
+  const vehicleKey = garageVehicleIdentityKey(vehicle);
+  const matchingRecords = (data || [])
+    .map((row) => ownedRemoteRecord("collection", row))
+    .filter((record) => {
+      const recordCatalogId = String(record.catalogId || "");
+      const vehicleCatalogId = String(vehicle.catalogId || "");
+      if (recordCatalogId && vehicleCatalogId) return recordCatalogId === vehicleCatalogId;
+      return garageVehicleIdentityKey(record) === vehicleKey;
+    });
+  const idsToDelete = matchingRecords
+    .filter((record) => removed || String(record.id) !== String(entry?.id || ""))
+    .map((record) => String(record.id));
+
+  if (!removed && entry && !(await syncPublicRecord("collection", entry))) return false;
+  if (!idsToDelete.length) return true;
+  const { error: deleteError } = await supabaseClient
+    .from(CONTENT_TABLE)
+    .delete()
+    .eq("content_type", "collection")
+    .eq("owner_id", currentUser.id)
+    .in("id", idsToDelete);
+  if (deleteError) {
+    console.warn("Eski yinelenmiş garaj kayıtları silinemedi:", deleteError.message);
+    return false;
+  }
+  return true;
+}
+
 async function loadPublicContentFromSupabase() {
   if (!supabaseClient) return;
   const [publicResult, collectionListingsResult] = await Promise.all([
@@ -1741,9 +1819,9 @@ async function loadOwnedPrivateContentFromSupabase() {
     if (error.code !== "42P01") console.warn("Kişisel garaj yüklenemedi:", error.message);
     return;
   }
-  state.collection = (data || [])
+  state.collection = consolidateCollectionRecords((data || [])
     .filter((row) => row.content_type === "collection")
-    .map((row) => ownedRemoteRecord("collection", row));
+    .map((row) => ownedRemoteRecord("collection", row)));
   state.wishlist = (data || [])
     .filter((row) => row.content_type === "wishlist")
     .map((row) => ownedRemoteRecord("wishlist", row));
@@ -3345,6 +3423,26 @@ function garageVehicleIdentityKey(item = {}) {
   ].map((value) => normalize(value)).join("|")}`;
 }
 
+function consolidateCollectionRecords(records = []) {
+  const grouped = new Map();
+  records.forEach((record) => {
+    const ownerKey = String(recordOwnerId("collection", record) || recordOwnerUsername("collection", record) || "local");
+    const key = `${ownerKey}:${garageVehicleIdentityKey(record)}`;
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, { ...record, quantity: garageQuantity(record) });
+      return;
+    }
+    existing.quantity = Math.min(999, garageQuantity(existing) + garageQuantity(record));
+    const existingUpdated = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+    const recordUpdated = new Date(record.updatedAt || record.createdAt || 0).getTime();
+    if (recordUpdated > existingUpdated) {
+      Object.assign(existing, record, { id: existing.id, quantity: existing.quantity });
+    }
+  });
+  return Array.from(grouped.values());
+}
+
 function ownGarageVehicleKeys() {
   return new Set(state.collection.map(garageVehicleIdentityKey));
 }
@@ -4822,6 +4920,45 @@ function requireAuth(action) {
   openAuthModal("login", "Bu işlem için önce giriş yapmalısın.");
 }
 
+function persistAuthRememberChoice() {
+  const remember = authRememberMe?.checked !== false;
+  localStorage.setItem(AUTH_REMEMBER_KEY, String(remember));
+  return remember;
+}
+
+function formatAuthStat(value) {
+  const number = Math.max(0, Number(value || 0));
+  return number.toLocaleString("tr-TR");
+}
+
+async function updateAuthStats() {
+  const fallback = {
+    vehicles: ALL_CATALOG.length,
+    collectors: Math.max(users.length, currentUser ? 1 : 0),
+    reports: state.stores.length
+  };
+  if (!supabaseClient) {
+    authStatVehicles.textContent = formatAuthStat(fallback.vehicles);
+    authStatCollectors.textContent = formatAuthStat(fallback.collectors);
+    authStatReports.textContent = formatAuthStat(fallback.reports);
+    return;
+  }
+  const results = await Promise.allSettled([
+    supabaseClient.from("hotwheels_catalog_items").select("id", { count: "exact", head: true }),
+    supabaseClient.from("profiles").select("id", { count: "exact", head: true }),
+    supabaseClient.from(CONTENT_TABLE).select("id", { count: "exact", head: true }).eq("content_type", "stores")
+  ]);
+  const countAt = (index, fallbackValue) => {
+    const result = results[index];
+    return result.status === "fulfilled" && !result.value.error && Number.isFinite(result.value.count)
+      ? result.value.count
+      : fallbackValue;
+  };
+  authStatVehicles.textContent = formatAuthStat(countAt(0, fallback.vehicles));
+  authStatCollectors.textContent = formatAuthStat(countAt(1, fallback.collectors));
+  authStatReports.textContent = formatAuthStat(countAt(2, fallback.reports));
+}
+
 function openAuthModal(mode = "login", message = "") {
   authForm.dataset.mode = mode;
   if (mode === "login" || mode === "register") {
@@ -4831,6 +4968,8 @@ function openAuthModal(mode = "login", message = "") {
   setAuthStatus(message);
   authModal.classList.add("is-visible");
   authModal.setAttribute("aria-hidden", "false");
+  authRememberMe.checked = localStorage.getItem(AUTH_REMEMBER_KEY) !== "false";
+  void updateAuthStats();
   (mode === "update-password" ? authNewPassword : authEmail).focus();
 }
 
@@ -4839,6 +4978,9 @@ function closeAuthModal() {
   authModal.setAttribute("aria-hidden", "true");
   authForm.reset();
   authForm.dataset.mode = "login";
+  authPassword.type = "password";
+  authPasswordToggle.setAttribute("aria-pressed", "false");
+  authPasswordToggle.setAttribute("aria-label", "Şifreyi göster");
   pendingAuthAction = null;
   syncAuthMode();
   setAuthStatus("");
@@ -4853,18 +4995,23 @@ function syncAuthMode() {
   authNewPasswordField.classList.toggle("is-visible", isUpdatePassword);
   authUsername.required = isRegister;
   authPassword.required = !isReset && !isUpdatePassword;
+  authPassword.autocomplete = isRegister ? "new-password" : "current-password";
   authNewPassword.required = isUpdatePassword;
   authPassword.closest(".field").classList.toggle("is-hidden", isReset || isUpdatePassword);
   googleLoginButton.classList.toggle("is-hidden", isReset || isUpdatePassword);
   forgotPasswordButton.classList.toggle("is-hidden", isRegister || isReset || isUpdatePassword);
-  authTitle.textContent = isRegister ? "Kayıt ol" : isReset ? "Şifremi unuttum" : isUpdatePassword ? "Yeni şifre belirle" : "Giriş yap";
+  authForm.classList.toggle("auth-form-register", isRegister);
+  authForm.classList.toggle("auth-form-reset", isReset);
+  authForm.classList.toggle("auth-form-update", isUpdatePassword);
+  authLoginOptions.classList.toggle("is-hidden", isRegister || isReset || isUpdatePassword);
+  authTitle.textContent = isRegister ? "Koleksiyona Katıl" : isReset ? "Şifreni Yenile" : isUpdatePassword ? "Yeni Şifre Belirle" : "Koleksiyonuna Devam Et";
   authSubtitle.textContent = isRegister
-    ? "E-posta, şifre ve kullanıcı adıyla yeni hesap oluştur."
+    ? "Garajını oluştur, radar topluluğuna katıl ve koleksiyonunu büyüt."
     : isReset
-      ? "E-posta adresine şifre sıfırlama bağlantısı gönder."
+      ? "E-posta adresine güvenli bir şifre sıfırlama bağlantısı gönderelim."
       : isUpdatePassword
-        ? "Yeni şifreni belirleyip oturuma devam et."
-        : "Hunt Radar hesabına gir.";
+        ? "Yeni şifreni belirleyip koleksiyonuna güvenle devam et."
+        : "Garajını yönet, radarları takip et ve koleksiyoncuları keşfet.";
   authSubmitButton.textContent = isRegister ? "Kayıt ol" : isReset ? "Sıfırlama linki gönder" : isUpdatePassword ? "Şifreyi güncelle" : "Giriş yap";
   logoutUser.classList.toggle("is-visible", Boolean(currentUser));
 }
@@ -4875,6 +5022,7 @@ async function handleAuthSubmit(event) {
   const email = normalizeEmail(authEmail.value);
   const password = authPassword.value;
   const username = authUsername.value.trim();
+  persistAuthRememberChoice();
 
   if (mode === "reset-password") {
     await sendPasswordReset(email);
@@ -5005,6 +5153,7 @@ async function loginWithGoogle() {
     setAuthStatus("Supabase URL ve anon key girilmeden Google girişi çalışmaz.");
     return;
   }
+  persistAuthRememberChoice();
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -7015,6 +7164,9 @@ function catalogVehicleIdentity(vehicle = {}) {
 
 function catalogEntryMatchesVehicle(entry = {}, rawVehicle = {}) {
   const vehicle = catalogVehicleIdentity(rawVehicle);
+  const entryId = String(entry.id || "");
+  const vehicleId = String(vehicle.id || rawVehicle.id || "");
+  if (entryId && vehicleId && entryId === vehicleId) return true;
   const entryCatalogId = String(entry.catalogId || "");
   const vehicleCatalogId = String(vehicle.catalogId || vehicle.id || "");
   if (entryCatalogId && vehicleCatalogId) return entryCatalogId === vehicleCatalogId;
@@ -7035,6 +7187,25 @@ function currentUserRecord(type, vehicle) {
   return (state[type] || []).find((entry) => (
     isOwnedByCurrentUser(type, entry) && catalogEntryMatchesVehicle(entry, vehicle)
   )) || null;
+}
+
+function currentUserRecords(type, vehicle) {
+  if (!currentUser) return [];
+  return (state[type] || []).filter((entry) => (
+    isOwnedByCurrentUser(type, entry) && catalogEntryMatchesVehicle(entry, vehicle)
+  ));
+}
+
+function consolidateLocalCollectionVehicle(vehicle) {
+  const matches = currentUserRecords("collection", vehicle);
+  if (!matches.length) return { entry: null, duplicates: [] };
+  const [entry, ...duplicates] = matches;
+  entry.quantity = Math.min(999, matches.reduce((total, item) => total + garageQuantity(item), 0));
+  if (duplicates.length) {
+    const duplicateIds = new Set(duplicates.map((item) => String(item.id)));
+    state.collection = state.collection.filter((item) => !duplicateIds.has(String(item.id)));
+  }
+  return { entry, duplicates };
 }
 
 function getExploreMembership(vehicle) {
@@ -7139,12 +7310,17 @@ async function mutateExploreGarage(rawVehicle, delta) {
   return runAfterAuth(async () => {
     const vehicle = catalogVehicleIdentity(rawVehicle);
     const beforeCollection = structuredClone(state.collection);
-    let membership = getExploreMembership(vehicle);
-    let entry = membership.collectionEntry;
+    const beforeQuantity = currentUserRecords("collection", vehicle)
+      .reduce((total, item) => total + garageQuantity(item), 0);
+    const consolidated = consolidateLocalCollectionVehicle(vehicle);
+    let entry = consolidated.entry;
     let created = false;
     let removed = false;
 
-    if (!entry && delta < 0) return false;
+    if (!entry && delta < 0) {
+      showToast(`${vehicle.model} zaten garajında bulunmuyor.`);
+      return false;
+    }
     if (!entry) {
       entry = vehicleCollectionRecord(vehicle);
       state.collection.unshift(entry);
@@ -7165,19 +7341,22 @@ async function mutateExploreGarage(rawVehicle, delta) {
       const action = removed ? "remove" : created ? "add" : delta > 0 ? "increment" : "decrement";
       const remote = await callMembershipRpc(vehicle, "collection", action);
       if (remote.fallback) {
-        const synced = removed
-          ? await deletePublicRecord("collection", entry)
-          : (supabaseClient ? await syncPublicRecord("collection", entry) : true);
+        const synced = await syncConsolidatedCollectionRecord(vehicle, entry, removed);
         if (!synced) throw new Error("Garaj kaydı eşitlenemedi.");
       } else if (entry && remote.data?.record_id && entry.id !== remote.data.record_id) {
         entry.id = remote.data.record_id;
       }
+      if (!remote.fallback && supabaseClient) {
+        const consolidated = await syncConsolidatedCollectionRecord(vehicle, entry, removed);
+        if (!consolidated) throw new Error("Yinelenmiş garaj kayıtları temizlenemedi.");
+      }
       if (created) await rewardNewEntry("collection", entry);
       refreshAfterVehicleMutation(vehicle);
       const quantity = getExploreMembership(vehicle).quantity;
-      showToast(quantity
-        ? `${vehicle.model} garajına eklendi. Adet: ${quantity}`
-        : `${vehicle.model} garajından kaldırıldı.`);
+      if (quantity <= 0) showToast(`${vehicle.model} garajından kaldırıldı.`);
+      else if (beforeQuantity <= 0) showToast(`${vehicle.model} garajına eklendi. Adet: ${quantity}`);
+      else if (delta > 0) showToast(`${vehicle.model} adedi artırıldı. Yeni adet: ${quantity}`);
+      else showToast(`${vehicle.model} adedi azaltıldı. Yeni adet: ${quantity}`);
       return true;
     } catch (error) {
       state.collection = beforeCollection;
@@ -8801,6 +8980,13 @@ authForm.elements.authMode.forEach((input) => {
   });
 });
 googleLoginButton.addEventListener("click", loginWithGoogle);
+authRememberMe.addEventListener("change", persistAuthRememberChoice);
+authPasswordToggle.addEventListener("click", () => {
+  const revealing = authPassword.type === "password";
+  authPassword.type = revealing ? "text" : "password";
+  authPasswordToggle.setAttribute("aria-pressed", String(revealing));
+  authPasswordToggle.setAttribute("aria-label", revealing ? "Şifreyi gizle" : "Şifreyi göster");
+});
 forgotPasswordButton.addEventListener("click", () => {
   authForm.dataset.mode = "reset-password";
   setAuthStatus("");
