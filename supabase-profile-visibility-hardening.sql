@@ -5,7 +5,8 @@
 begin;
 
 alter table public.profiles
-  add column if not exists profile_visibility text not null default 'public';
+  add column if not exists profile_visibility text not null default 'public',
+  add column if not exists avatar_id text not null default 'garage-shield';
 
 alter table public.profiles
   drop constraint if exists profiles_profile_visibility_check;
@@ -13,6 +14,13 @@ alter table public.profiles
 alter table public.profiles
   add constraint profiles_profile_visibility_check
   check (profile_visibility in ('public', 'friends', 'private'));
+
+alter table public.profiles
+  drop constraint if exists profiles_avatar_id_format_check;
+
+alter table public.profiles
+  add constraint profiles_avatar_id_format_check
+  check (avatar_id ~ '^[a-z0-9-]{1,40}$');
 
 drop function if exists public.search_public_profiles(text, integer);
 
