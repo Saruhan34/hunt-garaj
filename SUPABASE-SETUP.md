@@ -12,11 +12,39 @@ Supabase SQL Editor içinde dosyaları aşağıdaki sırayla çalıştır:
 8. `supabase-radar-note-photos.sql`
 9. `supabase-garage-explore.sql`
 10. `supabase-public-garage-social-profile.sql`
+11. `supabase-profile-identity.sql`
+12. `supabase-profile-visibility-hardening.sql`
+13. `supabase-wishlist-system.sql`
 
 Mevcut bir Hunt Radar kurulumu ödül sistemi için güncelleniyorsa son sürüm
 `supabase-reward-system.sql` dosyasını yeniden çalıştırmak yeterlidir. Dosya
 `create table if not exists`, `create or replace function`, `drop policy if
 exists` ve upsert yapılarıyla tekrar çalıştırılabilir hazırlanmıştır.
+
+## Kullanıcı adı sistemi
+
+Güncel `supabase-auth.sql` kayıt sırasında seçilen kullanıcı adını UUID eki
+eklemeden saklar. `is_username_available` RPC'si kayıt formunda uygunluk
+kontrolü sağlar; kesin benzersizlik `lower(username)` indeksiyle veritabanında
+korunur. `set_my_username` yalnızca giriş yapan kullanıcının kendi profilini ve
+ona ait `content_records.owner_username` alanlarını günceller. Kullanıcı adı
+olmayan OAuth hesapları ilk girişte zorunlu kullanıcı adı seçimine yönlendirilir.
+Eski `-xxxxxx` ekli kullanıcı adları yalnızca çakışmasızsa güvenli biçimde
+temizlenir.
+
+## Premium profil kimliği
+
+`supabase-profile-identity.sql` profil sayfasının ikinci fazı için `profiles`
+tablosuna `bio`, `location`, `favorite_tags`, `showcase_vehicle_keys` ve
+`profile_visibility` alanlarını ekler. Profil düzenleme UI'ı bu alanları
+`set_profile_identity` RPC'siyle kaydeder; RPC yalnızca oturum açan kullanıcının
+kendi profilini günceller ve favori etiketleri 5, vitrin araçlarını 6 öğeyle
+sınırlar.
+
+`supabase-profile-visibility-hardening.sql` public profil ve public garaj
+RPC'lerini `profile_visibility` ile uyumlu hale getirir. Profil özel moddaysa
+arama sonucu yalnızca minimum durum bilgisini döndürür; garaj, rozet ve araç
+detayları veritabanı tarafında da kapalı kalır.
 
 Çoklu radar fotoğrafı özelliği için ayrıca
 `supabase-radar-note-photos.sql` dosyasını bir kez çalıştır. Bu dosya mevcut
@@ -64,6 +92,33 @@ Migration sonrasında şu kontrolleri yap:
 Eski `supabase-hotwheels-catalog-import.sql` ve batch dosyalarını bu migration
 için yeniden çalıştırma; ilk import dosyaları katalog tablosunu temizleyen
 bootstrap komutları içerir.
+
+## Premium İstek Listesi
+
+`supabase-wishlist-system.sql` mevcut `content_records` yapısını korur; ayrı ve
+paralel bir wishlist tablosu oluşturmaz. Eski manuel kayıtları silmeden eksik
+`status`, `priority` ve zaman bilgilerini tamamlar. Katalog bağlantılı istekler
+`catalogId` üzerinden çalışmaya devam eder.
+
+`set_wishlist_item` RPC'si İstek Listesi sayfası, Keşfet kartları ve araç detay
+paneli için tek atomik ekleme/çıkarma yoludur. Araç ana Supabase kataloğunda
+varsa sunucu katalog verisini esas alır. Üretim kataloğu henüz aynı stabil kimliği
+içermiyorsa paketlenmiş katalog bilgisi yalnızca kullanıcının özel wishlist
+kaydında saklanır; ortak katalog tablosu istemci tarafından değiştirilemez.
+
+Migration ayrıca `acquire_wishlist_vehicle` RPC'sini oluşturur. Bu işlem tek
+transaction içinde garaj adedini artırır (veya garaj kaydını oluşturur) ve
+wishlist kaydını `acquired` durumuna taşır. Fonksiyon yalnızca giriş yapan
+kullanıcının kendi wishlist/garaj kayıtlarında çalışır.
+
+Migration sonrasında şu kontrolleri yap:
+
+1. Eski katalogsuz wishlist kayıtları görünmeye devam etmeli.
+2. Kullanıcı yalnızca kendi wishlist kaydını okuyup değiştirebilmeli.
+3. `acquire_wishlist_vehicle` aynı araç garajdaysa quantity değerini bir artırmalı.
+4. Aynı çağrı wishlist kaydını `acquired` yapmalı.
+5. Başka kullanıcının `catalogId` değerini kullanmak o kullanıcının kaydını değiştirmemeli.
+6. `anon`, `set_wishlist_item` ve `acquire_wishlist_vehicle` RPC'lerini çalıştıramamalı.
 
 ## Kullanıcıya özel garajlar
 

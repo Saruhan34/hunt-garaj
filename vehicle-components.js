@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Shared catalog UI for Keşfet, Garage, and Wishlist.
+ * Shared catalog UI for Keşfet, Garaj, and İstek Listesi.
  * The file stays framework-free so it can be reused by the current static app.
  */
 (function createVehicleComponents(global) {
@@ -34,8 +34,13 @@
    * forTrade: boolean,
    * estimatedValue: string,
    * priority: string,
+   * targetPrice: string|number,
    * budget: string,
-   * notes: string
+   * notes: string,
+   * status: 'active'|'acquired'|'archived'|string,
+   * createdAt: string,
+   * updatedAt: string,
+   * acquiredAt: string
    * }} Vehicle */
 
   /** @type {{vehicle: Vehicle, options: VehicleCardOptions}|null} */
@@ -45,11 +50,14 @@
    * mode?: 'explore'|'garage'|'wishlist',
    * quantity?: number,
    * wishlisted?: boolean,
+   * acquired?: boolean,
    * onOpen?: (vehicle: Vehicle) => void,
    * onGarageDelta?: (vehicle: Vehicle, delta: number) => void|Promise<void>,
    * onWishlistToggle?: (vehicle: Vehicle) => void|Promise<void>,
    * onNotes?: (vehicle: Vehicle) => void,
-   * onRemove?: (vehicle: Vehicle) => void|Promise<void>
+   * onRemove?: (vehicle: Vehicle) => void|Promise<void>,
+   * menuItems?: Array<{id: string, label: string, icon?: string, tone?: string, disabled?: boolean}>,
+   * onQuickAction?: (vehicle: Vehicle, action: string) => void|Promise<void>
    * }} VehicleCardOptions */
 
   function stringValue(value) {
@@ -160,8 +168,13 @@
       forTrade: boolValue(raw.forTrade ?? raw.for_trade) || raw.marketType === "Takaslık",
       estimatedValue: stringValue(raw.estimatedValue || raw.estimated_value || raw.salePrice),
       priority: stringValue(raw.priority),
+      targetPrice: raw.targetPrice ?? raw.target_price ?? "",
       budget: stringValue(raw.budget),
-      notes: stringValue(raw.notes)
+      notes: stringValue(raw.notes),
+      status: stringValue(raw.status),
+      createdAt: stringValue(raw.createdAt || raw.created_at),
+      updatedAt: stringValue(raw.updatedAt || raw.updated_at),
+      acquiredAt: stringValue(raw.acquiredAt || raw.acquired_at)
     };
   }
 
@@ -186,6 +199,14 @@
 
   function displaySegment(vehicle) {
     return rarityIsSpecial(vehicle) ? vehicle.rarity : vehicle.segment;
+  }
+
+  function wishlistPriorityTone(value) {
+    const key = stringValue(value).toLocaleLowerCase("tr-TR");
+    if (key.includes("çok")) return "wanted";
+    if (key.includes("öncel")) return "priority";
+    if (key.includes("takip")) return "watching";
+    return "opportunity";
   }
 
   function appendChip(container, value, modifier = "") {
@@ -260,6 +281,8 @@
     const tone = rarityTone(vehicle);
     const card = document.createElement("article");
     card.className = `vehicle-card vehicle-card--${mode} vehicle-card--rarity-${tone}`;
+    if (mode === "profile-select" && options.selected) card.classList.add("is-profile-selected");
+    if (mode === "wishlist" && vehicle.priority) card.classList.add(`vehicle-card--priority-${wishlistPriorityTone(vehicle.priority)}`);
     card.tabIndex = 0;
     card.setAttribute("aria-label", `${vehicle.model} detayını aç`);
 
@@ -272,7 +295,7 @@
     rarity.textContent = vehicle.rarity;
     visual.appendChild(rarity);
 
-    if (mode !== "garage" && !readOnly) {
+    if (mode === "explore" && !readOnly) {
       const wishlistButton = createIconButton(
         options.wishlisted ? "İstek listesinden çıkar" : "İstek listesine ekle",
         `vehicle-card__wishlist${options.wishlisted ? " is-active" : ""}`,
@@ -329,10 +352,15 @@
 
     if (mode === "wishlist" && (vehicle.priority || vehicle.budget)) {
       const wishMeta = document.createElement("div");
-      wishMeta.className = "vehicle-card__garage-meta";
-      [vehicle.priority, vehicle.budget].filter(Boolean).forEach((value) => {
+      wishMeta.className = "vehicle-card__garage-meta vehicle-card__wish-meta";
+      [
+        { value: vehicle.priority, className: `vehicle-card__priority vehicle-card__priority--${wishlistPriorityTone(vehicle.priority)}` },
+        { value: vehicle.budget, className: "vehicle-card__target-price" }
+      ].filter((item) => item.value).forEach((itemData) => {
         const item = document.createElement("span");
-        item.textContent = value;
+        item.className = itemData.className;
+        item.textContent = itemData.value;
+        if (itemData.className.includes("target-price")) item.title = "Hedef fiyat";
         wishMeta.appendChild(item);
       });
       body.appendChild(wishMeta);
@@ -340,11 +368,41 @@
 
     const actions = document.createElement("div");
     actions.className = "vehicle-card__actions";
-    if (readOnly) {
+    if (mode === "profile-select") {
+      if (quantity > 0) {
+        const owned = document.createElement("span");
+        owned.className = "vehicle-card__garage-owned";
+        owned.innerHTML = `<span aria-hidden="true">✓</span><span>Garajımda · ${quantity} adet</span>`;
+        actions.appendChild(owned);
+      }
+      const selectButton = document.createElement("button");
+      selectButton.type = "button";
+      selectButton.className = `vehicle-card__profile-select${options.selected ? " is-selected" : ""}`;
+      selectButton.disabled = Boolean(options.selectionDisabled && !options.selected);
+      selectButton.setAttribute("aria-pressed", String(Boolean(options.selected)));
+      selectButton.innerHTML = options.selected
+        ? '<span aria-hidden="true">✓</span><span>Vitrinde</span>'
+        : '<span aria-hidden="true">＋</span><span>Vitrine Ekle</span>';
+      selectButton.addEventListener("click", (event) => {
+        stopButtonEvent(event);
+        options.onProfileSelect?.(vehicle);
+      });
+      actions.appendChild(selectButton);
+    } else if (readOnly) {
       const readOnlyLabel = document.createElement("span");
       readOnlyLabel.className = "vehicle-card__readonly";
       readOnlyLabel.textContent = quantity > 0 ? `${quantity} adet` : "Koleksiyonda";
       actions.appendChild(readOnlyLabel);
+    } else if (mode === "wishlist" && options.acquired) {
+      const acquired = document.createElement("span");
+      acquired.className = "vehicle-card__garage-owned";
+      acquired.innerHTML = '<span aria-hidden="true">✓</span><span>Garaja taşındı</span>';
+      actions.appendChild(acquired);
+    } else if (mode === "wishlist" && quantity > 0) {
+      const owned = document.createElement("span");
+      owned.className = "vehicle-card__garage-owned";
+      owned.innerHTML = `<span aria-hidden="true">✓</span><span>Garajda · ${quantity} adet</span>`;
+      actions.appendChild(owned);
     } else if (quantity > 0) {
       const stepper = document.createElement("div");
       stepper.className = "vehicle-quantity";
@@ -367,10 +425,21 @@
       const addButton = document.createElement("button");
       addButton.type = "button";
       addButton.className = "vehicle-card__garage-button";
-      addButton.innerHTML = '<span aria-hidden="true">＋</span><span>Garaja ekle</span>';
-      addButton.addEventListener("click", (event) => {
+      addButton.innerHTML = '<span aria-hidden="true">＋</span><span>Garaja Ekle</span>';
+      addButton.addEventListener("click", async (event) => {
         stopButtonEvent(event);
-        void options.onGarageDelta?.(vehicle, 1);
+        if (addButton.disabled) return;
+        addButton.disabled = true;
+        addButton.classList.add("is-loading");
+        const label = addButton.lastElementChild;
+        if (label) label.textContent = "Ekleniyor…";
+        try {
+          await options.onGarageDelta?.(vehicle, 1);
+        } finally {
+          addButton.disabled = false;
+          addButton.classList.remove("is-loading");
+          if (label) label.textContent = "Garaja Ekle";
+        }
       });
       actions.appendChild(addButton);
     }
@@ -383,10 +452,67 @@
       });
       actions.appendChild(remove);
     }
+
+    if (mode === "wishlist" && Array.isArray(options.menuItems) && options.menuItems.length) {
+      const menuWrap = document.createElement("div");
+      menuWrap.className = "vehicle-card__quick-menu";
+      const menuToggle = createIconButton("Hızlı işlemler", "vehicle-card__quick-toggle", "•••");
+      menuToggle.setAttribute("aria-expanded", "false");
+      const menu = document.createElement("div");
+      menu.className = "vehicle-card__quick-popover";
+      menu.hidden = true;
+      menu.setAttribute("role", "menu");
+      options.menuItems.forEach((item) => {
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = `vehicle-card__quick-action${item.tone ? ` is-${item.tone}` : ""}`;
+        action.dataset.quickAction = item.id;
+        action.disabled = Boolean(item.disabled);
+        action.setAttribute("role", "menuitem");
+        action.innerHTML = `<span aria-hidden="true">${item.icon || "•"}</span><span>${item.label}</span>`;
+        action.addEventListener("click", async (event) => {
+          stopButtonEvent(event);
+          menu.hidden = true;
+          menuToggle.setAttribute("aria-expanded", "false");
+          card.classList.remove("is-menu-open");
+          await options.onQuickAction?.(vehicle, item.id);
+        });
+        menu.appendChild(action);
+      });
+      const closeMenu = () => {
+        menu.hidden = true;
+        menuToggle.setAttribute("aria-expanded", "false");
+        card.classList.remove("is-menu-open");
+      };
+      menuToggle.addEventListener("click", (event) => {
+        stopButtonEvent(event);
+        document.querySelectorAll(".vehicle-card__quick-popover:not([hidden])").forEach((openMenu) => {
+          if (openMenu !== menu) {
+            openMenu.hidden = true;
+            const openCard = openMenu.closest(".vehicle-card");
+            openCard?.classList.remove("is-menu-open");
+            openCard?.querySelector(".vehicle-card__quick-toggle")?.setAttribute("aria-expanded", "false");
+          }
+        });
+        const willOpen = menu.hidden;
+        menu.hidden = !willOpen;
+        menuToggle.setAttribute("aria-expanded", String(willOpen));
+        card.classList.toggle("is-menu-open", willOpen);
+        if (willOpen) window.setTimeout(() => document.addEventListener("click", closeMenu, { once: true }), 0);
+      });
+      menu.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeMenu();
+          menuToggle.focus();
+        }
+      });
+      menuWrap.append(menuToggle, menu);
+      actions.appendChild(menuWrap);
+    }
     body.appendChild(actions);
     card.append(visual, body);
 
-    const open = () => options.onOpen?.(vehicle);
+    const open = () => mode === "profile-select" ? options.onProfileSelect?.(vehicle) : options.onOpen?.(vehicle);
     card.addEventListener("click", open);
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -500,7 +626,7 @@
       const wishlist = document.createElement("button");
       wishlist.type = "button";
       wishlist.className = `button button--ghost vehicle-detail__wishlist${options.wishlisted ? " is-active" : ""}`;
-      wishlist.textContent = options.wishlisted ? "★ Wishlist'te" : "☆ Wishlist";
+      wishlist.textContent = options.wishlisted ? "★ İstek Listesinde" : "☆ İstek Listesine Ekle";
       wishlist.addEventListener("click", () => void options.onWishlistToggle?.(vehicle));
       actions.append(wishlist);
     }

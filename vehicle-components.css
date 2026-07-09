@@ -464,6 +464,26 @@
   color: #b9c0c7;
 }
 
+.vehicle-card--wishlist .vehicle-card__garage-button {
+  border-color: rgba(255,105,44,.55); color: #fff;
+  background: linear-gradient(115deg,#e73b25,#ff762f);
+  box-shadow: 0 8px 20px rgba(255,68,27,.18);
+}
+.vehicle-card__garage-button:disabled { opacity: .65; cursor: wait; transform: none; }
+.vehicle-card__garage-button.is-loading > span:first-child { animation: vehicle-action-spin .7s linear infinite; }
+@keyframes vehicle-action-spin { to { transform: rotate(360deg); } }
+.vehicle-card__garage-owned { display: inline-flex; min-height: 36px; flex: 1; align-items: center; justify-content: center; gap: 6px; border: 1px solid rgba(74,205,128,.25); border-radius: 10px; color: #73d99c; background: rgba(59,177,105,.08); font-size: .66rem; font-weight: 850; }
+.vehicle-card__quick-menu { position: relative; flex: 0 0 auto; }
+.vehicle-card__quick-toggle { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; color: #aab2b9; background: rgba(255,255,255,.04); cursor: pointer; }
+.vehicle-card__quick-toggle:hover, .vehicle-card__quick-toggle[aria-expanded="true"] { border-color: rgba(255,115,47,.42); color: #fff; background: rgba(255,91,34,.1); }
+.vehicle-card__quick-popover { position: absolute; z-index: 25; right: 0; bottom: 43px; width: 194px; overflow: hidden; border: 1px solid rgba(255,139,65,.22); border-radius: 12px; padding: 5px; background: rgba(12,16,20,.98); box-shadow: 0 18px 42px rgba(0,0,0,.55),0 0 18px rgba(255,91,34,.06); backdrop-filter: blur(18px); }
+.vehicle-card__quick-popover[hidden] { display: none; }
+.vehicle-card__quick-action { display: grid; width: 100%; min-height: 34px; grid-template-columns: 22px 1fr; align-items: center; border: 0; border-radius: 8px; padding: 0 8px; color: #c2c8cd; text-align: left; background: transparent; font-size: .61rem; cursor: pointer; }
+.vehicle-card__quick-action:hover, .vehicle-card__quick-action:focus-visible { color: #fff; background: rgba(255,113,47,.11); outline: none; }
+.vehicle-card__quick-action.is-danger { color: #f18a7c; }
+.vehicle-card__quick-action.is-danger:hover { background: rgba(225,57,39,.13); }
+.vehicle-card--wishlist.is-menu-open { z-index: 12; overflow: visible; }
+
 .vehicle-quantity {
   display: inline-grid;
   min-height: 36px;

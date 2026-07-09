@@ -1,6 +1,8 @@
 -- Hunt Radar Auth temel kurulumu
 -- Supabase Dashboard > SQL Editor içinde çalıştır.
 
+begin;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique,
@@ -33,18 +35,21 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   requested_username text;
 begin
   requested_username := nullif(trim(new.raw_user_meta_data ->> 'username'), '');
+  if requested_username is not null and requested_username !~ '^[A-Za-z0-9_.-]{3,20}$' then
+    raise exception 'username_invalid' using errcode = '22023';
+  end if;
 
   insert into public.profiles (id, email, username, role)
   values (
     new.id,
     lower(new.email),
-    coalesce(requested_username, split_part(lower(new.email), '@', 1)) || '-' || left(new.id::text, 6),
+    requested_username,
     case
       when lower(new.email) = 'saruhanckmak@gmail.com' then 'admin'
       else 'user'
@@ -66,6 +71,109 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+-- Handles are public identifiers, but their availability check returns only a boolean.
+create or replace function public.is_username_available(p_username text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    coalesce(trim(p_username), '') ~ '^[A-Za-z0-9_.-]{3,20}$'
+    and not exists (
+      select 1
+      from public.profiles p
+      where lower(p.username) = lower(trim(p_username))
+    );
+$$;
+
+revoke all on function public.is_username_available(text) from public;
+grant execute on function public.is_username_available(text) to anon, authenticated;
+
+-- Used by first-login onboarding and future profile editing. Ownership remains auth.uid().
+create or replace function public.set_my_username(p_username text)
+returns text
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_user_id uuid := (select auth.uid());
+  v_username text := trim(p_username);
+begin
+  if v_user_id is null then
+    raise exception 'authentication_required' using errcode = '42501';
+  end if;
+  if v_username !~ '^[A-Za-z0-9_.-]{3,20}$' then
+    raise exception 'username_invalid' using errcode = '22023';
+  end if;
+  if exists (
+    select 1 from public.profiles p
+    where lower(p.username) = lower(v_username) and p.id <> v_user_id
+  ) then
+    raise exception 'username_taken' using errcode = '23505';
+  end if;
+
+  update public.profiles
+  set username = v_username
+  where id = v_user_id;
+
+  update public.content_records
+  set owner_username = v_username,
+      updated_at = now()
+  where owner_id = v_user_id;
+
+  return v_username;
+end;
+$$;
+
+revoke all on function public.set_my_username(text) from public, anon;
+grant execute on function public.set_my_username(text) to authenticated;
+
+-- Safely remove the legacy UUID suffix when the requested base handle is unambiguous.
+create temporary table username_suffix_cleanup on commit drop as
+select
+  p.id,
+  p.username as old_username,
+  regexp_replace(p.username, '-[0-9a-fA-F]{6}$', '') as new_username
+from public.profiles p
+where p.username ~ '-[0-9a-fA-F]{6}$'
+  and regexp_replace(p.username, '-[0-9a-fA-F]{6}$', '') ~ '^[A-Za-z0-9_.-]{3,20}$';
+
+delete from username_suffix_cleanup c
+where exists (
+  select 1 from public.profiles p
+  where p.id <> c.id and lower(p.username) = lower(c.new_username)
+)
+or exists (
+  select 1 from username_suffix_cleanup other
+  where other.id <> c.id and lower(other.new_username) = lower(c.new_username)
+);
+
+update public.profiles p
+set username = c.new_username
+from username_suffix_cleanup c
+where p.id = c.id;
+
+do $$
+begin
+  if to_regclass('public.content_records') is not null then
+    execute $sql$
+      update public.content_records cr
+      set owner_username = c.new_username,
+          updated_at = now()
+      from username_suffix_cleanup c
+      where cr.owner_id = c.id
+    $sql$;
+  end if;
+end;
+$$;
+
+create unique index if not exists profiles_username_lower_unique
+on public.profiles (lower(username))
+where username is not null;
 
 drop policy if exists "profiles are viewable by signed in users" on public.profiles;
 create policy "profiles are viewable by signed in users"
@@ -173,3 +281,5 @@ values (
   }'::jsonb
 )
 on conflict (key) do nothing;
+
+commit;

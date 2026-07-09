@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=144" />
-    <link rel="stylesheet" href="./vehicle-components.css?v=12" />
+    <link rel="stylesheet" href="./styles.css?v=165" />
+    <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
   <body class="dashboard-shell">
@@ -13,8 +13,7 @@
     <aside class="dashboard-sidebar" id="dashboardSidebar" aria-label="Ana menü">
       <a class="dashboard-sidebar__brand" href="#/ana-sayfa" aria-label="Hunt Radar ana sayfa">
         <span class="brand__mark" aria-hidden="true">
-          <span class="brand__mark-core">HR</span>
-          <span class="brand__mark-car"></span>
+          <img class="brand__mark-image" src="./assets/hunt-radar-logo-official.png" alt="" />
         </span>
         <span>
           <strong>Hunt Radar</strong>
@@ -29,6 +28,7 @@
         <button type="button" data-route-view="explore"><i aria-hidden="true">◎</i><span>Keşfet</span></button>
         <button type="button" data-route-view="collection"><i aria-hidden="true">◇</i><span>Garaj</span></button>
         <button type="button" data-route-view="wishlist"><i aria-hidden="true">☆</i><span>İstek Listesi</span></button>
+        <button type="button" data-route-view="profile"><i aria-hidden="true">♙</i><span>Profil</span></button>
         <button type="button" data-route-view="community"><i aria-hidden="true">◌</i><span>Topluluk</span></button>
         <button type="button" data-route-view="rewards"><i aria-hidden="true">◆</i><span>Radar Puanı</span></button>
         <button class="dashboard-sidebar__admin is-hidden" id="dashboardAdminLink" type="button" data-route-view="admin">
@@ -51,8 +51,7 @@
         </button>
         <a class="brand" href="#/ana-sayfa" aria-label="Hunt Radar ana sayfa">
           <span class="brand__mark" aria-hidden="true">
-            <span class="brand__mark-core">HR</span>
-            <span class="brand__mark-car"></span>
+            <img class="brand__mark-image" src="./assets/hunt-radar-logo-official.png" alt="" />
           </span>
           <span class="brand__wordmark">
             <span>Hunt</span>
@@ -70,6 +69,7 @@
           <button type="button" data-view="market">Pazar</button>
           <button type="button" data-view="stores">Hunt Radar</button>
           <button type="button" data-view="wishlist">İstek Listesi</button>
+          <button type="button" data-view="profile">Profil</button>
           <button type="button" data-view="community">Topluluk</button>
           <button type="button" data-view="rewards">Radar Puanı</button>
         </div>
@@ -276,6 +276,81 @@
         </div>
       </section>
 
+      <section class="wishlist-dashboard app-module-only" id="wishlistDashboard" aria-labelledby="wishlistDashboardTitle">
+        <header class="wishlist-hero">
+          <div class="wishlist-hero__identity">
+            <span class="wishlist-hero__icon" aria-hidden="true">★</span>
+            <div>
+              <p class="eyebrow">AV PLANI</p>
+              <h1 id="wishlistDashboardTitle">İstek Listesi</h1>
+              <p>Aradığın modelleri hedef fiyat, öncelik ve notlarla takip et.</p>
+            </div>
+          </div>
+          <button class="button button--primary wishlist-hero__add" id="toggleWishlistComposer" type="button" aria-controls="wishlistComposer" aria-expanded="false">
+            <span aria-hidden="true">＋</span> İstek Ekle
+          </button>
+        </header>
+
+        <div class="wishlist-stats" aria-label="İstek listesi istatistikleri">
+          <button type="button" data-wishlist-stat="all"><span aria-hidden="true">☷</span><small>Toplam İstek</small><strong id="wishlistStatTotal">0</strong><em>Tüm isteklerin</em></button>
+          <button type="button" data-wishlist-stat="wanted"><span aria-hidden="true">♡</span><small>Çok İstiyorum</small><strong id="wishlistStatWanted">0</strong><em>En yüksek öncelik</em></button>
+          <button type="button" data-wishlist-stat="priced"><span aria-hidden="true">◎</span><small>Hedef Fiyatlı</small><strong id="wishlistStatPriced">0</strong><em>Hedef fiyat belirli</em></button>
+          <button type="button" data-wishlist-stat="missing"><span aria-hidden="true">⌂</span><small>Garajda Olmayan</small><strong id="wishlistStatMissing">0</strong><em>Henüz garajda yok</em></button>
+          <button type="button" data-wishlist-stat="acquired"><span aria-hidden="true">✓</span><small>Bulunanlar</small><strong id="wishlistStatAcquired">0</strong><em>Garaja taşındı</em></button>
+        </div>
+
+        <section class="wishlist-composer" id="wishlistComposer" aria-labelledby="wishlistComposerTitle" hidden>
+          <form id="wishlistComposerForm">
+            <div class="wishlist-composer__heading">
+              <div><h2 id="wishlistComposerTitle">Katalogdan İstek Ekle</h2><p>Binlerce model arasından doğru varyantı seç ve av planına ekle.</p></div>
+              <button type="button" id="closeWishlistComposer" aria-label="İstek ekleme alanını kapat">×</button>
+            </div>
+            <div class="wishlist-composer__grid">
+              <div class="wishlist-picker">
+                <label for="wishlistCatalogSearch">Araç ara</label>
+                <div class="wishlist-picker__search"><span aria-hidden="true"></span><input id="wishlistCatalogSearch" type="search" autocomplete="off" placeholder="Araç adı, marka, seri, case veya ürün kodu ara" /></div>
+                <div class="wishlist-picker__results" id="wishlistCatalogResults" aria-live="polite"></div>
+                <div class="wishlist-picker__selection-empty" id="wishlistSelectionEmpty">
+                  <span aria-hidden="true">◎</span>
+                  <div><strong>Henüz araç seçilmedi.</strong><small>Katalogdan bir araç seçerek devam et.</small></div>
+                </div>
+                <div class="wishlist-picker__selected" id="wishlistSelectedVehicle" hidden>
+                  <div class="wishlist-picker__selected-media" id="wishlistSelectedMedia"></div>
+                  <div class="wishlist-picker__selected-copy"><small>SEÇİLEN ARAÇ</small><strong id="wishlistSelectedModel"></strong><span id="wishlistSelectedMeta"></span><em id="wishlistSelectedRarity"></em></div>
+                  <div class="wishlist-picker__selected-actions"><button class="wishlist-picker__continue" type="button" id="wishlistContinueSearch" aria-controls="wishlistCatalogResults" aria-expanded="false">Aramaya devam et</button><button type="button" id="wishlistChangeSelection">Değiştir</button><button type="button" id="clearWishlistSelection" aria-label="Araç seçimini temizle">Temizle</button></div>
+                </div>
+                <button class="wishlist-suggest-link" id="wishlistSuggestVehicle" type="button" hidden>Bu araç katalogda yok. Araç öner →</button>
+              </div>
+              <div class="wishlist-composer__details">
+                <fieldset class="wishlist-priority-picker"><legend>Öncelik</legend>
+                  <label><input type="radio" name="priority" value="Çok istiyorum" checked /><span>♥</span> Çok istiyorum</label>
+                  <label><input type="radio" name="priority" value="Öncelikli" /><span>★</span> Öncelikli</label>
+                  <label><input type="radio" name="priority" value="Fırsat olursa" /><span>◉</span> Fırsat olursa</label>
+                  <label><input type="radio" name="priority" value="Takipte" /><span>◌</span> Takipte</label>
+                </fieldset>
+                <label class="wishlist-field"><span>Hedef Fiyat</span><div><input id="wishlistTargetPrice" name="targetPrice" type="number" inputmode="decimal" min="1" max="10000000" step="0.01" placeholder="150" /><em>TL</em></div></label>
+                <label class="wishlist-field wishlist-field--notes"><span>Not <small>(isteğe bağlı)</small></span><textarea id="wishlistNotes" name="notes" maxlength="200" rows="4" placeholder="Kırmızı varyant, kartonetli olsun…"></textarea><small><b id="wishlistNotesCount">0</b> / 200</small></label>
+                <div class="wishlist-composer__cta"><button class="button button--primary wishlist-composer__submit" id="wishlistComposerSubmit" type="submit" disabled><span>İstek Listesine Ekle</span></button><small id="wishlistSubmitHint">Devam etmek için önce katalogdan bir araç seç.</small></div>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <div class="wishlist-toolbar">
+          <div class="wishlist-filter-chips" id="wishlistFilterChips" aria-label="İstek listesi filtreleri">
+            <button class="is-active" type="button" data-wishlist-filter="all">Tümü</button>
+            <button type="button" data-wishlist-filter="wanted">♥ Çok İstiyorum</button>
+            <button type="button" data-wishlist-filter="priority">★ Öncelikli</button>
+            <button type="button" data-wishlist-filter="opportunity">◉ Fırsat Olursa</button>
+            <button type="button" data-wishlist-filter="priced">◎ Hedef Fiyatlı</button>
+            <button type="button" data-wishlist-filter="missing">⌂ Garajda Olmayan</button>
+            <button type="button" data-wishlist-filter="acquired">✓ Bulunanlar</button>
+          </div>
+          <label class="wishlist-sort" for="wishlistSortSelect"><span>Sırala</span><select id="wishlistSortSelect"><option value="newest">Yeni eklenen</option><option value="priority">Öncelik</option><option value="price">Hedef fiyat</option><option value="model">Araç adı</option><option value="year">Yıl</option></select></label>
+        </div>
+        <button class="wishlist-floating-add" id="wishlistFloatingAdd" type="button" aria-controls="wishlistComposer" hidden><span aria-hidden="true">＋</span> İstek Ekle</button>
+      </section>
+
       <section class="explore-module app-module-only" id="exploreModule" aria-labelledby="exploreTitle">
         <header class="explore-hero">
           <div class="explore-hero__glow" aria-hidden="true"></div>
@@ -340,8 +415,8 @@
                 <button class="is-active" type="button" data-explore-membership="any">Tümü</button>
                 <button type="button" data-explore-membership="owned">Owned</button>
                 <button type="button" data-explore-membership="not_owned">Not owned</button>
-                <button type="button" data-explore-membership="wishlist">Wishlist</button>
-                <button type="button" data-explore-membership="not_wishlist">Not wishlist</button>
+                <button type="button" data-explore-membership="wishlist">İstek Listesinde</button>
+                <button type="button" data-explore-membership="not_wishlist">İstek Listesinde Değil</button>
               </div>
             </div>
           </aside>
@@ -500,6 +575,86 @@
               <option value="model">Model A-Z</option>
             </select>
           </label>
+        </div>
+      </section>
+
+      <section class="profile-dashboard app-module-only" id="profileDashboard" aria-labelledby="profileDashboardTitle">
+        <header class="profile-dashboard__hero">
+          <div class="profile-dashboard__shine" aria-hidden="true"></div>
+          <div class="profile-dashboard__identity">
+            <div class="profile-dashboard__avatar reward-avatar" id="profileDashboardAvatar">HR</div>
+            <div class="profile-dashboard__copy">
+              <div class="profile-dashboard__eyebrow">
+                <span>KOLEKSİYONER PROFİLİ</span>
+                <em id="profileDashboardVisibility">Herkese Açık</em>
+              </div>
+              <h1 id="profileDashboardTitle">@kullanici</h1>
+              <p id="profileDashboardBio">JDM, Boulevard ve premium avcısı.</p>
+              <div class="profile-dashboard__rank">
+                <span id="profileDashboardRankVisual" aria-hidden="true"></span>
+                <div><strong id="profileDashboardRank">R1 Çaylak Avcı</strong><small id="profileDashboardPoints">0 Radar Puanı</small></div>
+              </div>
+              <div class="profile-dashboard__meta">
+                <span id="profileDashboardLocation">İstanbul</span>
+                <span id="profileDashboardJoined">Katılım tarihi bilinmiyor</span>
+                <span id="profileDashboardHandle">Hunt Radar üyesi</span>
+              </div>
+            </div>
+          </div>
+          <div class="profile-dashboard__actions">
+            <button class="button button--primary" id="profileDashboardEdit" type="button">Profili Düzenle</button>
+            <button class="button button--subtle" id="profileDashboardShare" type="button">Profili Paylaş</button>
+            <button class="button button--subtle" id="profileDashboardGarage" type="button">Garajı Gör</button>
+          </div>
+        </header>
+
+        <div class="profile-dashboard__stats" aria-label="Profil istatistikleri">
+          <article><span aria-hidden="true">◇</span><small>Garaj</small><strong id="profileStatGarage">0</strong><em>Kayıtlı araç</em></article>
+          <article><span aria-hidden="true">★</span><small>Premium</small><strong id="profileStatPremium">0</strong><em>Özel av</em></article>
+          <article><span aria-hidden="true">⌁</span><small>Radar</small><strong id="profileStatRadar">0</strong><em>Katkı</em></article>
+          <article><span aria-hidden="true">☆</span><small>İstek</small><strong id="profileStatWishlist">0</strong><em>Av planı</em></article>
+          <article><span aria-hidden="true">♙</span><small>Arkadaş</small><strong id="profileStatFriends">Yakında</strong><em>Sosyal ağ</em></article>
+        </div>
+
+        <div class="profile-dashboard__layout">
+          <aside class="profile-summary-panel" aria-label="Profil özeti">
+            <section class="profile-rank-panel">
+              <div class="profile-rank-panel__ring"><span id="profileRankProgressValue">0%</span></div>
+              <div>
+                <p class="eyebrow">SEVİYE İLERLEMESİ</p>
+                <h3 id="profileRankProgressTitle">Sonraki rank hazırlanıyor</h3>
+                <p id="profileRankProgressCopy">Radar puanı kazandıkça koleksiyoncu profilin güçlenir.</p>
+              </div>
+              <i><b id="profileRankProgressFill"></b></i>
+            </section>
+            <section class="profile-preference-panel">
+              <p class="eyebrow">AV TARZI</p>
+              <div id="profilePreferenceChips">
+                <span>JDM</span><span>Premium</span><span>Boulevard</span><span>TH/STH</span>
+              </div>
+            </section>
+            <section class="profile-access-panel" id="profileAccessPanel">
+              <div>
+                <p class="eyebrow">GÖRÜNÜRLÜK</p>
+                <h3 id="profileAccessTitle">Profil erişimi hazır</h3>
+                <p id="profileAccessCopy">Profil, garaj ve istek listesi görünürlüğün burada özetlenir.</p>
+              </div>
+              <div class="profile-access-panel__states" aria-label="Görünürlük durumu">
+                <span id="profileAccessProfileState">Profil: Açık</span>
+                <span id="profileAccessGarageState">Garaj: Açık</span>
+                <span id="profileAccessWishlistState">İstek: Gizli</span>
+              </div>
+              <button class="button button--subtle" id="profileAccessEdit" type="button">Görünürlüğü Ayarla</button>
+            </section>
+            <section class="profile-friends-preview">
+              <div>
+                <p class="eyebrow">ARKADAŞLAR</p>
+                <h3>Sosyal profil hazır</h3>
+                <p>Arkadaşlık sistemi eklendiğinde kabul edilen koleksiyonerler burada görünecek.</p>
+              </div>
+              <button class="button button--subtle" type="button" disabled>Yakında</button>
+            </section>
+          </aside>
         </div>
       </section>
 
@@ -918,43 +1073,6 @@
             </div>
           </form>
 
-          <form class="entry-form" id="wishForm" data-form="wishlist">
-            <h2>İstek Listesi kaydı ekle</h2>
-            <div class="grid-2">
-              <div class="field">
-                <label for="wishModel">Model adı</label>
-                <input id="wishModel" name="model" required placeholder="Porsche 911 GT3" />
-              </div>
-              <div class="field">
-                <label for="wishPriority">Öncelik</label>
-                <select id="wishPriority" name="priority">
-                  <option>Çok istiyorum</option>
-                  <option>Denk gelirse</option>
-                  <option>Nadir av</option>
-                </select>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <label for="wishBudget">Hedef fiyat</label>
-                <input id="wishBudget" name="budget" placeholder="150 TL" />
-              </div>
-              <div class="field">
-                <label for="wishOwner">Kim arıyor?</label>
-                <select id="wishOwner" name="owner">
-                  <option>Saruhan</option>
-                  <option>Ali</option>
-                  <option>İkimiz</option>
-                </select>
-              </div>
-            </div>
-            <div class="field">
-              <label for="wishNotes">Not</label>
-              <textarea id="wishNotes" name="notes" rows="3" placeholder="Hangi renk, hangi seri, nerede görüldü"></textarea>
-            </div>
-            <button class="button button--primary" type="submit">İstek Listesi'ne ekle</button>
-          </form>
-
           <div class="radar-note-modal-backdrop" id="radarNoteModalBackdrop" aria-hidden="true">
             <section class="radar-note-modal" id="radarNoteModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="radarNoteModalTitle">
               <header class="radar-note-modal-header">
@@ -977,7 +1095,7 @@
             </header>
 
             <div class="store-auth-notice" id="storeAuthNotice">
-              <span aria-hidden="true">HR</span>
+              <span class="store-auth-notice__logo" aria-hidden="true"><img src="./assets/hunt-radar-logo-official.png" alt="" /></span>
               <div>
                 <strong>Radar notu eklemek için giriş yapmalısın</strong>
                 <small>Bilgileri inceleyebilir, paylaşmak için hesabına giriş yapabilirsin.</small>
@@ -1534,7 +1652,7 @@
           </aside>
           <section class="auth-access">
             <div class="auth-brand-crop" aria-label="Hunt Radar">
-              <img src="./assets/auth-hunt-radar-logo.png" alt="Hunt Radar" />
+              <img src="./assets/hunt-radar-logo-official.png" alt="Hunt Radar" />
             </div>
             <header class="auth-access__heading">
               <h2 id="authTitle">Koleksiyonuna Devam Et</h2>
@@ -1549,7 +1667,7 @@
             <div class="auth-fields">
               <div class="field auth-register-field" id="authUsernameField">
                 <label class="auth-input-shell" for="authUsername"><span>@</span><input id="authUsername" name="username" autocomplete="username" placeholder="Kullanıcı adınız" /></label>
-                <span class="field-hint">Profilinde ve ilanlarında bu ad görünür.</span>
+                <span class="field-hint auth-username-hint" id="authUsernameHint" aria-live="polite">Profilinde ve ilanlarında bu ad görünür.</span>
               </div>
               <div class="field">
                 <label class="auth-input-shell" for="authEmail"><span>✉</span><input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="E-posta adresiniz" /></label>
@@ -1623,37 +1741,82 @@
         </div>
         <div class="badge-row" id="profileBadges"></div>
         <div class="profile-activity" id="profileRewardActivity"></div>
-        <div class="avatar-picker">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Avatar</p>
-              <h3>Profil avatarı</h3>
-            </div>
-          </div>
-          <div class="avatar-options" id="avatarOptions"></div>
-          <button class="button button--primary avatar-save-button" id="saveProfileAvatar" type="button">Avatarı kaydet</button>
-          <div class="field">
-            <label for="profileAvatarUpload">Kendi fotoğrafını yükle</label>
-            <input class="file-input" id="profileAvatarUpload" type="file" accept="image/png,image/jpeg,image/webp" />
-          </div>
-        </div>
         <div class="profile-facts">
           <span><strong id="profileListingCount">0</strong>Aktif ilan</span>
           <span><strong id="profileCollectionCount">0</strong>Garaj kaydı</span>
           <span><strong id="profileCreatedAt">-</strong>Üyelik tarihi</span>
         </div>
-        <section class="profile-privacy-card">
-          <div>
-            <span>Garaj görünürlüğü</span>
-            <strong id="profileGarageVisibilityLabel">Herkese açık</strong>
-            <small>Yalnızca giriş yapan kullanıcılar garajını görüntüleyebilir. İstek listeniz daima gizlidir.</small>
-          </div>
-          <label class="profile-privacy-switch" for="profileGarageVisibility">
-            <input id="profileGarageVisibility" type="checkbox" checked />
-            <span aria-hidden="true"></span>
-          </label>
-        </section>
+        <button class="profile-studio-launch" id="openProfileStudio" type="button">
+          <span><i aria-hidden="true">✦</i><b>Profil Stüdyosu</b><small>Kimliğini, görünürlüğünü ve avatarını tek yerde düzenle.</small></span>
+          <em>Stüdyoyu Aç →</em>
+        </button>
         <p class="field-hint" id="profileRoleHint">Profil rolünüz ve doğrulama durumunuz Supabase üzerinden yönetilir.</p>
+      </section>
+    </div>
+
+    <div class="profile-studio" id="profileStudio" aria-hidden="true">
+      <div class="profile-studio__backdrop" data-close-profile-studio></div>
+      <section class="profile-studio__shell" role="dialog" aria-modal="true" aria-labelledby="profileStudioTitle">
+        <header class="profile-studio__header">
+          <div class="profile-studio__brand"><span aria-hidden="true"><img src="./assets/hunt-radar-logo-official.png" alt="" /></span><div><small>HUNT RADAR</small><strong>Profil Stüdyosu</strong></div></div>
+          <div class="profile-studio__header-copy"><p class="eyebrow">KOLEKSİYONER KİMLİĞİ</p><h2 id="profileStudioTitle">Profilini kendine ait hale getir.</h2></div>
+          <button class="profile-studio__close" id="closeProfileStudio" type="button" aria-label="Profil stüdyosunu kapat">×</button>
+        </header>
+
+        <div class="profile-studio__body">
+          <aside class="profile-studio__rail" aria-label="Profil düzenleme bölümleri">
+            <button class="is-active" type="button" data-profile-studio-target="identity"><span>01</span><b>Kimlik</b><small>Bio, konum ve av tarzı</small></button>
+            <button type="button" data-profile-studio-target="avatar"><span>02</span><b>Avatar</b><small>Profilindeki imza</small></button>
+            <button type="button" data-profile-studio-target="privacy"><span>03</span><b>Görünürlük</b><small>Profil ve garaj erişimi</small></button>
+          </aside>
+
+          <main class="profile-studio__content">
+            <section class="profile-studio-card profile-studio-card--identity profile-studio-card--featured" data-profile-studio-section="identity">
+              <div class="profile-studio-card__heading"><span>01</span><div><p class="eyebrow">PROFİL KİMLİĞİ</p><h3>Koleksiyoncu kartını tasarla</h3><p>İnsanların seni ilk bakışta nasıl tanıyacağını belirle.</p></div></div>
+              <div class="profile-identity-grid">
+                <label class="field" for="profileBioInput"><span>Bio</span><textarea id="profileBioInput" maxlength="140" rows="4" placeholder="JDM, Boulevard ve premium avcısı."></textarea><small>En fazla 140 karakter</small></label>
+                <label class="field" for="profileLocationInput"><span>Konum</span><input id="profileLocationInput" maxlength="40" type="text" placeholder="İstanbul" /><small>İstersen boş bırakabilirsin</small></label>
+              </div>
+              <div class="profile-studio__subhead"><div><strong>Favori av tarzların</strong><small>Profil temana da karakter kazandırır.</small></div><em id="profileIdentityHint" aria-live="polite">0 / 5</em></div>
+              <div class="profile-tag-editor" id="profileTagEditor" aria-label="Favori av etiketleri">
+                <label><input type="checkbox" value="JDM" /><span>JDM</span></label><label><input type="checkbox" value="Premium" /><span>Premium</span></label>
+                <label><input type="checkbox" value="Boulevard" /><span>Boulevard</span></label><label><input type="checkbox" value="TH/STH" /><span>TH/STH</span></label>
+                <label><input type="checkbox" value="Porsche" /><span>Porsche</span></label><label><input type="checkbox" value="Ferrari" /><span>Ferrari</span></label>
+                <label><input type="checkbox" value="Nissan" /><span>Nissan</span></label><label><input type="checkbox" value="Mazda" /><span>Mazda</span></label>
+                <label><input type="checkbox" value="Euro" /><span>Euro</span></label><label><input type="checkbox" value="Muscle" /><span>Muscle</span></label>
+              </div>
+            </section>
+
+            <section class="profile-studio-card" data-profile-studio-section="avatar">
+              <div class="profile-studio-card__heading"><span>02</span><div><p class="eyebrow">AVATAR</p><h3>Koleksiyoncu imzanı seç</h3><p>Radar notlarında, pazarda ve profilinde seni temsil eder.</p></div></div>
+              <div class="profile-studio-avatar"><div class="profile-studio-avatar__preview"><span class="reward-avatar" id="profileEditorAvatar">HR</span><small>CANLI ÖNİZLEME</small></div><div><div class="profile-avatar-presets"><div class="profile-avatar-presets__head"><div><b>Hazır Armalar</b><small>Bir arma seç veya kendi logonu yükle.</small></div><span><button id="profileAvatarPrev" type="button" aria-label="Önceki armalar">←</button><button id="profileAvatarNext" type="button" aria-label="Sonraki armalar">→</button></span></div><div class="avatar-options" id="avatarOptions"></div></div><label class="profile-logo-drop" for="profileAvatarUpload"><input class="file-input" id="profileAvatarUpload" type="file" accept="image/png,image/jpeg,image/webp" /><i aria-hidden="true">＋</i><span><b>Kendi logonu yükle</b><small id="profileAvatarUploadName">PNG, JPG veya WEBP · En fazla 2 MB</small></span><em>Dosya Seç</em></label></div></div>
+              <div class="profile-studio-upload"><div class="profile-avatar-save-copy"><p><span aria-hidden="true">◆</span> Kare ve şeffaf arka planlı logolar en iyi sonucu verir.</p><strong class="profile-avatar-save-status" id="profileAvatarSaveStatus" role="status" aria-live="polite"></strong></div><button class="button button--primary avatar-save-button" id="saveProfileAvatar" type="button">Logoyu Kaydet</button></div>
+            </section>
+
+            <section class="profile-studio-card profile-studio-card--privacy" data-profile-studio-section="privacy">
+              <div class="profile-studio-card__heading"><span>03</span><div><p class="eyebrow">GÖRÜNÜRLÜK</p><h3>Kontrol tamamen sende</h3><p>Profilin ve garajın için erişimi ayrı ayrı belirle.</p><em class="profile-privacy-status" id="profilePrivacyStatus">● Profil herkese açık</em></div></div>
+              <div class="profile-visibility-options" id="profileVisibilityOptions">
+                <label><input type="radio" name="profileVisibility" value="public" checked /><span><i aria-hidden="true">◎</i><b>Herkese Açık</b><small>Profil kimliğin diğer koleksiyoncular tarafından görülebilir.</small></span></label>
+                <label><input type="radio" name="profileVisibility" value="private" /><span><i aria-hidden="true">◉</i><b>Özel Profil</b><small>Profil ayrıntılarını yalnızca sen görebilirsin.</small></span></label>
+              </div>
+              <section class="profile-privacy-card profile-privacy-card--studio"><div><span>Garaj görünürlüğü</span><strong id="profileGarageVisibilityLabel">Herkese açık</strong><small>Garajını profilinden bağımsız olarak gizleyebilirsin. İstek listen daima gizlidir.</small></div><label class="profile-privacy-switch" for="profileGarageVisibility"><input id="profileGarageVisibility" type="checkbox" checked /><span aria-hidden="true"></span></label></section>
+              <section class="profile-privacy-summary" id="profilePrivacySummary" aria-live="polite">
+                <div>
+                  <p class="eyebrow">CANLI ERİŞİM ÖZETİ</p>
+                  <h4 id="profilePrivacySummaryTitle">Profilin herkese açık</h4>
+                  <p id="profilePrivacySummaryCopy">Koleksiyonerler profil kimliğini görebilir. Garaj görünürlüğünü ayrı kontrol edebilirsin.</p>
+                </div>
+                <ul>
+                  <li id="profilePrivacyProfileLine">Profil kartı: Herkese açık</li>
+                  <li id="profilePrivacyGarageLine">Garaj: Herkese açık</li>
+                  <li id="profilePrivacyWishlistLine">İstek listesi: Her zaman gizli</li>
+                </ul>
+              </section>
+            </section>
+          </main>
+        </div>
+
+        <footer class="profile-studio__footer"><div><span aria-hidden="true">●</span><p><strong>Profil ayarların</strong><small>Değişikliklerin hesabına güvenli şekilde kaydedilir.</small></p></div><button class="button button--subtle" type="button" data-close-profile-studio>Kapat</button><button class="button button--primary" id="saveProfileIdentity" type="button">Değişiklikleri Kaydet</button></footer>
       </section>
     </div>
 
@@ -1678,7 +1841,14 @@
           <button class="button button--primary" id="publicProfileMessage" type="button">Mesaj g&ouml;nder</button>
           <button class="button button--subtle" id="publicProfileOpenGarage" type="button">Garajı aç</button>
         </div>
-        <div class="public-profile-sections">
+        <section class="public-profile-private-note is-hidden" id="publicProfilePrivateNotice" role="status">
+          <span aria-hidden="true">◆</span>
+          <div>
+            <strong>Bu profil gizli.</strong>
+            <p>Koleksiyoner profilini özel tuttuğu için ilan, garaj ve profil detayları görüntülenemez.</p>
+          </div>
+        </section>
+        <div class="public-profile-sections" id="publicProfileSections">
           <section>
             <div class="public-profile-heading">
               <h3>İlanları</h3>
@@ -1952,12 +2122,12 @@
 
     <script src="./catalog-2026.js?v=8"></script>
     <script src="./catalog-lines-2026.js?v=3"></script>
-    <script src="./vehicle-components.js?v=8"></script>
+    <script src="./vehicle-components.js?v=11"></script>
     <script src="./explore-service.js?v=5"></script>
-    <script src="./explore-page.js?v=3"></script>
+    <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=157"></script>
+    <script src="./app.js?v=178"></script>
   </body>
 </html>
 

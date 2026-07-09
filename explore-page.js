@@ -31,6 +31,7 @@
   let searchTimer = 0;
   let observer = null;
   let activeDetailVehicle = null;
+  let profileSelection = { active: false, selectedKeys: new Set(), max: 6 };
 
   function element(selector) {
     return document.querySelector(selector);
@@ -60,6 +61,18 @@
 
   function cardOptions(vehicle, mode = "explore", eagerImage = false) {
     const membership = membershipFor(vehicle);
+    const selectionKey = context.profileVehicleKey?.(vehicle) || `catalog:${vehicle.catalogId || vehicle.id || ""}`;
+    if (profileSelection.active) {
+      const selected = profileSelection.selectedKeys.has(selectionKey);
+      return {
+        mode: "profile-select",
+        quantity: Number(membership.quantity || 0),
+        selected,
+        selectionDisabled: !selected && profileSelection.selectedKeys.size >= profileSelection.max,
+        eagerImage,
+        onProfileSelect: toggleProfileSelection
+      };
+    }
     return {
       mode,
       quantity: Number(membership.quantity || 0),
@@ -86,6 +99,47 @@
     state.items.forEach((vehicle, index) => grid.appendChild(Vehicles.createCard(vehicle, cardOptions(vehicle, "explore", index < 12))));
   }
 
+  function renderProfileSelectionBar() {
+    const bar = element("#exploreProfileSelectionBar");
+    const count = element("#exploreProfileSelectionCount");
+    const done = element("#exploreProfileSelectionDone");
+    if (bar) bar.hidden = !profileSelection.active;
+    if (count) count.textContent = `${profileSelection.selectedKeys.size} / ${profileSelection.max}`;
+    if (done) done.disabled = !profileSelection.selectedKeys.size;
+    document.body.classList.toggle("is-profile-vehicle-selection", profileSelection.active);
+  }
+
+  function toggleProfileSelection(vehicle) {
+    if (!profileSelection.active) return;
+    const key = context.profileVehicleKey?.(vehicle) || `catalog:${vehicle.catalogId || vehicle.id || ""}`;
+    if (!key || key === "catalog:") return;
+    if (profileSelection.selectedKeys.has(key)) profileSelection.selectedKeys.delete(key);
+    else if (profileSelection.selectedKeys.size < profileSelection.max) profileSelection.selectedKeys.add(key);
+    else context.showToast?.(`Profil seçimine en fazla ${profileSelection.max} araç eklenebilir.`);
+    renderCards();
+    renderProfileSelectionBar();
+  }
+
+  function beginProfileSelection(options = {}) {
+    profileSelection = {
+      active: true,
+      selectedKeys: new Set(Array.isArray(options.selectedKeys) ? options.selectedKeys : []),
+      max: Math.max(1, Number(options.max || 6))
+    };
+    renderProfileSelectionBar();
+    if (state.loaded) renderCards();
+  }
+
+  function endProfileSelection(save) {
+    if (!profileSelection.active) return;
+    const selectedKeys = [...profileSelection.selectedKeys];
+    profileSelection = { active: false, selectedKeys: new Set(), max: 6 };
+    renderProfileSelectionBar();
+    if (state.loaded) renderCards();
+    if (save) context.onProfileSelectionDone?.(selectedKeys);
+    else context.onProfileSelectionCancel?.();
+  }
+
   function activeFilterEntries() {
     return [
       ["brand", "Marka", state.brand],
@@ -109,8 +163,8 @@
       const membershipLabels = {
         owned: "Garajımda",
         not_owned: "Garajımda değil",
-        wishlist: "Wishlist",
-        not_wishlist: "Wishlist değil"
+        wishlist: "İstek Listesinde",
+        not_wishlist: "İstek Listesinde Değil"
       };
       button.textContent = `${label}: ${membershipLabels[value] || value} ×`;
       button.addEventListener("click", () => {
@@ -388,6 +442,8 @@
     });
     element("#exploreResetFilters")?.addEventListener("click", resetFilters);
     element("#exploreLoadMore")?.addEventListener("click", () => void runSearch(true));
+    element("#exploreProfileSelectionDone")?.addEventListener("click", () => endProfileSelection(true));
+    element("#exploreProfileSelectionCancel")?.addEventListener("click", () => endProfileSelection(false));
     element("#exploreSuggestVehicle")?.addEventListener("click", openSuggestion);
     element("#exploreFilterToggle")?.addEventListener("click", () => document.body.classList.toggle("is-explore-filter-open"));
     element("#vehicleSuggestionClose")?.addEventListener("click", closeSuggestion);
@@ -452,6 +508,7 @@
     openDetail,
     closeDetail,
     membershipChanged,
+    beginProfileSelection,
     refreshAdminSuggestions,
     getState: () => ({ ...state })
   };
