@@ -749,6 +749,8 @@ const profileDashboardRank = document.querySelector("#profileDashboardRank");
 const profileDashboardPoints = document.querySelector("#profileDashboardPoints");
 const profileDashboardLocation = document.querySelector("#profileDashboardLocation");
 const profileDashboardJoined = document.querySelector("#profileDashboardJoined");
+const profileDashboardFollowers = document.querySelector("#profileDashboardFollowers");
+const profileDashboardFollowing = document.querySelector("#profileDashboardFollowing");
 const profileDashboardHandle = document.querySelector("#profileDashboardHandle");
 const profileDashboardEdit = document.querySelector("#profileDashboardEdit");
 const profileDashboardShare = document.querySelector("#profileDashboardShare");
@@ -8151,6 +8153,8 @@ function renderProfileDashboard() {
   if (profileDashboardPoints) profileDashboardPoints.textContent = currentUser ? `${Number(stats.points || 0)} Radar Puanı` : "Giriş yap ve rankını göster";
   if (profileDashboardLocation) profileDashboardLocation.textContent = currentUser ? profileLocationText() : "Hunt Radar";
   if (profileDashboardJoined) profileDashboardJoined.textContent = currentUser?.createdAt ? `Katılım: ${formatProfileDate(currentUser.createdAt)}` : "Katılım tarihi girişten sonra görünür";
+  if (profileDashboardFollowers) profileDashboardFollowers.textContent = currentUser ? formatFollowCount(followSummary.followers, "takipçi") : "0 takipçi";
+  if (profileDashboardFollowing) profileDashboardFollowing.textContent = currentUser ? formatFollowCount(followSummary.following, "takip edilen") : "0 takip edilen";
   if (profileDashboardHandle) profileDashboardHandle.textContent = currentUser?.username ? `${currentUser.username} koleksiyon profili` : "Kullanıcı adı bekleniyor";
   if (profileStatGarage) profileStatGarage.textContent = String(garageTotal);
   if (profileStatPremium) profileStatPremium.textContent = String(premiumCount);

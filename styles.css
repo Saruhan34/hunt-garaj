@@ -2455,6 +2455,13 @@ body {
   overflow-x: hidden;
 }
 
+body.is-profile-view {
+  background:
+    radial-gradient(circle at 72% -8%, rgba(49, 227, 137, 0.11), transparent 30%),
+    radial-gradient(circle at 16% 16%, rgba(255, 92, 31, 0.08), transparent 28%),
+    linear-gradient(180deg, #070a0e, #070a0e 100%);
+}
+
 button,
 input,
 select,
@@ -16471,6 +16478,13 @@ textarea { font-family: var(--hr-font); }
   margin-bottom: 18px;
 }
 
+body.is-profile-view > main {
+  min-height: calc(100vh - 72px);
+  background:
+    linear-gradient(180deg, rgba(7, 10, 14, 0.92), #070a0e 72%),
+    #070a0e;
+}
+
 .profile-dashboard__hero {
   position: relative;
   display: flex;
@@ -16702,6 +16716,21 @@ textarea { font-family: var(--hr-font); }
   background: #d9a63c;
   box-shadow: 0 0 8px rgba(217, 166, 60, 0.55);
   content: "";
+}
+
+.profile-dashboard__meta .profile-dashboard__social-meta {
+  min-height: 24px;
+  border: 1px solid rgba(83, 224, 145, 0.24);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: rgba(38, 183, 130, 0.08);
+  color: #9df0c2;
+  font-weight: 900;
+}
+
+.profile-dashboard__meta .profile-dashboard__social-meta::before {
+  background: #58e89c;
+  box-shadow: 0 0 10px rgba(88, 232, 156, 0.68);
 }
 
 .profile-dashboard__actions {
