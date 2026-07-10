@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=168" />
+    <link rel="stylesheet" href="./styles.css?v=169" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
@@ -685,6 +685,7 @@
 
         <nav class="community-tabs" aria-label="Topluluk bölümleri">
           <button class="is-active" type="button" data-community-target="communityFeed"><span aria-hidden="true">⌁</span>Akış</button>
+          <button type="button" data-community-target="communityHunters"><span aria-hidden="true">♙</span>Avcı Bul</button>
           <button type="button" data-community-target="communityForum"><span aria-hidden="true">▤</span>Forum</button>
           <button type="button" data-community-target="communityChat"><span aria-hidden="true">◌</span>Sohbet</button>
         </nav>
@@ -740,6 +741,27 @@
                   </div>
                 </article>
               </div>
+            </section>
+
+            <section class="community-surface community-hunter-search" id="communityHunters">
+              <div class="community-section-heading">
+                <div>
+                  <p class="eyebrow">Koleksiyoner Keşfi</p>
+                  <h3>Avcı Bul</h3>
+                  <p>Kullanıcı adıyla koleksiyoner ara, profilini incele ve açık garajına geç.</p>
+                </div>
+                <span class="community-section-count" id="communityHunterCount">Kullanıcı dizini</span>
+              </div>
+              <form class="community-hunter-search__form" id="communityUserSearchForm">
+                <label for="communityUserSearchInput">Kullanıcı adı ara</label>
+                <div>
+                  <span aria-hidden="true">@</span>
+                  <input id="communityUserSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="ör. saruhancakmak" />
+                  <button class="button button--primary" type="submit">Ara</button>
+                </div>
+              </form>
+              <p class="community-hunter-search__status" id="communityUserSearchStatus">Aramak için en az 2 karakter yaz.</p>
+              <div class="community-hunter-results" id="communityUserSearchResults"></div>
             </section>
 
             <div class="community-discussion-grid">
@@ -2140,7 +2162,7 @@
     <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=181"></script>
+    <script src="./app.js?v=183"></script>
   </body>
 </html>
 

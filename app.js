@@ -566,6 +566,7 @@ let currentFollowSummary = { followers: 0, following: 0, isFollowing: false };
 let currentFollowSummaryUserId = "";
 const followSummaryCache = new Map();
 let collectorSearchTimer = 0;
+let communityUserSearchTimer = 0;
 let savedRadarItems = [];
 let storeCurrentPage = 1;
 let storeTotalCount = 0;
@@ -614,6 +615,11 @@ const communityChatInput = document.querySelector("#communityChatInput");
 const communityChatAuth = document.querySelector("#communityChatAuth");
 const communityRoomTabs = document.querySelectorAll("[data-community-city]");
 const communityCityLinks = document.querySelectorAll("[data-community-city-link]");
+const communityUserSearchForm = document.querySelector("#communityUserSearchForm");
+const communityUserSearchInput = document.querySelector("#communityUserSearchInput");
+const communityUserSearchStatus = document.querySelector("#communityUserSearchStatus");
+const communityUserSearchResults = document.querySelector("#communityUserSearchResults");
+const communityHunterCount = document.querySelector("#communityHunterCount");
 const rewardsModule = document.querySelector("#rewardsModule");
 const rewardModuleTitle = document.querySelector("#rewardModuleTitle");
 const rewardModuleCopy = document.querySelector("#rewardModuleCopy");
@@ -4356,6 +4362,7 @@ function openFavoriteMarketListings() {
 function resolveGlobalSearchView(query) {
   if (activeGlobalSearchScope !== "all") return activeGlobalSearchScope;
   const normalized = normalize(query);
+  if (String(query || "").trim().startsWith("@")) return "community";
   if (["mağaza", "magaza", "raf", "sevkiyat", "radar"].some((word) => normalized.includes(word))) return "stores";
   if (["forum", "topluluk", "konu", "rehber", "yorum"].some((word) => normalized.includes(word))) return "community";
   if (["istek", "aranan", "wishlist"].some((word) => normalized.includes(word))) return "wishlist";
@@ -4367,6 +4374,13 @@ function runGlobalSearch() {
   const view = resolveGlobalSearchView(query);
   setActiveView(view, { clearSearch: true, scroll: true });
   if (view === "community") {
+    if (query) {
+      window.setTimeout(() => {
+        selectCommunitySection("communityHunters");
+        if (communityUserSearchInput) communityUserSearchInput.value = profileSearchTerm(query);
+        void searchCommunityUserProfiles(query);
+      }, 90);
+    }
     return;
   }
   searchInput.value = query;
@@ -5274,22 +5288,88 @@ function replaceRarityKey(value) {
   return String(value || "regular").trim().toLocaleLowerCase("en-US").replace(/[\s-]+/g, "_");
 }
 
+function profileSearchTerm(query = "") {
+  return String(query || "").trim().replace(/^@+/, "");
+}
+
+async function findPublicProfiles(query = "", limit = 12) {
+  const term = profileSearchTerm(query);
+  if (term.length < 2) return { profiles: [], status: "Aramak için en az 2 karakter yaz.", short: true };
+  if (!currentUser) return { profiles: [], status: "Koleksiyoner aramak için giriş yapmalısın.", authRequired: true };
+  if (!supabaseClient) {
+    const localProfiles = users
+      .filter((user) => normalize(user.username).startsWith(normalize(term)))
+      .slice(0, limit)
+      .map((user) => ({ ...user, garage_visibility: "public", vehicle_count: collectionItemsForUsername(user.username).length }));
+    return { profiles: localProfiles, status: localProfiles.length ? `${localProfiles.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı." };
+  }
+  const { data, error } = await supabaseClient.rpc("search_public_profiles", { p_query: term, p_limit: limit });
+  if (error) {
+    console.warn("Koleksiyoner araması başarısız:", error.message);
+    const fallback = await findPublicProfilesFallback(term, limit);
+    if (fallback.profiles.length || fallback.available) return fallback;
+    return { profiles: [], status: "Kullanıcı araması şu anda kullanılamıyor.", error };
+  }
+  return { profiles: data || [], status: data?.length ? `${data.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı." };
+}
+
+async function findPublicProfilesFallback(term = "", limit = 12) {
+  if (!supabaseClient || !currentUser) return { profiles: [], status: "Kullanıcı araması şu anda kullanılamıyor.", available: false };
+  const pattern = `${profileSearchTerm(term)}%`;
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("id, username, garage_visibility, created_at")
+    .ilike("username", pattern)
+    .not("username", "is", null)
+    .order("username", { ascending: true })
+    .limit(Math.max(1, Math.min(Number(limit || 12), 25)));
+  if (error) {
+    console.warn("Koleksiyoner fallback araması başarısız:", error.message);
+    return { profiles: [], status: "Kullanıcı araması şu anda kullanılamıyor.", available: false };
+  }
+  const profiles = (data || []).map((profile) => ({
+    ...profile,
+    profile_visibility: "public",
+    vehicle_count: 0,
+    follower_count: 0,
+    following_count: 0,
+    is_following: false
+  }));
+  return {
+    profiles,
+    status: profiles.length
+      ? `${profiles.length} kullanıcı bulundu. Sosyal sayılar yenilenirken temel sonuçlar gösteriliyor.`
+      : "Kullanıcı bulunamadı.",
+    available: true
+  };
+}
+
+function profileSearchMeta(profile = {}) {
+  const summary = normalizeFollowSummary(profile);
+  const isPrivate = profile.garage_visibility === "private";
+  const vehicleCount = Number(profile.vehicle_count || 0);
+  const rarity = profile.highest_rarity ? ` · en iyi av: ${collectorRarityLabel(profile.highest_rarity)}` : "";
+  return {
+    summary,
+    isPrivate,
+    visibility: isPrivate
+      ? `Gizli garaj · ${formatFollowCount(summary.followers, "takipçi")}`
+      : `${vehicleCount} araç · ${formatFollowCount(summary.followers, "takipçi")}${rarity}`
+  };
+}
+
 function renderCollectorSearchResults(profiles = []) {
   if (!collectorSearchResults) return;
   collectorSearchResults.innerHTML = "";
   profiles.forEach((profile) => {
     const row = document.createElement("button");
+    const meta = profileSearchMeta(profile);
     row.type = "button";
     row.className = "collector-result";
-    const isPrivate = profile.garage_visibility === "private";
-    const summary = normalizeFollowSummary(profile);
-    const visibility = isPrivate
-      ? `Gizli garaj · ${formatFollowCount(summary.followers, "takipçi")}`
-      : `${Number(profile.vehicle_count || 0)} araç · ${formatFollowCount(summary.followers, "takipçi")}`;
     row.innerHTML = `
       <span class="collector-result__avatar">${escapeHtml(userInitials(profile.username))}</span>
-      <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(visibility)}</small></span>
-      <span class="collector-result__action">${escapeHtml(summary.isFollowing ? "Takipte" : isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
+      <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(meta.visibility)}</small></span>
+      <span class="collector-result__action">${escapeHtml(meta.summary.isFollowing ? "Takipte" : meta.isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
       <span class="collector-result__arrow" aria-hidden="true">→</span>
     `;
     row.addEventListener("click", () => navigateToPublicGarage(profile.username));
@@ -5298,42 +5378,61 @@ function renderCollectorSearchResults(profiles = []) {
 }
 
 async function searchCollectorProfiles(query = collectorSearchInput?.value || "") {
-  const term = String(query || "").trim().replace(/^@/, "");
   if (!collectorSearchStatus || !collectorSearchResults) return;
-  if (term.length < 2) {
-    collectorSearchStatus.textContent = "Aramak için en az 2 karakter yaz.";
-    renderCollectorSearchResults([]);
-    return;
-  }
-  if (!currentUser) {
-    collectorSearchStatus.textContent = "Koleksiyoner aramak için giriş yapmalısın.";
-    renderCollectorSearchResults([]);
-    openAuthModal("login", "Koleksiyoner garajlarını görmek için giriş yapmalısın.");
-    return;
-  }
   collectorSearchStatus.textContent = "Koleksiyonerler aranıyor...";
-  if (!supabaseClient) {
-    const localProfiles = users
-      .filter((user) => normalize(user.username).startsWith(normalize(term)))
-      .slice(0, 12)
-      .map((user) => ({ ...user, garage_visibility: "public", vehicle_count: collectionItemsForUsername(user.username).length }));
-    renderCollectorSearchResults(localProfiles);
-    collectorSearchStatus.textContent = localProfiles.length ? `${localProfiles.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı.";
-    return;
-  }
-  const { data, error } = await supabaseClient.rpc("search_public_profiles", { p_query: term, p_limit: 12 });
-  if (error) {
-    console.warn("Koleksiyoner araması başarısız:", error.message);
-    collectorSearchStatus.textContent = "Kullanıcı araması şu anda kullanılamıyor.";
-    renderCollectorSearchResults([]);
-    return;
-  }
-  renderCollectorSearchResults(data || []);
-  collectorSearchStatus.textContent = data?.length ? `${data.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı.";
+  const result = await findPublicProfiles(query, 12);
+  renderCollectorSearchResults(result.profiles);
+  collectorSearchStatus.textContent = result.status;
+  if (result.authRequired) openAuthModal("login", "Koleksiyoner garajlarını görmek için giriş yapmalısın.");
+}
+
+function renderCommunityUserResults(profiles = []) {
+  if (!communityUserSearchResults) return;
+  communityUserSearchResults.innerHTML = "";
+  if (communityHunterCount) communityHunterCount.textContent = profiles.length ? `${profiles.length} avcı` : "Kullanıcı dizini";
+  profiles.forEach((profile) => {
+    const meta = profileSearchMeta(profile);
+    const card = document.createElement("article");
+    card.className = "community-hunter-card";
+    card.innerHTML = `
+      <span class="community-hunter-card__avatar">${escapeHtml(userInitials(profile.username))}</span>
+      <div class="community-hunter-card__body">
+        <strong>@${escapeHtml(profile.username)}</strong>
+        <small>${escapeHtml(meta.visibility)}</small>
+      </div>
+      <div class="community-hunter-card__actions">
+        <button type="button" data-community-profile="${escapeHtml(profile.username)}">Profil</button>
+        <button type="button" data-community-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>Garaj</button>
+      </div>
+    `;
+    card.querySelector("[data-community-profile]")?.addEventListener("click", () => navigateToPublicProfile(profile.username));
+    card.querySelector("[data-community-garage]")?.addEventListener("click", () => navigateToPublicGarage(profile.username));
+    communityUserSearchResults.appendChild(card);
+  });
+}
+
+async function searchCommunityUserProfiles(query = communityUserSearchInput?.value || "") {
+  if (!communityUserSearchStatus || !communityUserSearchResults) return;
+  communityUserSearchStatus.textContent = "Avcılar aranıyor...";
+  const result = await findPublicProfiles(query, 16);
+  renderCommunityUserResults(result.profiles);
+  communityUserSearchStatus.textContent = result.status;
+  if (result.authRequired) openAuthModal("login", "Koleksiyoner profillerini görmek için giriş yapmalısın.");
 }
 
 function publicGarageHash(username) {
   return `#/kullanici/${encodeURIComponent(String(username || "").trim())}/garaj`;
+}
+
+function publicProfileHash(username) {
+  return `#/kullanici/${encodeURIComponent(String(username || "").trim())}`;
+}
+
+function navigateToPublicProfile(username) {
+  if (!username) return;
+  setCollectorSearchOpen(false);
+  window.history.pushState(null, "", publicProfileHash(username));
+  applyDashboardRoute({ replaceUnknown: false });
 }
 
 function navigateToPublicGarage(username) {
@@ -10146,8 +10245,20 @@ function publicGarageUsernameFromHash(hash = window.location.hash) {
   }
 }
 
+function publicProfileUsernameFromHash(hash = window.location.hash) {
+  const route = String(hash || "").replace(/^#\/?/, "").split(/[?#]/)[0].trim();
+  const match = route.match(/^kullanici\/([^/]+)$/i);
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
 function dashboardViewFromHash(hash = window.location.hash) {
   if (publicGarageUsernameFromHash(hash)) return "collection";
+  if (publicProfileUsernameFromHash(hash)) return "community";
   const route = String(hash || "").replace(/^#\/?/, "").split(/[?#]/)[0].trim();
   return DASHBOARD_VIEWS_BY_ROUTE[route] || "";
 }
@@ -10186,6 +10297,7 @@ function applyDashboardRoute({ replaceUnknown = true } = {}) {
   }
   const routedView = dashboardViewFromHash();
   const routedPublicGarage = publicGarageUsernameFromHash();
+  const routedPublicProfile = publicProfileUsernameFromHash();
   if (!routedView) {
     navigateToView("home", { replace: replaceUnknown, clearSearch: true });
     return;
@@ -10202,6 +10314,13 @@ function applyDashboardRoute({ replaceUnknown = true } = {}) {
   } else if (publicGarageUsername) {
     clearPublicGarageContext();
     render();
+  }
+  if (routedPublicProfile) {
+    if (normalize(currentPublicProfileUsername) !== normalize(routedPublicProfile) || !publicProfileModal?.classList.contains("is-visible")) {
+      void openPublicProfile(routedPublicProfile);
+    }
+  } else if (currentPublicProfileUsername && publicProfileModal?.classList.contains("is-visible")) {
+    closePublicProfileModal();
   }
 }
 
@@ -10488,6 +10607,17 @@ communityChatForm?.addEventListener("submit", (event) => {
   communityChatInput.value = "";
 });
 
+communityUserSearchForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  window.clearTimeout(communityUserSearchTimer);
+  void searchCommunityUserProfiles();
+});
+
+communityUserSearchInput?.addEventListener("input", () => {
+  window.clearTimeout(communityUserSearchTimer);
+  communityUserSearchTimer = window.setTimeout(() => void searchCommunityUserProfiles(), 300);
+});
+
 document.querySelectorAll("[data-community-action]").forEach((button) => {
   button.addEventListener("click", () => {
     const action = button.dataset.communityAction;
@@ -10497,6 +10627,11 @@ document.querySelectorAll("[data-community-action]").forEach((button) => {
     }
     if (action === "rooms-all") {
       selectCommunitySection("communityChat");
+      return;
+    }
+    if (action === "members-all") {
+      selectCommunitySection("communityHunters");
+      communityUserSearchInput?.focus();
       return;
     }
     showToast(action === "rules-all" ? "Topluluk kuralları bu panelde özetleniyor." : "Topluluk üyeleri alanı yakında genişletilecek.");
