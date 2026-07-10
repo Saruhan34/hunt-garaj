@@ -14,7 +14,8 @@ Supabase SQL Editor içinde dosyaları aşağıdaki sırayla çalıştır:
 10. `supabase-public-garage-social-profile.sql`
 11. `supabase-profile-identity.sql`
 12. `supabase-profile-visibility-hardening.sql`
-13. `supabase-wishlist-system.sql`
+13. `supabase-follow-system.sql`
+14. `supabase-wishlist-system.sql`
 
 Mevcut bir Hunt Radar kurulumu ödül sistemi için güncelleniyorsa son sürüm
 `supabase-reward-system.sql` dosyasını yeniden çalıştırmak yeterlidir. Dosya
@@ -45,6 +46,12 @@ sınırlar.
 RPC'lerini `profile_visibility` ile uyumlu hale getirir. Profil özel moddaysa
 arama sonucu yalnızca minimum durum bilgisini döndürür; garaj, rozet ve araç
 detayları veritabanı tarafında da kapalı kalır.
+
+`supabase-follow-system.sql` koleksiyoner takip sistemini ekler. `user_follows`
+tablosunda self-follow veritabanı seviyesinde engellenir; kullanıcılar yalnızca
+kendi takip satırlarını ekleyip silebilir. `search_public_profiles`,
+`get_public_garage_page` ve takip RPC'leri takipçi/takip edilen sayılarını ve
+oturumdaki kullanıcının takip durumunu döndürür.
 
 Çoklu radar fotoğrafı özelliği için ayrıca
 `supabase-radar-note-photos.sql` dosyasını bir kez çalıştır. Bu dosya mevcut
@@ -148,3 +155,6 @@ Migration sonrasında iki farklı kullanıcıyla şu kontrolleri yap:
 4. Özel garajın araçları ve istatistikleri görünmemeli.
 5. Özel garaj sahibinin aktif pazar ilanı görünmeye devam etmeli.
 6. Başka kullanıcı UPDATE/DELETE işlemi yapamamalı.
+7. Kullanıcı A, Kullanıcı B'yi takip edince B profilinde takipçi sayısı artmalı.
+8. Kullanıcı A kendi profilinde takip butonu görmemeli veya buton pasif kalmalı.
+9. Aynı kullanıcı aynı profili ikinci kez takip edememeli; tekrar tıklama takipten çıkarmalı.

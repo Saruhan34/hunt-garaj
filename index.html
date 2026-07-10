@@ -465,11 +465,16 @@
                 <div><strong id="publicGarageRankName">R1 Çaylak Avcı</strong><small id="publicGarageRadarPoints">0 Radar Puanı</small></div>
               </div>
               <div class="public-garage-profile__meta">
+                <span id="publicGarageFollowerCount">0 takipçi</span>
+                <span id="publicGarageFollowingCount">0 takip</span>
                 <span id="publicGarageBadgeCount">0 rozet</span>
                 <span id="publicGarageJoinedAt">Katılım tarihi bilinmiyor</span>
                 <span id="publicGarageUpdatedAt">Koleksiyon güncellemesi yok</span>
               </div>
               <div class="public-garage-profile__badges" id="publicGarageFeaturedBadges" aria-label="Öne çıkan rozetler"></div>
+            </div>
+            <div class="public-garage-profile__actions">
+              <button class="button button--primary follow-button" id="publicGarageFollow" type="button">Takip Et</button>
             </div>
           </div>
           <div class="garage-dashboard__copy">
@@ -613,7 +618,7 @@
           <article><span aria-hidden="true">★</span><small>Premium</small><strong id="profileStatPremium">0</strong><em>Özel av</em></article>
           <article><span aria-hidden="true">⌁</span><small>Radar</small><strong id="profileStatRadar">0</strong><em>Katkı</em></article>
           <article><span aria-hidden="true">☆</span><small>İstek</small><strong id="profileStatWishlist">0</strong><em>Av planı</em></article>
-          <article><span aria-hidden="true">♙</span><small>Arkadaş</small><strong id="profileStatFriends">Yakında</strong><em>Sosyal ağ</em></article>
+          <article><span aria-hidden="true">♙</span><small>Takipçi</small><strong id="profileStatFriends">0</strong><em>Sosyal ağ</em></article>
         </div>
 
         <div class="profile-dashboard__layout">
@@ -1838,6 +1843,7 @@
           </div>
         </div>
         <div class="public-profile-actions">
+          <button class="button button--primary follow-button" id="publicProfileFollow" type="button">Takip Et</button>
           <button class="button button--primary" id="publicProfileMessage" type="button">Mesaj g&ouml;nder</button>
           <button class="button button--subtle" id="publicProfileOpenGarage" type="button">Garajı aç</button>
         </div>

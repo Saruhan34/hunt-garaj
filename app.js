@@ -561,6 +561,10 @@ let publicGarageLoading = false;
 let publicGarageMissingOnly = false;
 let publicGarageRequestId = 0;
 let publicGarageOwnKeys = new Set();
+let currentPublicProfile = null;
+let currentFollowSummary = { followers: 0, following: 0, isFollowing: false };
+let currentFollowSummaryUserId = "";
+const followSummaryCache = new Map();
 let collectorSearchTimer = 0;
 let savedRadarItems = [];
 let storeCurrentPage = 1;
@@ -722,10 +726,13 @@ const publicGarageProfileTitle = document.querySelector("#publicGarageProfileTit
 const publicGarageRankVisual = document.querySelector("#publicGarageRankVisual");
 const publicGarageRankName = document.querySelector("#publicGarageRankName");
 const publicGarageRadarPoints = document.querySelector("#publicGarageRadarPoints");
+const publicGarageFollowerCount = document.querySelector("#publicGarageFollowerCount");
+const publicGarageFollowingCount = document.querySelector("#publicGarageFollowingCount");
 const publicGarageBadgeCount = document.querySelector("#publicGarageBadgeCount");
 const publicGarageJoinedAt = document.querySelector("#publicGarageJoinedAt");
 const publicGarageUpdatedAt = document.querySelector("#publicGarageUpdatedAt");
 const publicGarageFeaturedBadges = document.querySelector("#publicGarageFeaturedBadges");
+const publicGarageFollow = document.querySelector("#publicGarageFollow");
 const publicGarageComparison = document.querySelector("#publicGarageComparison");
 const publicGarageComparisonCopy = document.querySelector("#publicGarageComparisonCopy");
 const publicGarageCommonCount = document.querySelector("#publicGarageCommonCount");
@@ -853,6 +860,7 @@ const publicProfileListings = document.querySelector("#publicProfileListings");
 const publicProfileCollection = document.querySelector("#publicProfileCollection");
 const publicProfileMessage = document.querySelector("#publicProfileMessage");
 const publicProfileOpenGarage = document.querySelector("#publicProfileOpenGarage");
+const publicProfileFollow = document.querySelector("#publicProfileFollow");
 const authForm = document.querySelector("#authForm");
 const authTitle = document.querySelector("#authTitle");
 const authSubtitle = document.querySelector("#authSubtitle");
@@ -1512,6 +1520,10 @@ function loadCurrentUser() {
 }
 
 function saveCurrentUser(user) {
+  if (!user || user.id !== currentFollowSummaryUserId) {
+    currentFollowSummary = { followers: Number(user?.followerCount || user?.follower_count || 0), following: Number(user?.followingCount || user?.following_count || 0), isFollowing: false };
+    currentFollowSummaryUserId = "";
+  }
   currentUser = user;
   if (user) {
     const index = users.findIndex((candidate) => candidate.id === user.id);
@@ -4979,6 +4991,162 @@ function collectionItemsForUsername(username) {
   return [];
 }
 
+function profileId(user = {}) {
+  return user?.id || user?.user_id || user?.owner_id || "";
+}
+
+function normalizeFollowSummary(source = {}) {
+  const follow = source.follow || source.follow_summary || {};
+  return {
+    followers: Math.max(0, Number(source.follower_count ?? source.followerCount ?? follow.followers ?? follow.follower_count ?? 0)),
+    following: Math.max(0, Number(source.following_count ?? source.followingCount ?? follow.following ?? follow.following_count ?? 0)),
+    isFollowing: Boolean(source.is_following ?? source.isFollowing ?? follow.is_following ?? follow.isFollowing)
+  };
+}
+
+function mergeFollowSummary(user = {}, summary = {}) {
+  const normalized = normalizeFollowSummary(summary);
+  return {
+    ...user,
+    follower_count: normalized.followers,
+    following_count: normalized.following,
+    is_following: normalized.isFollowing,
+    followerCount: normalized.followers,
+    followingCount: normalized.following,
+    isFollowing: normalized.isFollowing
+  };
+}
+
+function formatFollowCount(value, label) {
+  return `${Math.max(0, Number(value || 0)).toLocaleString("tr-TR")} ${label}`;
+}
+
+function isOwnProfileUser(user = {}) {
+  const id = profileId(user);
+  if (id && currentUser?.id) return id === currentUser.id;
+  return normalize(user?.username) === normalize(currentUser?.username);
+}
+
+function setFollowButtonState(button, user = {}, options = {}) {
+  if (!button) return;
+  const summary = normalizeFollowSummary(user);
+  const isOwn = isOwnProfileUser(user);
+  button.disabled = Boolean(options.loading || isOwn);
+  button.classList.toggle("is-following", summary.isFollowing && !isOwn);
+  button.classList.toggle("is-loading", Boolean(options.loading));
+  button.setAttribute("aria-pressed", String(summary.isFollowing && !isOwn));
+  button.textContent = options.loading
+    ? "Kaydediliyor..."
+    : isOwn
+      ? "Kendi Profilin"
+      : summary.isFollowing
+        ? "Takiptesin"
+        : "Takip Et";
+}
+
+function updateProfileFollowViews(user = {}) {
+  const summary = normalizeFollowSummary(user);
+  if (publicProfileSummary && currentPublicProfile && normalize(currentPublicProfile.username) === normalize(user.username)) {
+    const base = publicProfileSummary.dataset.baseText || publicProfileSummary.textContent || "";
+    publicProfileSummary.textContent = `${base} · ${formatFollowCount(summary.followers, "takipçi")}`;
+  }
+  if (publicGarageProfile && profileId(publicGarageProfile) === profileId(user)) {
+    publicGarageProfile = mergeFollowSummary(publicGarageProfile, summary);
+    if (publicGarageFollowerCount) publicGarageFollowerCount.textContent = formatFollowCount(summary.followers, "takipçi");
+    if (publicGarageFollowingCount) publicGarageFollowingCount.textContent = formatFollowCount(summary.following, "takip");
+  }
+  if (currentUser && profileId(user) === currentUser.id) {
+    currentFollowSummary = summary;
+    currentFollowSummaryUserId = currentUser.id;
+    currentUser = mergeFollowSummary(currentUser, summary);
+    saveCurrentUser(currentUser);
+    if (profileStatFriends) profileStatFriends.textContent = String(summary.followers);
+  }
+  setFollowButtonState(publicProfileFollow, currentPublicProfile || user);
+  setFollowButtonState(publicGarageFollow, publicGarageProfile || user);
+}
+
+async function loadProfileFollowSummary(user = {}) {
+  const id = profileId(user);
+  if (!id || !supabaseClient || !currentUser) return normalizeFollowSummary(user);
+  if (followSummaryCache.has(id)) return followSummaryCache.get(id);
+  const { data, error } = await supabaseClient.rpc("get_profile_follow_summary", { p_target_user_id: id });
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) console.warn("Takip özeti okunamadı:", error.message);
+    return normalizeFollowSummary(user);
+  }
+  const summary = normalizeFollowSummary(data || {});
+  followSummaryCache.set(id, summary);
+  return summary;
+}
+
+async function refreshCurrentFollowSummary() {
+  if (!currentUser) {
+    currentFollowSummary = { followers: 0, following: 0, isFollowing: false };
+    currentFollowSummaryUserId = "";
+    return;
+  }
+  if (!supabaseClient) {
+    currentFollowSummary = normalizeFollowSummary(currentUser);
+    currentFollowSummaryUserId = currentUser.id || "";
+    return;
+  }
+  if (currentFollowSummaryUserId === currentUser.id) return;
+  const summary = await loadProfileFollowSummary(currentUser);
+  currentFollowSummary = summary;
+  currentFollowSummaryUserId = currentUser.id;
+  currentUser = mergeFollowSummary(currentUser, summary);
+  saveCurrentUser(currentUser);
+  renderProfileDashboard();
+}
+
+async function toggleFollowForUser(user = {}) {
+  if (!currentUser) {
+    openAuthModal("login", "Koleksiyonerleri takip etmek için giriş yapmalısın.");
+    return;
+  }
+  const id = profileId(user);
+  if (!id) {
+    showToast("Bu profil için takip bilgisi hazır değil.");
+    return;
+  }
+  if (isOwnProfileUser(user)) return;
+  const currentSummary = normalizeFollowSummary(user);
+  const nextFollowing = !currentSummary.isFollowing;
+  setFollowButtonState(publicProfileFollow, mergeFollowSummary(user, currentSummary), { loading: true });
+  setFollowButtonState(publicGarageFollow, mergeFollowSummary(user, currentSummary), { loading: true });
+  if (!supabaseClient) {
+    const local = mergeFollowSummary(user, {
+      ...currentSummary,
+      followers: currentSummary.followers + (nextFollowing ? 1 : -1),
+      isFollowing: nextFollowing
+    });
+    currentPublicProfile = profileId(currentPublicProfile) === id ? local : currentPublicProfile;
+    publicGarageProfile = profileId(publicGarageProfile) === id ? local : publicGarageProfile;
+    updateProfileFollowViews(local);
+    showToast(nextFollowing ? "Koleksiyoner takip edildi." : "Takipten çıkarıldı.");
+    return;
+  }
+  const { data, error } = await supabaseClient.rpc("set_profile_follow", {
+    p_target_user_id: id,
+    p_following: nextFollowing
+  });
+  if (error) {
+    console.warn("Takip işlemi kaydedilemedi:", error.message);
+    showToast("Takip işlemi kaydedilemedi.");
+    setFollowButtonState(publicProfileFollow, user);
+    setFollowButtonState(publicGarageFollow, user);
+    return;
+  }
+  const summary = normalizeFollowSummary(data || {});
+  followSummaryCache.set(id, summary);
+  const merged = mergeFollowSummary(user, summary);
+  if (currentPublicProfile && profileId(currentPublicProfile) === id) currentPublicProfile = mergeFollowSummary(currentPublicProfile, summary);
+  if (publicGarageProfile && profileId(publicGarageProfile) === id) publicGarageProfile = mergeFollowSummary(publicGarageProfile, summary);
+  updateProfileFollowViews(merged);
+  showToast(summary.isFollowing ? "Koleksiyoner takip edildi." : "Takipten çıkarıldı.");
+}
+
 async function publicProfileByUsername(username) {
   if (!supabaseClient || !currentUser) return findUserByUsername(username) || { username, garage_visibility: "public" };
   const { data, error } = await supabaseClient.rpc("search_public_profiles", {
@@ -5019,6 +5187,7 @@ async function publicGaragePageByUsername(username) {
 
 async function openPublicProfile(username) {
   const user = await publicProfileByUsername(username) || { username, garage_visibility: "private" };
+  currentPublicProfile = mergeFollowSummary(user, user);
   const isOwnProfile = currentUser && normalize(currentUser.username) === normalize(user.username);
   const access = profileAccessState(user);
   const isProfilePrivate = !access.profilePublic && !isOwnProfile;
@@ -5049,7 +5218,10 @@ async function openPublicProfile(username) {
     publicProfileAvatar.textContent = userInitials(user.username);
   }
   publicProfileUsername.textContent = `@${user.username}`;
-  publicProfileSummary.textContent = isProfilePrivate ? "Özel profil" : `${listingCount} ilan · ${collectionCount} garaj kaydı`;
+  const followSummary = normalizeFollowSummary(user);
+  publicProfileSummary.dataset.baseText = isProfilePrivate ? "Özel profil" : `${listingCount} ilan · ${collectionCount} garaj kaydı`;
+  publicProfileSummary.textContent = `${publicProfileSummary.dataset.baseText} · ${formatFollowCount(followSummary.followers, "takipçi")}`;
+  setFollowButtonState(publicProfileFollow, currentPublicProfile);
   publicProfileListingsCount.textContent = String(listingCount);
   publicProfileCollectionCount.textContent = String(collectionCount);
   publicProfilePrivateNotice?.classList.toggle("is-hidden", !isProfilePrivate);
@@ -5058,12 +5230,20 @@ async function openPublicProfile(username) {
   renderPublicProfileList(publicProfileCollection, collection, "collection");
   publicProfileModal.classList.add("is-visible");
   publicProfileModal.setAttribute("aria-hidden", "false");
+  if (profileId(user)) {
+    const summary = await loadProfileFollowSummary(user);
+    if (currentPublicProfile && profileId(currentPublicProfile) === profileId(user)) {
+      currentPublicProfile = mergeFollowSummary(currentPublicProfile, summary);
+      updateProfileFollowViews(currentPublicProfile);
+    }
+  }
 }
 
 function closePublicProfileModal() {
   publicProfileModal.classList.remove("is-visible");
   publicProfileModal.setAttribute("aria-hidden", "true");
   currentPublicProfileUsername = "";
+  currentPublicProfile = null;
 }
 
 function setCollectorSearchOpen(open) {
@@ -5098,11 +5278,14 @@ function renderCollectorSearchResults(profiles = []) {
     row.type = "button";
     row.className = "collector-result";
     const isPrivate = profile.garage_visibility === "private";
-    const visibility = isPrivate ? "Gizli garaj" : `${Number(profile.vehicle_count || 0)} araç`;
+    const summary = normalizeFollowSummary(profile);
+    const visibility = isPrivate
+      ? `Gizli garaj · ${formatFollowCount(summary.followers, "takipçi")}`
+      : `${Number(profile.vehicle_count || 0)} araç · ${formatFollowCount(summary.followers, "takipçi")}`;
     row.innerHTML = `
       <span class="collector-result__avatar">${escapeHtml(userInitials(profile.username))}</span>
       <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(visibility)}</small></span>
-      <span class="collector-result__action">${escapeHtml(isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
+      <span class="collector-result__action">${escapeHtml(summary.isFollowing ? "Takipte" : isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
       <span class="collector-result__arrow" aria-hidden="true">→</span>
     `;
     row.addEventListener("click", () => navigateToPublicGarage(profile.username));
@@ -6247,6 +6430,9 @@ function normalizeSupabaseProfile(authUser, profile = {}) {
     location: profile.location || "",
     favoriteTags: Array.isArray(profile.favorite_tags) ? profile.favorite_tags : [],
     showcaseVehicleKeys: Array.isArray(profile.showcase_vehicle_keys) ? profile.showcase_vehicle_keys : [],
+    followerCount: Number(profile.follower_count || 0),
+    followingCount: Number(profile.following_count || 0),
+    isFollowing: profile.is_following === true,
     createdAt: profile.created_at || authUser.created_at || new Date().toISOString(),
     emailConfirmedAt: authUser.email_confirmed_at || null
   };
@@ -6487,8 +6673,8 @@ function selectedProfileVisibility() {
 function profileAccessState(user = currentUser) {
   const profileVisibility = user?.profileVisibility || user?.profile_visibility || "public";
   const garageVisibility = user?.garageVisibility || user?.garage_visibility || "public";
-  const profilePublic = profileVisibility === "public";
-  const garagePublic = garageVisibility === "public";
+  const profilePublic = profileVisibility === "public" || user?.can_view_profile === true || user?.canViewProfile === true;
+  const garagePublic = garageVisibility === "public" || user?.can_view_garage === true || user?.canViewGarage === true;
   return {
     profileVisibility,
     garageVisibility,
@@ -7694,6 +7880,10 @@ function renderPublicGarageProfile(profileName) {
   publicGarageRankVisual.innerHTML = rankImageMarkup(rank, "public-garage-rank-image");
   publicGarageRankName.textContent = rank?.title || "R1 Çaylak Avcı";
   publicGarageRadarPoints.textContent = `${Number(stats.points || 0)} Radar Puanı`;
+  const followSummary = normalizeFollowSummary(publicGarageProfile);
+  if (publicGarageFollowerCount) publicGarageFollowerCount.textContent = formatFollowCount(followSummary.followers, "takipçi");
+  if (publicGarageFollowingCount) publicGarageFollowingCount.textContent = formatFollowCount(followSummary.following, "takip");
+  setFollowButtonState(publicGarageFollow, publicGarageProfile);
   publicGarageBadgeCount.textContent = `${badges.length} rozet`;
   publicGarageJoinedAt.textContent = publicGarageProfile.created_at
     ? `Katılım: ${formatProfileDate(publicGarageProfile.created_at)}`
@@ -7940,6 +8130,10 @@ function renderProfileDashboard() {
   const garageTotal = garageItems.reduce((total, item) => total + garageQuantity(item), 0);
   const radarCount = profileRadarCount(stats);
   const preferences = profilePreferenceLabels(garageItems);
+  if (currentUser && supabaseClient && currentFollowSummaryUserId !== currentUser.id) void refreshCurrentFollowSummary();
+  const followSummary = currentUser && currentFollowSummaryUserId === currentUser.id
+    ? currentFollowSummary
+    : normalizeFollowSummary(currentUser || {});
   syncProfileDashboardTheme(preferences);
 
   if (profileDashboardAvatar) {
@@ -7962,7 +8156,7 @@ function renderProfileDashboard() {
   if (profileStatPremium) profileStatPremium.textContent = String(premiumCount);
   if (profileStatRadar) profileStatRadar.textContent = String(radarCount);
   if (profileStatWishlist) profileStatWishlist.textContent = String(profileWishlistCount());
-  if (profileStatFriends) profileStatFriends.textContent = "Yakında";
+  if (profileStatFriends) profileStatFriends.textContent = String(followSummary.followers || 0);
   if (profileRankProgressValue) profileRankProgressValue.textContent = `${progress.percent || 0}%`;
   if (profileRankProgressTitle) profileRankProgressTitle.textContent = progress.next ? `${progress.next.title} için ${progress.remaining} puan` : "Maksimum rank";
   if (profileRankProgressCopy) profileRankProgressCopy.textContent = progress.next ? "Radar bildirimi, doğrulama ve topluluk katkılarıyla koleksiyoncu profilin güçlenir." : "Hunt Radar profilin zirvede görünüyor.";
@@ -10409,6 +10603,9 @@ publicProfileModal.addEventListener("click", (event) => {
   if (event.target === publicProfileModal) closePublicProfileModal();
 });
 publicProfileMessage.addEventListener("click", () => openMessageThreadForUser(currentPublicProfileUsername));
+publicProfileFollow?.addEventListener("click", () => {
+  if (currentPublicProfile) void toggleFollowForUser(currentPublicProfile);
+});
 publicProfileOpenGarage?.addEventListener("click", () => {
   const username = currentPublicProfileUsername;
   closePublicProfileModal();
@@ -10417,6 +10614,9 @@ publicProfileOpenGarage?.addEventListener("click", () => {
     return;
   }
   navigateToPublicGarage(username);
+});
+publicGarageFollow?.addEventListener("click", () => {
+  if (publicGarageProfile) void toggleFollowForUser(publicGarageProfile);
 });
 toggleCollectorSearchButton?.addEventListener("click", () => {
   setCollectorSearchOpen(Boolean(collectorSearchPanel?.hidden));
