@@ -562,11 +562,15 @@ let publicGarageMissingOnly = false;
 let publicGarageRequestId = 0;
 let publicGarageOwnKeys = new Set();
 let currentPublicProfile = null;
+let publicProfileActiveTab = "profile";
+let followListContext = null;
 let currentFollowSummary = { followers: 0, following: 0, isFollowing: false };
 let currentFollowSummaryUserId = "";
 const followSummaryCache = new Map();
 let collectorSearchTimer = 0;
 let communityUserSearchTimer = 0;
+let lastCollectorSearchProfiles = [];
+let lastCommunityUserProfiles = [];
 let savedRadarItems = [];
 let storeCurrentPage = 1;
 let storeTotalCount = 0;
@@ -620,6 +624,8 @@ const communityUserSearchInput = document.querySelector("#communityUserSearchInp
 const communityUserSearchStatus = document.querySelector("#communityUserSearchStatus");
 const communityUserSearchResults = document.querySelector("#communityUserSearchResults");
 const communityHunterCount = document.querySelector("#communityHunterCount");
+const communitySpotlightCount = document.querySelector("#communitySpotlightCount");
+const communitySpotlightGrid = document.querySelector("#communitySpotlightGrid");
 const rewardsModule = document.querySelector("#rewardsModule");
 const rewardModuleTitle = document.querySelector("#rewardModuleTitle");
 const rewardModuleCopy = document.querySelector("#rewardModuleCopy");
@@ -715,6 +721,9 @@ const garageDashboardEyebrow = document.querySelector("#garageDashboardEyebrow")
 const garageDashboardTitle = document.querySelector("#garageDashboardTitle");
 const garageDashboardCopy = document.querySelector("#garageDashboardCopy");
 const garageDashboardOwnCopy = garageDashboard?.querySelector(".garage-dashboard__copy");
+const garageStatsPanel = garageDashboard?.querySelector(".garage-stats");
+const garageControlsPanel = garageDashboard?.querySelector(".garage-controls");
+const listZone = document.querySelector(".list-zone");
 const garageAddButton = document.querySelector("#openGarageDrawer");
 const toggleCollectorSearchButton = document.querySelector("#toggleCollectorSearch");
 const openOwnGarageButton = document.querySelector("#openOwnGarage");
@@ -741,6 +750,24 @@ const publicGarageJoinedAt = document.querySelector("#publicGarageJoinedAt");
 const publicGarageUpdatedAt = document.querySelector("#publicGarageUpdatedAt");
 const publicGarageFeaturedBadges = document.querySelector("#publicGarageFeaturedBadges");
 const publicGarageFollow = document.querySelector("#publicGarageFollow");
+const publicProfileTabs = document.querySelector("#publicProfileTabs");
+const publicProfileTabButtons = document.querySelectorAll("[data-public-profile-tab]");
+const publicProfileShowcase = document.querySelector("#publicProfileShowcase");
+const publicProfileShowcaseBio = document.querySelector("#publicProfileShowcaseBio");
+const publicProfileShowcaseLocation = document.querySelector("#publicProfileShowcaseLocation");
+const publicProfileShowcaseAccess = document.querySelector("#publicProfileShowcaseAccess");
+const publicProfileShowcaseGarage = document.querySelector("#publicProfileShowcaseGarage");
+const publicProfileShowcaseTags = document.querySelector("#publicProfileShowcaseTags");
+const publicProfileShowcaseSignal = document.querySelector("#publicProfileShowcaseSignal");
+const publicProfileFeatured = document.querySelector("#publicProfileFeatured");
+const publicProfileFeaturedGrid = document.querySelector("#publicProfileFeaturedGrid");
+const publicProfileFeaturedCount = document.querySelector("#publicProfileFeaturedCount");
+const publicProfileListingsPanel = document.querySelector("#publicProfileListingsPanel");
+const publicProfileListingsPanelGrid = document.querySelector("#publicProfileListingsPanelGrid");
+const publicProfileListingsPanelCount = document.querySelector("#publicProfileListingsPanelCount");
+const publicProfileBadgesPanel = document.querySelector("#publicProfileBadgesPanel");
+const publicProfileBadgesPanelGrid = document.querySelector("#publicProfileBadgesPanelGrid");
+const publicProfileBadgesPanelCount = document.querySelector("#publicProfileBadgesPanelCount");
 const publicGarageComparison = document.querySelector("#publicGarageComparison");
 const publicGarageComparisonCopy = document.querySelector("#publicGarageComparisonCopy");
 const publicGarageCommonCount = document.querySelector("#publicGarageCommonCount");
@@ -862,6 +889,9 @@ const publicProfileSubtitle = document.querySelector("#publicProfileSubtitle");
 const publicProfileAvatar = document.querySelector("#publicProfileAvatar");
 const publicProfileUsername = document.querySelector("#publicProfileUsername");
 const publicProfileSummary = document.querySelector("#publicProfileSummary");
+const publicProfileFollowers = document.querySelector("#publicProfileFollowers");
+const publicProfileFollowing = document.querySelector("#publicProfileFollowing");
+const publicProfileRank = document.querySelector("#publicProfileRank");
 const publicProfileListingsCount = document.querySelector("#publicProfileListingsCount");
 const publicProfileCollectionCount = document.querySelector("#publicProfileCollectionCount");
 const publicProfilePrivateNotice = document.querySelector("#publicProfilePrivateNotice");
@@ -1083,6 +1113,12 @@ const storeDetailMoreStore = document.querySelector("#storeDetailMoreStore");
 const storeDetailCloseAction = document.querySelector("#storeDetailCloseAction");
 const storePhotoLightbox = document.querySelector("#storePhotoLightbox");
 const storePhotoLightboxImage = document.querySelector("#storePhotoLightboxImage");
+const followListModal = document.querySelector("#followListModal");
+const followListEyebrow = document.querySelector("#followListEyebrow");
+const followListTitle = document.querySelector("#followListTitle");
+const followListSubtitle = document.querySelector("#followListSubtitle");
+const followListBody = document.querySelector("#followListBody");
+const closeFollowListModalButton = document.querySelector("#closeFollowListModal");
 const messageModal = document.querySelector("#messageModal");
 const closeMessageModalButton = document.querySelector("#closeMessageModal");
 const messageModalTitle = document.querySelector("#messageModalTitle");
@@ -2735,7 +2771,7 @@ function createStoreRadarCard(item) {
 
   card.querySelector(".store-radar-card__profile").addEventListener("click", (event) => {
     event.stopPropagation();
-    openPublicProfile(username);
+    navigateToPublicProfile(username);
   });
   const messageButton = card.querySelector(".store-radar-card__message");
   const isOwnProfile = currentUser && normalize(currentUser.username) === normalize(username);
@@ -4995,7 +5031,7 @@ function sellerProfileAction(item) {
   if (!item.sellerUsername) return `Satıcı: ${marketSellerLabel(item)}`;
   return {
     text: `Satıcı: @${item.sellerUsername}`,
-    action: () => openPublicProfile(item.sellerUsername)
+    action: () => navigateToPublicProfile(item.sellerUsername)
   };
 }
 
@@ -5039,6 +5075,17 @@ function formatFollowCount(value, label) {
   return `${Math.max(0, Number(value || 0)).toLocaleString("tr-TR")} ${label}`;
 }
 
+function followMetricMarkup(value, label) {
+  const count = Math.max(0, Number(value || 0)).toLocaleString("tr-TR");
+  return `<strong>${escapeHtml(count)}</strong><small>${escapeHtml(label)}</small>`;
+}
+
+function setFollowMetric(element, value, label) {
+  if (!element) return;
+  element.innerHTML = followMetricMarkup(value, label);
+  element.setAttribute("aria-label", formatFollowCount(value, label));
+}
+
 function isOwnProfileUser(user = {}) {
   const id = profileId(user);
   if (id && currentUser?.id) return id === currentUser.id;
@@ -5062,16 +5109,36 @@ function setFollowButtonState(button, user = {}, options = {}) {
         : "Takip Et";
 }
 
+function updateCachedProfileFollow(user = {}) {
+  const id = profileId(user);
+  const username = normalize(user.username);
+  const replaceProfile = (profile) => {
+    const sameId = id && profileId(profile) === id;
+    const sameUsername = username && normalize(profile.username) === username;
+    return sameId || sameUsername ? mergeFollowSummary(profile, user) : profile;
+  };
+  lastCollectorSearchProfiles = lastCollectorSearchProfiles.map(replaceProfile);
+  lastCommunityUserProfiles = lastCommunityUserProfiles.map(replaceProfile);
+  if (lastCollectorSearchProfiles.length) renderCollectorSearchResults(lastCollectorSearchProfiles);
+  if (lastCommunityUserProfiles.length) renderCommunityUserResults(lastCommunityUserProfiles);
+}
+
 function updateProfileFollowViews(user = {}) {
   const summary = normalizeFollowSummary(user);
   if (publicProfileSummary && currentPublicProfile && normalize(currentPublicProfile.username) === normalize(user.username)) {
     const base = publicProfileSummary.dataset.baseText || publicProfileSummary.textContent || "";
     publicProfileSummary.textContent = `${base} · ${formatFollowCount(summary.followers, "takipçi")}`;
   }
+  if (publicProfileFollowers && currentPublicProfile && normalize(currentPublicProfile.username) === normalize(user.username)) {
+    setFollowMetric(publicProfileFollowers, summary.followers, "takipçi");
+  }
+  if (publicProfileFollowing && currentPublicProfile && normalize(currentPublicProfile.username) === normalize(user.username)) {
+    setFollowMetric(publicProfileFollowing, summary.following, "takip edilen");
+  }
   if (publicGarageProfile && profileId(publicGarageProfile) === profileId(user)) {
     publicGarageProfile = mergeFollowSummary(publicGarageProfile, summary);
-    if (publicGarageFollowerCount) publicGarageFollowerCount.textContent = formatFollowCount(summary.followers, "takipçi");
-    if (publicGarageFollowingCount) publicGarageFollowingCount.textContent = formatFollowCount(summary.following, "takip");
+    setFollowMetric(publicGarageFollowerCount, summary.followers, "takipçi");
+    setFollowMetric(publicGarageFollowingCount, summary.following, "takip edilen");
   }
   if (currentUser && profileId(user) === currentUser.id) {
     currentFollowSummary = summary;
@@ -5082,6 +5149,7 @@ function updateProfileFollowViews(user = {}) {
   }
   setFollowButtonState(publicProfileFollow, currentPublicProfile || user);
   setFollowButtonState(publicGarageFollow, publicGarageProfile || user);
+  updateCachedProfileFollow(user);
 }
 
 async function loadProfileFollowSummary(user = {}) {
@@ -5096,6 +5164,127 @@ async function loadProfileFollowSummary(user = {}) {
   const summary = normalizeFollowSummary(data || {});
   followSummaryCache.set(id, summary);
   return summary;
+}
+
+async function loadProfileFollowList(user = {}, kind = "followers") {
+  const id = profileId(user);
+  const listKind = kind === "following" ? "following" : "followers";
+  if (!id || !supabaseClient || !currentUser) return [];
+  const { data, error } = await supabaseClient.rpc("get_profile_follow_list", {
+    p_target_user_id: id,
+    p_kind: listKind,
+    p_limit: 40
+  });
+  if (!error) return Array.isArray(data) ? data : [];
+  if (!["42883", "PGRST202"].includes(error.code)) {
+    console.warn("Takip listesi okunamadı:", error.message);
+    return [];
+  }
+  const relationColumn = listKind === "following" ? "follower_id" : "followed_id";
+  const targetColumn = listKind === "following" ? "followed_id" : "follower_id";
+  const { data: follows, error: followError } = await supabaseClient
+    .from("user_follows")
+    .select(`${targetColumn}, created_at`)
+    .eq(relationColumn, id)
+    .order("created_at", { ascending: false })
+    .limit(40);
+  if (followError || !Array.isArray(follows) || !follows.length) return [];
+  const ids = follows.map((row) => row[targetColumn]).filter(Boolean);
+  if (!ids.length) return [];
+  const { data: profiles, error: profileError } = await supabaseClient
+    .from("profiles")
+    .select("id, username, avatar_id, profile_visibility, garage_visibility, bio, location, favorite_tags, radar_points, created_at")
+    .in("id", ids);
+  if (profileError || !Array.isArray(profiles)) return [];
+  const order = new Map(ids.map((profileIdValue, index) => [profileIdValue, index]));
+  return profiles
+    .map((profile) => mergeFollowSummary(profile, profile))
+    .sort((a, b) => (order.get(profileId(a)) ?? 99) - (order.get(profileId(b)) ?? 99));
+}
+
+function closeFollowListModal() {
+  followListModal?.classList.remove("is-visible");
+  followListModal?.setAttribute("aria-hidden", "true");
+  followListContext = null;
+}
+
+function renderFollowListBody(profiles = [], kind = "followers") {
+  if (!followListBody) return;
+  followListBody.innerHTML = "";
+  if (!profiles.length) {
+    const empty = document.createElement("div");
+    empty.className = "follow-list-empty";
+    empty.innerHTML = `
+      <span aria-hidden="true">◇</span>
+      <strong>${kind === "following" ? "Henüz takip edilen koleksiyoner yok" : "Henüz takipçi yok"}</strong>
+      <small>Bağlantılar oluştuğunda bu alan premium profil kartlarıyla dolacak.</small>
+    `;
+    followListBody.appendChild(empty);
+    return;
+  }
+  profiles.forEach((profile) => {
+    const card = document.createElement("article");
+    card.className = "follow-list-card";
+    const avatar = document.createElement("span");
+    avatar.className = "follow-list-card__avatar reward-avatar";
+    applyAvatarElement(avatar, { type: "preset", id: profile.avatar_id || "garage-shield" }, profile);
+    const points = Number(profile.radar_points || profile.radarPoints || profile.points || 0);
+    const rank = Rewards?.rankFor(points);
+    const body = document.createElement("div");
+    body.className = "follow-list-card__body";
+    body.innerHTML = `
+      <strong>@${escapeHtml(profile.username || "koleksiyoner")}</strong>
+      <span>${escapeHtml(rank?.title || "R1 Çaylak Avcı")} · ${escapeHtml(profile.location || profile.city || "Hunt Radar")}</span>
+      <small>${escapeHtml(profile.bio || "Koleksiyon profili hazırlanıyor.")}</small>
+    `;
+    const actions = document.createElement("div");
+    actions.className = "follow-list-card__actions";
+    const profileButton = document.createElement("button");
+    profileButton.type = "button";
+    profileButton.textContent = "Profil";
+    profileButton.addEventListener("click", () => {
+      closeFollowListModal();
+      navigateToPublicProfile(profile.username);
+    });
+    const garageButton = document.createElement("button");
+    garageButton.type = "button";
+    garageButton.textContent = "Garaj";
+    garageButton.disabled = profile.garage_visibility === "private" && !isOwnProfileUser(profile);
+    garageButton.addEventListener("click", () => {
+      closeFollowListModal();
+      navigateToPublicGarage(profile.username);
+    });
+    const followButton = document.createElement("button");
+    followButton.type = "button";
+    followButton.className = "follow-button";
+    setFollowButtonState(followButton, profile);
+    followButton.addEventListener("click", async () => {
+      await toggleFollowForUser(profile);
+      if (followListContext) void openFollowList(followListContext.user, followListContext.kind);
+    });
+    actions.append(profileButton, garageButton, followButton);
+    card.append(avatar, body, actions);
+    followListBody.appendChild(card);
+  });
+}
+
+async function openFollowList(user = {}, kind = "followers") {
+  const id = profileId(user);
+  if (!id) {
+    showToast("Takip listesi için profil bilgisi hazırlanıyor.");
+    return;
+  }
+  const listKind = kind === "following" ? "following" : "followers";
+  followListContext = { user, kind: listKind };
+  if (followListEyebrow) followListEyebrow.textContent = "Koleksiyoner ağı";
+  if (followListTitle) followListTitle.textContent = listKind === "following" ? "Takip edilenler" : "Takipçiler";
+  if (followListSubtitle) followListSubtitle.textContent = `@${user.username || "koleksiyoner"} sosyal bağlantıları`;
+  if (followListBody) followListBody.innerHTML = '<div class="follow-list-loading">Koleksiyonerler yükleniyor...</div>';
+  followListModal?.classList.add("is-visible");
+  followListModal?.setAttribute("aria-hidden", "false");
+  const profiles = await loadProfileFollowList(user, listKind);
+  if (!followListContext || profileId(followListContext.user) !== id || followListContext.kind !== listKind) return;
+  renderFollowListBody(profiles, listKind);
 }
 
 async function refreshCurrentFollowSummary() {
@@ -5237,8 +5426,13 @@ async function openPublicProfile(username) {
   }
   publicProfileUsername.textContent = `@${user.username}`;
   const followSummary = normalizeFollowSummary(user);
+  const profilePoints = Number(user.radar_points || user.radarPoints || user.points || 0);
+  const publicRank = Rewards?.rankFor(profilePoints);
   publicProfileSummary.dataset.baseText = isProfilePrivate ? "Özel profil" : `${listingCount} ilan · ${collectionCount} garaj kaydı`;
   publicProfileSummary.textContent = `${publicProfileSummary.dataset.baseText} · ${formatFollowCount(followSummary.followers, "takipçi")}`;
+  setFollowMetric(publicProfileFollowers, followSummary.followers, "takipçi");
+  setFollowMetric(publicProfileFollowing, followSummary.following, "takip edilen");
+  if (publicProfileRank) publicProfileRank.textContent = publicRank?.title || "R1 Çaylak Avcı";
   setFollowButtonState(publicProfileFollow, currentPublicProfile);
   publicProfileListingsCount.textContent = String(listingCount);
   publicProfileCollectionCount.textContent = String(collectionCount);
@@ -5370,10 +5564,59 @@ function renderCollectorSearchResults(profiles = []) {
       <span class="collector-result__avatar">${escapeHtml(userInitials(profile.username))}</span>
       <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(meta.visibility)}</small></span>
       <span class="collector-result__action">${escapeHtml(meta.summary.isFollowing ? "Takipte" : meta.isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
+      <span class="collector-result__follow">${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Takiptesin" : "Takip Et")}</span>
       <span class="collector-result__arrow" aria-hidden="true">→</span>
     `;
-    row.addEventListener("click", () => navigateToPublicGarage(profile.username));
+    row.addEventListener("click", (event) => {
+      const followZone = event.target?.closest?.(".collector-result__follow");
+      if (followZone && !isOwnProfileUser(profile)) {
+        event.preventDefault();
+        void toggleFollowForUser(profile);
+        return;
+      }
+      navigateToPublicGarage(profile.username);
+    });
     collectorSearchResults.appendChild(row);
+  });
+}
+
+function renderCommunitySpotlight(profiles = lastCommunityUserProfiles) {
+  if (!communitySpotlightGrid) return;
+  const featuredProfiles = (profiles || []).slice(0, 4);
+  communitySpotlightGrid.innerHTML = "";
+  if (communitySpotlightCount) communitySpotlightCount.textContent = featuredProfiles.length ? `${featuredProfiles.length} profil` : "Keşfe hazır";
+  if (!featuredProfiles.length) {
+    const empty = document.createElement("article");
+    empty.className = "community-spotlight-card is-empty";
+    empty.innerHTML = `
+      <span class="community-spotlight-card__avatar">HR</span>
+      <div>
+        <strong>Koleksiyoner keşfi hazır</strong>
+        <p>Kullanıcı aradığında açık profiller, takip sinyalleri ve garaj aksiyonları burada öne çıkar.</p>
+      </div>
+    `;
+    communitySpotlightGrid.appendChild(empty);
+    return;
+  }
+  featuredProfiles.forEach((profile) => {
+    const meta = profileSearchMeta(profile);
+    const card = document.createElement("article");
+    card.className = "community-spotlight-card";
+    card.innerHTML = `
+      <span class="community-spotlight-card__avatar">${escapeHtml(userInitials(profile.username))}</span>
+      <div>
+        <small>${escapeHtml(meta.isPrivate ? "Gizli garaj" : "Açık koleksiyon")}</small>
+        <strong>@${escapeHtml(profile.username || "koleksiyoner")}</strong>
+        <p>${escapeHtml(meta.visibility)}</p>
+      </div>
+      <div class="community-spotlight-card__actions">
+        <button type="button" data-spotlight-profile="${escapeHtml(profile.username)}">Profil</button>
+        <button type="button" data-spotlight-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>Garaj</button>
+      </div>
+    `;
+    card.querySelector("[data-spotlight-profile]")?.addEventListener("click", () => navigateToPublicProfile(profile.username));
+    card.querySelector("[data-spotlight-garage]")?.addEventListener("click", () => navigateToPublicGarage(profile.username));
+    communitySpotlightGrid.appendChild(card);
   });
 }
 
@@ -5381,7 +5624,8 @@ async function searchCollectorProfiles(query = collectorSearchInput?.value || ""
   if (!collectorSearchStatus || !collectorSearchResults) return;
   collectorSearchStatus.textContent = "Koleksiyonerler aranıyor...";
   const result = await findPublicProfiles(query, 12);
-  renderCollectorSearchResults(result.profiles);
+  lastCollectorSearchProfiles = result.profiles;
+  renderCollectorSearchResults(lastCollectorSearchProfiles);
   collectorSearchStatus.textContent = result.status;
   if (result.authRequired) openAuthModal("login", "Koleksiyoner garajlarını görmek için giriş yapmalısın.");
 }
@@ -5390,22 +5634,36 @@ function renderCommunityUserResults(profiles = []) {
   if (!communityUserSearchResults) return;
   communityUserSearchResults.innerHTML = "";
   if (communityHunterCount) communityHunterCount.textContent = profiles.length ? `${profiles.length} avcı` : "Kullanıcı dizini";
+  renderCommunitySpotlight(profiles);
   profiles.forEach((profile) => {
     const meta = profileSearchMeta(profile);
+    const vehicleCount = Math.max(0, Number(profile.vehicle_count || 0));
+    const bestHunt = profile.highest_rarity ? collectorRarityLabel(profile.highest_rarity) : (meta.isPrivate ? "Gizli" : "Açık");
+    const profileState = meta.isPrivate ? "Garaj gizli" : "Açık garaj";
     const card = document.createElement("article");
     card.className = "community-hunter-card";
     card.innerHTML = `
-      <span class="community-hunter-card__avatar">${escapeHtml(userInitials(profile.username))}</span>
-      <div class="community-hunter-card__body">
-        <strong>@${escapeHtml(profile.username)}</strong>
-        <small>${escapeHtml(meta.visibility)}</small>
+      <div class="community-hunter-card__top">
+        <span class="community-hunter-card__avatar">${escapeHtml(userInitials(profile.username))}</span>
+        <div class="community-hunter-card__body">
+          <span>Koleksiyoner</span>
+          <strong>@${escapeHtml(profile.username)}</strong>
+        </div>
+        <em class="community-hunter-card__status">${escapeHtml(profileState)}</em>
+      </div>
+      <div class="community-hunter-card__stats">
+        <span><strong>${escapeHtml(vehicleCount.toLocaleString("tr-TR"))}</strong><small>araç</small></span>
+        <span><strong>${escapeHtml(meta.summary.followers.toLocaleString("tr-TR"))}</strong><small>takipçi</small></span>
+        <span><strong>${escapeHtml(bestHunt)}</strong><small>en iyi av</small></span>
       </div>
       <div class="community-hunter-card__actions">
-        <button type="button" data-community-profile="${escapeHtml(profile.username)}">Profil</button>
+        <button type="button" data-community-profile="${escapeHtml(profile.username)}">Profili Aç</button>
+        <button class="community-hunter-card__follow follow-button${meta.summary.isFollowing ? " is-following" : ""}" type="button" data-community-follow="${escapeHtml(profile.username)}" ${isOwnProfileUser(profile) ? "disabled" : ""}>${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Takiptesin" : "Takip Et")}</button>
         <button type="button" data-community-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>Garaj</button>
       </div>
     `;
     card.querySelector("[data-community-profile]")?.addEventListener("click", () => navigateToPublicProfile(profile.username));
+    card.querySelector("[data-community-follow]")?.addEventListener("click", () => void toggleFollowForUser(profile));
     card.querySelector("[data-community-garage]")?.addEventListener("click", () => navigateToPublicGarage(profile.username));
     communityUserSearchResults.appendChild(card);
   });
@@ -5415,7 +5673,8 @@ async function searchCommunityUserProfiles(query = communityUserSearchInput?.val
   if (!communityUserSearchStatus || !communityUserSearchResults) return;
   communityUserSearchStatus.textContent = "Avcılar aranıyor...";
   const result = await findPublicProfiles(query, 16);
-  renderCommunityUserResults(result.profiles);
+  lastCommunityUserProfiles = result.profiles;
+  renderCommunityUserResults(lastCommunityUserProfiles);
   communityUserSearchStatus.textContent = result.status;
   if (result.authRequired) openAuthModal("login", "Koleksiyoner profillerini görmek için giriş yapmalısın.");
 }
@@ -6121,7 +6380,7 @@ function renderRewardPodium(rows) {
       <small>${user.badges.length} rozet</small>
     `;
     applyAvatarElement(card.querySelector(".podium-avatar-slot"), avatar, user);
-    const openProfile = () => openPublicProfile(user.username);
+    const openProfile = () => navigateToPublicProfile(user.username);
     card.addEventListener("click", openProfile);
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -6156,7 +6415,7 @@ function renderRewardRows(rows) {
     applyAvatarElement(rewardLeaderboardRows.querySelector(`[data-reward-row-index="${index}"]`), avatar, user);
   });
   rewardLeaderboardRows.querySelectorAll("[data-reward-profile]").forEach((row) => {
-    const openProfile = () => openPublicProfile(row.dataset.rewardProfile);
+    const openProfile = () => navigateToPublicProfile(row.dataset.rewardProfile);
     row.addEventListener("click", openProfile);
     row.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -7998,13 +8257,14 @@ function renderPublicGarageProfile(profileName) {
     { type: "preset", id: publicGarageProfile.avatar_id || "garage-shield" },
     publicGarageProfile
   );
-  publicGarageProfileTitle.textContent = `@${profileName} Garajı`;
+  const isProfileRoute = isPublicProfileRoute();
+  publicGarageProfileTitle.textContent = isProfileRoute ? `@${profileName}` : `@${profileName} Garajı`;
   publicGarageRankVisual.innerHTML = rankImageMarkup(rank, "public-garage-rank-image");
   publicGarageRankName.textContent = rank?.title || "R1 Çaylak Avcı";
   publicGarageRadarPoints.textContent = `${Number(stats.points || 0)} Radar Puanı`;
   const followSummary = normalizeFollowSummary(publicGarageProfile);
-  if (publicGarageFollowerCount) publicGarageFollowerCount.textContent = formatFollowCount(followSummary.followers, "takipçi");
-  if (publicGarageFollowingCount) publicGarageFollowingCount.textContent = formatFollowCount(followSummary.following, "takip");
+  setFollowMetric(publicGarageFollowerCount, followSummary.followers, "takipçi");
+  setFollowMetric(publicGarageFollowingCount, followSummary.following, "takip edilen");
   setFollowButtonState(publicGarageFollow, publicGarageProfile);
   publicGarageBadgeCount.textContent = `${badges.length} rozet`;
   publicGarageJoinedAt.textContent = publicGarageProfile.created_at
@@ -8019,6 +8279,165 @@ function renderPublicGarageProfile(profileName) {
       </span>
     `).join("")
     : '<span class="public-garage-featured-badge is-muted">Henüz kazanılmış rozet yok</span>';
+}
+
+function publicProfileListingItems(username = publicGarageProfile?.username || publicGarageUsername) {
+  return allMarketListings().filter((item) => normalize(item.sellerUsername) === normalize(username));
+}
+
+function publicProfileFeaturedItems() {
+  const access = profileAccessState(publicGarageProfile || {});
+  if (!access.profilePublic || !access.garagePublic) return [];
+  const selectedKeys = Array.isArray(publicGarageProfile?.showcase_vehicle_keys)
+    ? publicGarageProfile.showcase_vehicle_keys
+    : Array.isArray(publicGarageProfile?.showcaseVehicleKeys)
+      ? publicGarageProfile.showcaseVehicleKeys
+      : [];
+  if (selectedKeys.length) {
+    const byKey = new Map();
+    (Array.isArray(ALL_CATALOG) ? ALL_CATALOG : []).forEach((item) => {
+      const vehicle = catalogVehicleIdentity(item);
+      byKey.set(profileVehicleIdentityKey(vehicle), vehicle);
+    });
+    publicGarageItems.forEach((item) => {
+      byKey.set(garageVehicleIdentityKey(item), item);
+      byKey.set(profileVehicleIdentityKey(item), item);
+    });
+    const selected = selectedKeys.map((key) => byKey.get(key)).filter(Boolean);
+    if (selected.length) return selected.slice(0, 6);
+  }
+  return [...publicGarageItems]
+    .sort((a, b) => {
+      const aPremium = isGaragePremium(a) ? 1 : 0;
+      const bPremium = isGaragePremium(b) ? 1 : 0;
+      if (aPremium !== bPremium) return bPremium - aPremium;
+      const aDate = new Date(a.updatedAt || a.createdAt || a.addedDate || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt || b.addedDate || 0).getTime();
+      return (Number.isFinite(bDate) ? bDate : 0) - (Number.isFinite(aDate) ? aDate : 0);
+    })
+    .slice(0, 6);
+}
+
+function createPublicProfileVehicleCard(item) {
+  const card = document.createElement("article");
+  card.className = "public-profile-featured-card";
+  const media = document.createElement("div");
+  media.className = "public-profile-featured-card__media car-card__media";
+  renderCarMedia(media, { ...item, photo: item.listingPhoto || item.photo || item.imageUrl || item.image_url || item.image });
+  const rarity = collectorRarityLabel(item.rarityLabel || item.rarity || item.variant);
+  const isPremium = isGaragePremium(item) || /premium/i.test(rarity);
+  const meta = [item.year || item.releaseYear, item.series || item.line, item.color].filter(Boolean).join(" · ");
+  const body = document.createElement("div");
+  body.className = "public-profile-featured-card__body";
+  body.innerHTML = `
+    <span>${escapeHtml(isPremium ? "Premium seçim" : rarity || "Koleksiyon parçası")}</span>
+    <strong>${escapeHtml(item.model || "Model bilgisi yok")}</strong>
+    <small>${escapeHtml(meta || "Varyant bilgisi hazırlanıyor")}</small>
+  `;
+  card.append(media, body);
+  return card;
+}
+
+function createPublicProfileListingCard(item) {
+  const card = document.createElement("article");
+  card.className = "public-profile-listing-card";
+  const media = document.createElement("div");
+  media.className = "public-profile-listing-card__media car-card__media";
+  renderCarMedia(media, { ...item, photo: item.listingPhoto || item.photo || item.imageUrl || item.image_url || item.image });
+  const price = item.salePrice ? `${Number(item.salePrice).toLocaleString("tr-TR")} TL` : item.marketType || "Pazar ilanı";
+  const body = document.createElement("div");
+  body.className = "public-profile-listing-card__body";
+  body.innerHTML = `
+    <span>${escapeHtml(price)}</span>
+    <strong>${escapeHtml(item.model || "Model bilgisi yok")}</strong>
+    <small>${escapeHtml([item.series, item.condition, item.city].filter(Boolean).join(" · ") || "İlan detayı")}</small>
+  `;
+  card.append(media, body);
+  return card;
+}
+
+function renderPublicProfilePanelEmpty(target, title, copy) {
+  if (!target) return;
+  target.innerHTML = `
+    <div class="public-profile-panel-empty">
+      <span aria-hidden="true">◇</span>
+      <strong>${escapeHtml(title)}</strong>
+      <small>${escapeHtml(copy)}</small>
+    </div>
+  `;
+}
+
+function renderPublicProfilePanels(total = publicGarageItems.length) {
+  const viewingPublicProfile = isPublicProfileRoute() && publicGarageProfile;
+  if (!viewingPublicProfile) return;
+  const featured = publicProfileFeaturedItems();
+  const listings = publicProfileListingItems();
+  const stats = publicGarageRewardStats();
+  const badges = Rewards?.badgesForStats
+    ? Rewards.badgesForStats(stats)
+    : Rewards?.badgesFor(publicGarageProfile, state) || [];
+
+  if (publicProfileFeaturedCount) publicProfileFeaturedCount.textContent = `${featured.length} araç`;
+  if (publicProfileFeaturedGrid) {
+    publicProfileFeaturedGrid.innerHTML = "";
+    if (featured.length) featured.forEach((item) => publicProfileFeaturedGrid.appendChild(createPublicProfileVehicleCard(item)));
+    else renderPublicProfilePanelEmpty(publicProfileFeaturedGrid, "Vitrin henüz açılmadı", total ? "Bu koleksiyoner vitrin seçimini tamamladığında burada görünecek." : "Açık garajda sergilenecek araç bulunmuyor.");
+  }
+
+  if (publicProfileListingsPanelCount) publicProfileListingsPanelCount.textContent = `${listings.length} ilan`;
+  if (publicProfileListingsPanelGrid) {
+    publicProfileListingsPanelGrid.innerHTML = "";
+    if (listings.length) listings.slice(0, 8).forEach((item) => publicProfileListingsPanelGrid.appendChild(createPublicProfileListingCard(item)));
+    else renderPublicProfilePanelEmpty(publicProfileListingsPanelGrid, "Aktif ilan yok", "Bu koleksiyonerin açık pazarda aktif ilanı bulunmuyor.");
+  }
+
+  if (publicProfileBadgesPanelCount) publicProfileBadgesPanelCount.textContent = `${badges.length} rozet`;
+  if (publicProfileBadgesPanelGrid) {
+    publicProfileBadgesPanelGrid.innerHTML = "";
+    if (badges.length) {
+      badges.slice(0, 12).forEach((badge) => {
+        const card = document.createElement("article");
+        card.className = `public-profile-badge-card reward-tone--${badge.tone || "gold"}`;
+        card.innerHTML = `
+          <img src="${escapeHtml(rewardBadgeAssetPath(badge.id))}" alt="" loading="lazy" decoding="async" />
+          <strong>${escapeHtml(badge.title)}</strong>
+          <small>${escapeHtml(badge.description || "Hunt Radar başarısı")}</small>
+        `;
+        publicProfileBadgesPanelGrid.appendChild(card);
+      });
+    } else {
+      renderPublicProfilePanelEmpty(publicProfileBadgesPanelGrid, "Rozet vitrini hazırlanıyor", "Radar katkıları ve koleksiyon gücü arttıkça rozetler burada görünecek.");
+    }
+  }
+}
+
+function syncPublicProfileTabs() {
+  const viewingPublicProfile = isPublicProfileRoute() && publicGarageProfile;
+  const active = viewingPublicProfile ? publicProfileActiveTab : "garage";
+  publicProfileTabs?.classList.toggle("is-hidden", !viewingPublicProfile);
+  publicProfileTabButtons.forEach((button) => {
+    const selected = button.dataset.publicProfileTab === active;
+    button.classList.toggle("is-active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  publicProfileShowcase?.classList.toggle("is-hidden", !viewingPublicProfile || active !== "profile");
+  publicProfileFeatured?.classList.toggle("is-hidden", !viewingPublicProfile || active !== "profile");
+  publicProfileListingsPanel?.classList.toggle("is-hidden", !viewingPublicProfile || active !== "listings");
+  publicProfileBadgesPanel?.classList.toggle("is-hidden", !viewingPublicProfile || active !== "badges");
+  garageStatsPanel?.classList.toggle("is-hidden", viewingPublicProfile && active !== "garage");
+  garageControlsPanel?.classList.toggle("is-hidden", viewingPublicProfile && active !== "garage");
+  listZone?.classList.toggle("is-public-profile-hidden", viewingPublicProfile && active !== "garage");
+  garageDashboard?.classList.toggle("is-public-profile-garage-tab", viewingPublicProfile && active === "garage");
+}
+
+function setPublicProfileTab(tab = "profile", options = {}) {
+  const allowed = new Set(["profile", "garage", "listings", "badges"]);
+  publicProfileActiveTab = allowed.has(tab) ? tab : "profile";
+  syncPublicProfileTabs();
+  if (options.scroll) {
+    const target = publicProfileActiveTab === "garage" ? listZone : publicProfileTabs;
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function profileGarageItems() {
@@ -8297,6 +8716,7 @@ function renderProfileDashboard() {
 function updateGarageDashboard() {
   if (!garageDashboard) return;
   const garageItems = publicGarageUsername ? publicGarageItems : state.collection;
+  const viewingPublicProfile = isPublicProfileRoute();
   const totalFor = (predicate) => garageItems
     .filter(predicate)
     .reduce((total, item) => total + garageQuantity(item), 0);
@@ -8326,6 +8746,7 @@ function updateGarageDashboard() {
   garageDashboardOwnCopy?.classList.toggle("is-hidden", viewingPublicGarage);
   publicGarageProfileHeader?.classList.toggle("is-hidden", !viewingPublicGarage);
   garageDashboard.classList.toggle("is-public-garage", viewingPublicGarage);
+  garageDashboard.classList.toggle("is-public-profile", viewingPublicProfile);
   garageDashboard.querySelectorAll(".garage-stat--public").forEach((stat) => stat.classList.toggle("is-hidden", !viewingPublicGarage));
   garageDashboard.querySelectorAll(".garage-stat--own").forEach((stat) => stat.classList.toggle("is-hidden", viewingPublicGarage));
   if (!viewingPublicGarage) {
@@ -8338,9 +8759,27 @@ function updateGarageDashboard() {
   sharePublicGarageButton?.classList.toggle("is-hidden", !viewingPublicGarage || publicGarageProfile?.garage_visibility !== "public");
   const canShowPublicDetails = viewingPublicGarage && !publicGarageLoading && publicGarageProfile?.garage_visibility === "public";
   publicGarageNotice?.classList.toggle("is-hidden", !viewingPublicGarage);
-  publicGarageComparison?.classList.toggle("is-hidden", !canShowPublicDetails);
+  publicGarageComparison?.classList.toggle("is-hidden", !canShowPublicDetails || viewingPublicProfile);
   if (viewingPublicGarage && publicGarageProfileTitle) publicGarageProfileTitle.textContent = `@${profileName} Garajı`;
   if (viewingPublicGarage && publicGarageProfile) renderPublicGarageProfile(profileName);
+  if (viewingPublicProfile && publicGarageProfile) {
+    const access = profileAccessState(publicGarageProfile);
+    const tags = Array.isArray(publicGarageProfile.favorite_tags)
+      ? publicGarageProfile.favorite_tags
+      : Array.isArray(publicGarageProfile.favoriteTags)
+        ? publicGarageProfile.favoriteTags
+        : [];
+    if (garageDashboardEyebrow) garageDashboardEyebrow.textContent = "KOLEKSİYONER PROFİLİ";
+    if (garageDashboardTitle) garageDashboardTitle.textContent = `@${profileName}`;
+    if (garageDashboardCopy) garageDashboardCopy.textContent = access.profilePublic ? (publicGarageProfile.bio || "Koleksiyoner kimliği, açık garajı ve radar katkıları.") : "Bu koleksiyoner profil detaylarını gizli tutuyor.";
+    if (publicProfileShowcaseBio) publicProfileShowcaseBio.textContent = access.profilePublic ? (publicGarageProfile.bio || "Koleksiyoner profilini Hunt Radar'da sergiliyor.") : "Profil detayları gizli tutuluyor.";
+    if (publicProfileShowcaseLocation) publicProfileShowcaseLocation.textContent = access.profilePublic ? (publicGarageProfile.location || publicGarageProfile.city || "Konum paylaşılmamış") : "Yalnızca görünür bilgiler gösterilir";
+    if (publicProfileShowcaseAccess) publicProfileShowcaseAccess.textContent = access.profilePublic ? "Profil herkese açık" : "Profil gizli";
+    if (publicProfileShowcaseGarage) publicProfileShowcaseGarage.textContent = access.garagePublic ? `${total} araçlık açık garaj` : "Garaj görünürlüğü kapalı";
+    if (publicProfileShowcaseTags) publicProfileShowcaseTags.textContent = access.profilePublic ? (tags.length ? tags.slice(0, 3).join(" · ") : "Premium koleksiyon") : "Gizli koleksiyon";
+    if (publicProfileShowcaseSignal) publicProfileShowcaseSignal.textContent = publicGarageRewards?.points ? `${Number(publicGarageRewards.points || 0)} radar puanı` : "Radar sinyali hazırlanıyor";
+    renderPublicProfilePanels(total);
+  }
   if (canShowPublicDetails) {
     const comparison = publicGarageComparisonStats();
     publicGarageCommonCount.textContent = String(comparison.common);
@@ -8361,15 +8800,23 @@ function updateGarageDashboard() {
   setGarageStatProgress("garageStatThProgress", treasureHunt, total);
   setGarageStatProgress("garageStatSthProgress", superTreasureHunt, total);
   if (viewingPublicGarage && publicGarageNoticeTitle && publicGarageNoticeCopy) {
-    publicGarageNoticeTitle.textContent = publicGarageLoading ? "Garaj yükleniyor" : `@${profileName} garajı`;
+    publicGarageNoticeTitle.textContent = publicGarageLoading
+      ? (viewingPublicProfile ? "Profil yükleniyor" : "Garaj yükleniyor")
+      : viewingPublicProfile
+        ? `@${profileName} koleksiyoner profili`
+        : `@${profileName} garajı`;
     publicGarageNoticeCopy.textContent = publicGarageLoading
-      ? "Araçlar güvenli biçimde getiriliyor."
+      ? (viewingPublicProfile ? "Koleksiyoner kimliği hazırlanıyor." : "Araçlar güvenli biçimde getiriliyor.")
       : !profileAccessState(publicGarageProfile).profilePublic
         ? "Bu koleksiyoner profilini özel modda tutuyor. Profil ve garaj detayları görüntülenemez."
         : publicGarageProfile?.garage_visibility === "private"
         ? "Bu kullanıcı garajını gizli tutuyor. Aktif pazar ilanları yine görüntülenebilir."
+        : viewingPublicProfile
+          ? "Profil salt okunur görüntüleniyor; takip edebilir, açık garaja geçebilir ve koleksiyon sinyalini inceleyebilirsin."
         : `Şu anda @${profileName} adlı koleksiyonerin herkese açık koleksiyonunu görüntülüyorsun. Araçları inceleyebilir ancak değişiklik yapamazsın.`;
   }
+  if (!viewingPublicProfile) publicProfileActiveTab = "profile";
+  syncPublicProfileTabs();
 }
 
 function escapeHtml(value) {
@@ -10256,9 +10703,13 @@ function publicProfileUsernameFromHash(hash = window.location.hash) {
   }
 }
 
+function isPublicProfileRoute(hash = window.location.hash) {
+  return Boolean(publicProfileUsernameFromHash(hash)) && !publicGarageUsernameFromHash(hash);
+}
+
 function dashboardViewFromHash(hash = window.location.hash) {
   if (publicGarageUsernameFromHash(hash)) return "collection";
-  if (publicProfileUsernameFromHash(hash)) return "community";
+  if (publicProfileUsernameFromHash(hash)) return "collection";
   const route = String(hash || "").replace(/^#\/?/, "").split(/[?#]/)[0].trim();
   return DASHBOARD_VIEWS_BY_ROUTE[route] || "";
 }
@@ -10307,18 +10758,17 @@ function applyDashboardRoute({ replaceUnknown = true } = {}) {
     return;
   }
   setActiveView(routedView, { fromRoute: true });
-  if (routedPublicGarage) {
-    if (normalize(publicGarageUsername) !== normalize(routedPublicGarage) || (!publicGarageItems.length && !publicGarageLoading)) {
-      void loadPublicGarage(routedPublicGarage);
+  const routedPublicUser = routedPublicGarage || routedPublicProfile;
+  if (routedPublicUser) {
+    if (normalize(publicGarageUsername) !== normalize(routedPublicUser) || (!publicGarageItems.length && !publicGarageLoading)) {
+      void loadPublicGarage(routedPublicUser);
     }
   } else if (publicGarageUsername) {
     clearPublicGarageContext();
     render();
   }
   if (routedPublicProfile) {
-    if (normalize(currentPublicProfileUsername) !== normalize(routedPublicProfile) || !publicProfileModal?.classList.contains("is-visible")) {
-      void openPublicProfile(routedPublicProfile);
-    }
+    if (currentPublicProfileUsername || publicProfileModal?.classList.contains("is-visible")) closePublicProfileModal();
   } else if (currentPublicProfileUsername && publicProfileModal?.classList.contains("is-visible")) {
     closePublicProfileModal();
   }
@@ -10772,6 +11222,14 @@ publicProfileMessage.addEventListener("click", () => openMessageThreadForUser(cu
 publicProfileFollow?.addEventListener("click", () => {
   if (currentPublicProfile) void toggleFollowForUser(currentPublicProfile);
 });
+document.querySelectorAll("[data-follow-list]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const user = [publicGarageFollowerCount, publicGarageFollowingCount].includes(button)
+      ? publicGarageProfile
+      : currentPublicProfile || publicGarageProfile;
+    if (user) void openFollowList(user, button.dataset.followList);
+  });
+});
 publicProfileOpenGarage?.addEventListener("click", () => {
   const username = currentPublicProfileUsername;
   closePublicProfileModal();
@@ -10783,6 +11241,13 @@ publicProfileOpenGarage?.addEventListener("click", () => {
 });
 publicGarageFollow?.addEventListener("click", () => {
   if (publicGarageProfile) void toggleFollowForUser(publicGarageProfile);
+});
+publicProfileTabButtons.forEach((button) => {
+  button.addEventListener("click", () => setPublicProfileTab(button.dataset.publicProfileTab, { scroll: true }));
+});
+closeFollowListModalButton?.addEventListener("click", closeFollowListModal);
+followListModal?.addEventListener("click", (event) => {
+  if (event.target === followListModal) closeFollowListModal();
 });
 toggleCollectorSearchButton?.addEventListener("click", () => {
   setCollectorSearchOpen(Boolean(collectorSearchPanel?.hidden));
@@ -10886,14 +11351,14 @@ storeDetailReporter?.addEventListener("click", () => {
   const username = currentStoreDetail.reporterUsername || currentStoreDetail.reporter;
   if (!username) return;
   closeStoreDetail();
-  openPublicProfile(username);
+  navigateToPublicProfile(username);
 });
 storeDetailProfile?.addEventListener("click", () => {
   if (!currentStoreDetail) return;
   const username = currentStoreDetail.reporterUsername || currentStoreDetail.reporter;
   if (!username) return;
   closeStoreDetail();
-  openPublicProfile(username);
+  navigateToPublicProfile(username);
 });
 storeDetailMoreStore?.addEventListener("click", () => {
   if (currentStoreDetail) showOtherStoreRadars(currentStoreDetail);

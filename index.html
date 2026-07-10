@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=169" />
+    <link rel="stylesheet" href="./styles.css?v=174" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
@@ -470,8 +470,8 @@
                 <div><strong id="publicGarageRankName">R1 Çaylak Avcı</strong><small id="publicGarageRadarPoints">0 Radar Puanı</small></div>
               </div>
               <div class="public-garage-profile__meta">
-                <span id="publicGarageFollowerCount">0 takipçi</span>
-                <span id="publicGarageFollowingCount">0 takip</span>
+                <button class="public-follow-metric" id="publicGarageFollowerCount" type="button" data-follow-list="followers">0 takipçi</button>
+                <button class="public-follow-metric" id="publicGarageFollowingCount" type="button" data-follow-list="following">0 takip edilen</button>
                 <span id="publicGarageBadgeCount">0 rozet</span>
                 <span id="publicGarageJoinedAt">Katılım tarihi bilinmiyor</span>
                 <span id="publicGarageUpdatedAt">Koleksiyon güncellemesi yok</span>
@@ -531,6 +531,67 @@
           <strong id="publicGarageNoticeTitle">Koleksiyoner garajı</strong>
           <span id="publicGarageNoticeCopy">Bu garaj salt okunur görüntüleniyor.</span>
         </div>
+
+        <nav class="public-profile-tabs is-hidden" id="publicProfileTabs" aria-label="Koleksiyoner profil sekmeleri">
+          <button class="is-active" type="button" data-public-profile-tab="profile">Profil</button>
+          <button type="button" data-public-profile-tab="garage">Garaj</button>
+          <button type="button" data-public-profile-tab="listings">İlanlar</button>
+          <button type="button" data-public-profile-tab="badges">Rozetler</button>
+        </nav>
+
+        <section class="public-profile-showcase is-hidden" id="publicProfileShowcase" aria-label="Koleksiyoner profil özeti">
+          <article>
+            <span>Kimlik</span>
+            <strong id="publicProfileShowcaseBio">Koleksiyoncu profili hazırlanıyor.</strong>
+            <small id="publicProfileShowcaseLocation">Konum bilgisi bekleniyor.</small>
+          </article>
+          <article>
+            <span>Erişim</span>
+            <strong id="publicProfileShowcaseAccess">Profil açık</strong>
+            <small id="publicProfileShowcaseGarage">Garaj görünürlüğü hazırlanıyor.</small>
+          </article>
+          <article>
+            <span>Av Tarzı</span>
+            <strong id="publicProfileShowcaseTags">Hunt Radar</strong>
+            <small id="publicProfileShowcaseSignal">Koleksiyon sinyali</small>
+          </article>
+        </section>
+
+        <section class="public-profile-panel public-profile-featured is-hidden" id="publicProfileFeatured" aria-labelledby="publicProfileFeaturedTitle">
+          <div class="public-profile-panel__heading">
+            <div>
+              <p class="eyebrow">VİTRİN</p>
+              <h2 id="publicProfileFeaturedTitle">Öne çıkan koleksiyon</h2>
+              <p>Bu koleksiyonerin profilinde sergilediği güçlü parçalar.</p>
+            </div>
+            <span id="publicProfileFeaturedCount">0 araç</span>
+          </div>
+          <div class="public-profile-featured__grid" id="publicProfileFeaturedGrid"></div>
+        </section>
+
+        <section class="public-profile-panel public-profile-listings is-hidden" id="publicProfileListingsPanel" aria-labelledby="publicProfileListingsPanelTitle">
+          <div class="public-profile-panel__heading">
+            <div>
+              <p class="eyebrow">PAZAR</p>
+              <h2 id="publicProfileListingsPanelTitle">Aktif ilanlar</h2>
+              <p>Koleksiyonerin açık pazardaki güncel ilanları.</p>
+            </div>
+            <span id="publicProfileListingsPanelCount">0 ilan</span>
+          </div>
+          <div class="public-profile-listings__grid" id="publicProfileListingsPanelGrid"></div>
+        </section>
+
+        <section class="public-profile-panel public-profile-badges-panel is-hidden" id="publicProfileBadgesPanel" aria-labelledby="publicProfileBadgesPanelTitle">
+          <div class="public-profile-panel__heading">
+            <div>
+              <p class="eyebrow">BAŞARI</p>
+              <h2 id="publicProfileBadgesPanelTitle">Rozet vitrini</h2>
+              <p>Radar katkısı, garaj gücü ve koleksiyon ritmi.</p>
+            </div>
+            <span id="publicProfileBadgesPanelCount">0 rozet</span>
+          </div>
+          <div class="public-profile-badges-panel__grid" id="publicProfileBadgesPanelGrid"></div>
+        </section>
 
         <section class="public-garage-comparison is-hidden" id="publicGarageComparison" aria-labelledby="publicGarageComparisonTitle">
           <div class="public-garage-comparison__copy">
@@ -746,14 +807,14 @@
             <section class="community-surface community-hunter-search" id="communityHunters">
               <div class="community-section-heading">
                 <div>
-                  <p class="eyebrow">Koleksiyoner Keşfi</p>
+                  <p class="eyebrow">Koleksiyoner Ağı</p>
                   <h3>Avcı Bul</h3>
-                  <p>Kullanıcı adıyla koleksiyoner ara, profilini incele ve açık garajına geç.</p>
+                  <p>Açık garajlar, aktif profiller ve koleksiyon kimlikleri.</p>
                 </div>
                 <span class="community-section-count" id="communityHunterCount">Kullanıcı dizini</span>
               </div>
               <form class="community-hunter-search__form" id="communityUserSearchForm">
-                <label for="communityUserSearchInput">Kullanıcı adı ara</label>
+                <label for="communityUserSearchInput">Kullanıcı adı</label>
                 <div>
                   <span aria-hidden="true">@</span>
                   <input id="communityUserSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="ör. saruhancakmak" />
@@ -762,6 +823,26 @@
               </form>
               <p class="community-hunter-search__status" id="communityUserSearchStatus">Aramak için en az 2 karakter yaz.</p>
               <div class="community-hunter-results" id="communityUserSearchResults"></div>
+            </section>
+
+            <section class="community-surface community-spotlight" id="communitySpotlight">
+              <div class="community-section-heading">
+                <div>
+                  <p class="eyebrow">Keşif Akışı</p>
+                  <h3>Öne çıkan koleksiyonerler</h3>
+                  <p>Aktif garajlar, açık profiller ve güçlü radar sinyalleri.</p>
+                </div>
+                <span class="community-section-count" id="communitySpotlightCount">Hazırlanıyor</span>
+              </div>
+              <div class="community-spotlight-grid" id="communitySpotlightGrid">
+                <article class="community-spotlight-card">
+                  <span class="community-spotlight-card__avatar">HR</span>
+                  <div>
+                    <strong>Profil keşfi hazır</strong>
+                    <p>Arama yaptığında güçlü koleksiyonerler burada daha şık kartlarla görünecek.</p>
+                  </div>
+                </article>
+              </div>
             </section>
 
             <div class="community-discussion-grid">
@@ -1869,6 +1950,11 @@
           <div>
             <h3 id="publicProfileUsername">@kullanici</h3>
             <p id="publicProfileSummary">0 ilan · 0 garaj kaydı</p>
+            <div class="public-profile-social" aria-label="Sosyal profil özeti">
+              <button class="public-profile-social__metric" id="publicProfileFollowers" type="button" data-follow-list="followers">0 takipçi</button>
+              <button class="public-profile-social__metric" id="publicProfileFollowing" type="button" data-follow-list="following">0 takip edilen</button>
+              <span id="publicProfileRank">R1 Çaylak Avcı</span>
+            </div>
           </div>
         </div>
         <div class="public-profile-actions">
@@ -2107,6 +2193,22 @@
       </section>
     </div>
 
+    <div class="market-modal follow-list-modal" id="followListModal" aria-hidden="true">
+      <section class="market-modal__panel follow-list-modal__panel" role="dialog" aria-modal="true" aria-labelledby="followListTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow" id="followListEyebrow">Sosyal ağ</p>
+            <h2 id="followListTitle">Takipçiler</h2>
+            <p class="view-copy" id="followListSubtitle">Koleksiyoner bağlantıları yükleniyor.</p>
+          </div>
+          <button class="delete-button" id="closeFollowListModal" type="button" aria-label="Takip listesini kapat">×</button>
+        </div>
+        <div class="follow-list-body" id="followListBody">
+          <div class="follow-list-loading">Koleksiyonerler yükleniyor...</div>
+        </div>
+      </section>
+    </div>
+
     <div class="market-modal message-modal" id="messageModal" aria-hidden="true">
       <section class="market-modal__panel message-modal__panel" role="dialog" aria-modal="true" aria-labelledby="messageModalTitle">
         <div class="section-heading">
@@ -2162,7 +2264,7 @@
     <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=183"></script>
+    <script src="./app.js?v=188"></script>
   </body>
 </html>
 
