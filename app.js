@@ -5193,7 +5193,7 @@ async function loadProfileFollowList(user = {}, kind = "followers") {
   if (!ids.length) return [];
   const { data: profiles, error: profileError } = await supabaseClient
     .from("profiles")
-    .select("id, username, avatar_id, profile_visibility, garage_visibility, bio, location, favorite_tags, radar_points, created_at")
+    .select("id, username, avatar_id, profile_visibility, garage_visibility, created_at")
     .in("id", ids);
   if (profileError || !Array.isArray(profiles)) return [];
   const order = new Map(ids.map((profileIdValue, index) => [profileIdValue, index]));

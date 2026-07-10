@@ -55,9 +55,9 @@ as $$
     p.avatar_id,
     coalesce(p.profile_visibility, 'public') as profile_visibility,
     coalesce(p.garage_visibility, 'private') as garage_visibility,
-    case when coalesce(p.profile_visibility, 'public') = 'public' then p.bio else null end as bio,
-    case when coalesce(p.profile_visibility, 'public') = 'public' then p.location else null end as location,
-    case when coalesce(p.profile_visibility, 'public') = 'public' then p.favorite_tags else array[]::text[] end as favorite_tags,
+    null::text as bio,
+    null::text as location,
+    array[]::text[] as favorite_tags,
     (
       select count(*)::integer
       from public.user_follows count_followers
