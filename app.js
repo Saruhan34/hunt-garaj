@@ -670,8 +670,10 @@ const accountMessageCount = document.querySelector("#accountMessageCount");
 const accountLogout = document.querySelector("#accountLogout");
 const openInbox = document.querySelector("#openInbox");
 const openProfileSettings = document.querySelector("#openProfileSettings");
+const openProfileEditor = document.querySelector("#openProfileEditor");
 const openAccountSettings = document.querySelector("#openAccountSettings");
-const openAccountBadges = document.querySelector("#openAccountBadges");
+const openAccountNotifications = document.querySelector("#openAccountNotifications");
+const sidebarAccountSettings = document.querySelector("#sidebarAccountSettings");
 const dashboardSidebar = document.querySelector("#dashboardSidebar");
 const dashboardSidebarBackdrop = document.querySelector("#dashboardSidebarBackdrop");
 const dashboardMenuToggle = document.querySelector("#dashboardMenuToggle");
@@ -6649,6 +6651,25 @@ function closeAccountMenu() {
   userButton.setAttribute("aria-expanded", "false");
 }
 
+function openOwnProfilePage() {
+  if (!currentUser) {
+    openAuthModal("login", "Profilini görmek için giriş yap.");
+    return;
+  }
+  closeAccountMenu();
+  navigateToView("profile", { clearSearch: true, scroll: true });
+}
+
+function openOwnProfileStudio(sectionName = "identity") {
+  if (!currentUser) {
+    openAuthModal("login", "Profil ayarların için giriş yap.");
+    return;
+  }
+  closeAccountMenu();
+  navigateToView("profile", { clearSearch: true, scroll: true });
+  window.setTimeout(() => openProfileStudio(sectionName), 90);
+}
+
 function openProfileModal() {
   if (!currentUser) {
     openAuthModal("login");
@@ -10394,18 +10415,24 @@ userButton.addEventListener("click", () => {
 });
 
 openProfileSettings.addEventListener("click", () => {
-  closeAccountMenu();
-  openProfileModal();
+  openOwnProfilePage();
+});
+
+openProfileEditor?.addEventListener("click", () => {
+  openOwnProfileStudio("identity");
 });
 
 openAccountSettings?.addEventListener("click", () => {
-  closeAccountMenu();
-  openProfileModal();
+  openOwnProfileStudio("privacy");
 });
 
-openAccountBadges?.addEventListener("click", () => {
+openAccountNotifications?.addEventListener("click", () => {
   closeAccountMenu();
-  navigateToView("rewards", { clearSearch: true, scroll: true });
+  openTopNotifications();
+});
+
+sidebarAccountSettings?.addEventListener("click", () => {
+  openOwnProfileStudio("privacy");
 });
 
 rewardOverviewLogin?.addEventListener("click", () => openAuthModal("login", "Radar puanlarını görmek için hesabına giriş yap."));

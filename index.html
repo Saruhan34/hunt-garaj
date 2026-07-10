@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=167" />
+    <link rel="stylesheet" href="./styles.css?v=168" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
@@ -28,12 +28,16 @@
         <button type="button" data-route-view="explore"><i aria-hidden="true">◎</i><span>Keşfet</span></button>
         <button type="button" data-route-view="collection"><i aria-hidden="true">◇</i><span>Garaj</span></button>
         <button type="button" data-route-view="wishlist"><i aria-hidden="true">☆</i><span>İstek Listesi</span></button>
-        <button type="button" data-route-view="profile"><i aria-hidden="true">♙</i><span>Profil</span></button>
         <button type="button" data-route-view="community"><i aria-hidden="true">◌</i><span>Topluluk</span></button>
         <button type="button" data-route-view="rewards"><i aria-hidden="true">◆</i><span>Radar Puanı</span></button>
         <button class="dashboard-sidebar__admin is-hidden" id="dashboardAdminLink" type="button" data-route-view="admin">
           <i aria-hidden="true">⚙</i><span>Admin Paneli</span>
         </button>
+      </nav>
+      <nav class="dashboard-sidebar__account" aria-label="Hesap">
+        <span class="dashboard-sidebar__label">Hesap</span>
+        <button type="button" data-route-view="profile"><i aria-hidden="true">♙</i><span>Profil</span></button>
+        <button type="button" id="sidebarAccountSettings"><i aria-hidden="true">⚙</i><span>Ayarlar</span></button>
       </nav>
       <div class="dashboard-sidebar__footer">
         <span class="dashboard-sidebar__pulse" aria-hidden="true"></span>
@@ -108,9 +112,10 @@
                 <span><strong id="accountCollectionCount">0</strong> araç</span>
               </div>
               <div class="account-menu__primary-actions">
-                <button class="account-menu__action" id="openProfileSettings" type="button"><span>Profilim</span><i>→</i></button>
-                <button class="account-menu__action" id="openAccountSettings" type="button"><span>Ayarlar</span><i>→</i></button>
-                <button class="account-menu__action" id="openAccountBadges" type="button"><span>Rozetlerim</span><i>→</i></button>
+                <button class="account-menu__action" id="openProfileSettings" type="button"><span>Profilimi Gör</span><i>→</i></button>
+                <button class="account-menu__action" id="openProfileEditor" type="button"><span>Profili Düzenle</span><i>→</i></button>
+                <button class="account-menu__action" id="openAccountSettings" type="button"><span>Görünürlük Ayarları</span><i>→</i></button>
+                <button class="account-menu__action" id="openAccountNotifications" type="button"><span>Bildirimler</span><i>→</i></button>
                 <button class="account-menu__action account-menu__action--danger" id="accountLogout" type="button"><span>Çıkış Yap</span><i>↗</i></button>
               </div>
               <div hidden>
@@ -2135,7 +2140,7 @@
     <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=180"></script>
+    <script src="./app.js?v=181"></script>
   </body>
 </html>
 
