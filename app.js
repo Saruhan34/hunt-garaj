@@ -795,8 +795,6 @@ const profileStatPremium = document.querySelector("#profileStatPremium");
 const profileStatRadar = document.querySelector("#profileStatRadar");
 const profileStatWishlist = document.querySelector("#profileStatWishlist");
 const profileStatFriends = document.querySelector("#profileStatFriends");
-const profileShowcaseGrid = document.querySelector("#profileShowcaseGrid");
-const profileShowcaseManage = document.querySelector("#profileShowcaseManage");
 const profileRankProgressValue = document.querySelector("#profileRankProgressValue");
 const profileRankProgressTitle = document.querySelector("#profileRankProgressTitle");
 const profileRankProgressCopy = document.querySelector("#profileRankProgressCopy");
@@ -809,11 +807,6 @@ const profileAccessProfileState = document.querySelector("#profileAccessProfileS
 const profileAccessGarageState = document.querySelector("#profileAccessGarageState");
 const profileAccessWishlistState = document.querySelector("#profileAccessWishlistState");
 const profileAccessEdit = document.querySelector("#profileAccessEdit");
-const profileShowcaseManager = document.querySelector("#profileShowcaseManager");
-const profileShowcaseManagerList = document.querySelector("#profileShowcaseManagerList");
-const profileShowcaseCount = document.querySelector("#profileShowcaseCount");
-const profileShowcaseHint = document.querySelector("#profileShowcaseHint");
-const profileExploreSelectionLaunch = document.querySelector("#profileExploreSelectionLaunch");
 const garageStatChase = document.querySelector("#garageStatChase");
 const garageStatTh = document.querySelector("#garageStatTh");
 const garageStatSth = document.querySelector("#garageStatSth");
@@ -7121,7 +7114,6 @@ function syncProfileStudioFields() {
   syncProfileTagEditor();
   pendingProfileAvatar = Rewards?.getAvatar(currentUser) || null;
   renderProfileRewards();
-  renderProfileShowcaseManager();
 }
 
 function setProfileStudioSection(sectionName = "identity", { scroll = false } = {}) {
@@ -7186,12 +7178,10 @@ function openProfileExploreSelection() {
 async function finishProfileExploreSelection(selectedKeys) {
   await saveProfileIdentity({ showcaseVehicleKeys: selectedKeys });
   navigateToView("profile", { clearSearch: true, scroll: true });
-  window.setTimeout(() => openProfileStudio("showcase"), 80);
 }
 
 function cancelProfileExploreSelection() {
   navigateToView("profile", { clearSearch: true, scroll: true });
-  window.setTimeout(() => openProfileStudio("showcase"), 80);
 }
 
 function currentProfileTags() {
@@ -8534,34 +8524,6 @@ function renderProfileAccessPanel() {
   if (profileAccessWishlistState) profileAccessWishlistState.textContent = state.wishlistLabel;
 }
 
-function profileShowcaseItems() {
-  const items = [...profileGarageItems()];
-  const selectedKeys = Array.isArray(currentUser?.showcaseVehicleKeys) ? currentUser.showcaseVehicleKeys : [];
-  if (selectedKeys.length) {
-    const byKey = new Map();
-    (Array.isArray(ALL_CATALOG) ? ALL_CATALOG : []).forEach((item) => {
-      const vehicle = catalogVehicleIdentity(item);
-      byKey.set(profileVehicleIdentityKey(vehicle), vehicle);
-    });
-    items.forEach((item) => {
-      byKey.set(garageVehicleIdentityKey(item), item);
-      byKey.set(profileVehicleIdentityKey(item), item);
-    });
-    const selected = selectedKeys.map((key) => byKey.get(key)).filter(Boolean);
-    if (selected.length) return selected.slice(0, 6);
-  }
-  return items
-    .sort((a, b) => {
-      const aPremium = isGaragePremium(a) ? 1 : 0;
-      const bPremium = isGaragePremium(b) ? 1 : 0;
-      if (aPremium !== bPremium) return bPremium - aPremium;
-      const aDate = new Date(a.updatedAt || a.createdAt || a.addedDate || 0).getTime();
-      const bDate = new Date(b.updatedAt || b.createdAt || b.addedDate || 0).getTime();
-      return (Number.isFinite(bDate) ? bDate : 0) - (Number.isFinite(aDate) ? aDate : 0);
-    })
-    .slice(0, 6);
-}
-
 function profilePreferenceLabels(items = profileGarageItems()) {
   const explicitTags = currentProfileTags();
   if (explicitTags.length) return explicitTags.slice(0, 5);
@@ -8574,118 +8536,6 @@ function profilePreferenceLabels(items = profileGarageItems()) {
   if (/porsche/i.test(haystack)) labels.push("Porsche");
   if (/ferrari/i.test(haystack)) labels.push("Ferrari");
   return (labels.length ? labels : ["Hot Wheels", "Regular", "Av Planı"]).slice(0, 5);
-}
-
-function createProfileShowcaseCard(item) {
-  const card = document.createElement("article");
-  card.className = "profile-showcase-card";
-  const media = document.createElement("div");
-  media.className = "profile-showcase-card__media car-card__media";
-  renderCarMedia(media, { ...item, photo: item.listingPhoto || item.photo });
-
-  const rarity = collectorRarityLabel(item.rarityLabel || item.rarity || item.variant);
-  const isPremium = isGaragePremium(item) || /premium/i.test(rarity);
-  const year = item.year || item.releaseYear || "";
-  const meta = [year, item.series || item.line, item.color].filter(Boolean).join(" • ");
-  const membership = getExploreMembership(catalogVehicleIdentity(item));
-  const ownedQuantity = Number(membership.quantity || 0);
-
-  const body = document.createElement("div");
-  body.className = "profile-showcase-card__body";
-  body.innerHTML = `
-    <div class="profile-showcase-card__top">
-      <span class="profile-showcase-card__rarity ${isPremium ? "is-premium" : ""}">${escapeHtml(isPremium ? "PREMIUM" : rarity || "REGULAR")}</span>
-      <span class="profile-showcase-card__quantity">${ownedQuantity > 0 ? `Garajda ${ownedQuantity} adet` : "Favori araç"}</span>
-    </div>
-    <h3>${escapeHtml(item.model || "Model bilgisi yok")}</h3>
-    <p>${escapeHtml(meta || "Seri ve varyant bilgisi bekleniyor")}</p>
-  `;
-  card.append(media, body);
-  return card;
-}
-
-function renderProfileShowcaseManager() {
-  if (!profileShowcaseManagerList) return;
-  const selectedKeys = Array.isArray(currentUser?.showcaseVehicleKeys) ? currentUser.showcaseVehicleKeys : [];
-  const selectedItems = selectedKeys.length ? profileShowcaseItems() : [];
-  profileShowcaseManagerList.innerHTML = "";
-  if (profileShowcaseCount) profileShowcaseCount.textContent = `${selectedKeys.length} / 6`;
-  for (let index = 0; index < 6; index += 1) {
-    const item = selectedItems[index];
-    const slot = document.createElement("article");
-    slot.className = `profile-favorite-slot ${item ? "is-filled" : "is-empty"}`;
-    if (!item) {
-      slot.innerHTML = `<span>${index + 1}</span><small>Favori araç yuvası</small>`;
-    } else {
-      const media = document.createElement("div");
-      media.className = "profile-favorite-slot__media car-card__media";
-      renderCarMedia(media, { ...item, photo: item.listingPhoto || item.photo || item.imageUrl || item.image_url || item.image });
-      const copy = document.createElement("div");
-      copy.innerHTML = `<strong>${escapeHtml(item.model || "Model bilgisi yok")}</strong><small>${escapeHtml([item.brand, item.year || item.releaseYear].filter(Boolean).join(" · ") || "Hot Wheels")}</small>`;
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.setAttribute("aria-label", `${item.model || "Aracı"} vitrinden çıkar`);
-      remove.textContent = "×";
-      remove.addEventListener("click", () => void saveProfileIdentity({ showcaseVehicleKeys: selectedKeys.filter((_, keyIndex) => keyIndex !== index) }).then(renderProfileShowcaseManager));
-      slot.append(media, copy, remove);
-    }
-    profileShowcaseManagerList.appendChild(slot);
-  }
-  if (profileShowcaseHint) {
-    profileShowcaseHint.textContent = selectedKeys.length
-      ? "Favorilerin seçildi. İstersen Keşfet’e dönüp seçimi değiştirebilirsin."
-      : "Hiç seçim yapmazsan vitrin garajındaki premium ve son eklenen araçlardan otomatik oluşur.";
-  }
-}
-
-async function toggleProfileShowcaseVehicle(key) {
-  if (!currentUser) {
-    openAuthModal("login");
-    return;
-  }
-  const selected = new Set(Array.isArray(currentUser.showcaseVehicleKeys) ? currentUser.showcaseVehicleKeys : []);
-  if (selected.has(key)) selected.delete(key);
-  else {
-    if (selected.size >= 6) {
-      showToast("Vitrine en fazla 6 araç seçebilirsin.");
-      return;
-    }
-    selected.add(key);
-  }
-  await saveProfileIdentity({ showcaseVehicleKeys: [...selected] });
-  renderProfileShowcaseManager();
-}
-
-function renderProfileShowcase(items) {
-  if (!profileShowcaseGrid) return;
-  profileShowcaseGrid.innerHTML = "";
-  if (!currentUser) {
-    const empty = document.createElement("section");
-    empty.className = "profile-showcase-empty";
-    empty.innerHTML = `
-      <span aria-hidden="true">♙</span>
-      <h3>Profilin girişten sonra hazırlanır.</h3>
-      <p>Kullanıcı adın, rankın ve garajından seçilen araçlar burada premium bir koleksiyon profili oluşturacak.</p>
-      <button class="button button--primary" type="button">Giriş Yap</button>
-    `;
-    empty.querySelector("button")?.addEventListener("click", () => openAuthModal("login"));
-    profileShowcaseGrid.appendChild(empty);
-    return;
-  }
-  if (!items.length) {
-    const empty = document.createElement("section");
-    empty.className = "profile-showcase-empty";
-    empty.innerHTML = `
-      <span aria-hidden="true">◇</span>
-      <h3>Vitrin için garaja araç ekle.</h3>
-      <p>İlk araçlarını eklediğinde bu alan koleksiyon kartlarınla dolacak.</p>
-      <button class="button button--primary" type="button">Garaja Git</button>
-    `;
-    empty.querySelector("button")?.addEventListener("click", () => navigateToView("collection", { clearSearch: true, scroll: true }));
-    profileShowcaseGrid.appendChild(empty);
-    return;
-  }
-  items.forEach((item) => profileShowcaseGrid.appendChild(createProfileShowcaseCard(item)));
 }
 
 function renderProfileDashboard() {
@@ -8736,8 +8586,6 @@ function renderProfileDashboard() {
     profilePreferenceChips.innerHTML = preferences.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   }
   renderProfileAccessPanel();
-  if (profileShowcaseGrid) renderProfileShowcase(profileShowcaseItems());
-  if (profileShowcaseManagerList) renderProfileShowcaseManager();
 }
 
 function updateGarageDashboard() {
@@ -10909,10 +10757,6 @@ dashboardSecondaryAction?.addEventListener("click", () => runDashboardViewAction
 profileDashboardEdit?.addEventListener("click", () => openProfileStudio("identity"));
 profileAccessEdit?.addEventListener("click", () => openProfileStudio("privacy"));
 profileDashboardGarage?.addEventListener("click", () => navigateToView("collection", { clearSearch: true, scroll: true }));
-profileShowcaseManage?.addEventListener("click", () => {
-  openProfileStudio("showcase");
-});
-profileExploreSelectionLaunch?.addEventListener("click", openProfileExploreSelection);
 profileTagEditor?.addEventListener("change", updateProfileTagEditorState);
 profileVisibilityOptions?.addEventListener("change", syncProfileVisibilityVisualState);
 saveProfileIdentityButton?.addEventListener("click", async () => {

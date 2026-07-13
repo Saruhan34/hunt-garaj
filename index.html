@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=178" />
+    <link rel="stylesheet" href="./styles.css?v=186" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
@@ -719,13 +719,16 @@
               </div>
               <button class="button button--subtle" id="profileAccessEdit" type="button">Görünürlüğü Ayarla</button>
             </section>
-            <section class="profile-friends-preview">
+            <section class="profile-friends-preview profile-social-panel">
               <div>
-                <p class="eyebrow">ARKADAŞLAR</p>
-                <h3>Sosyal profil hazır</h3>
-                <p>Arkadaşlık sistemi eklendiğinde kabul edilen koleksiyonerler burada görünecek.</p>
+                <p class="eyebrow">SOSYAL AĞ</p>
+                <h3>Takip bağlantıların</h3>
+                <p>Takipçi ve takip edilen koleksiyoner listelerini profilinden hızlıca yönet.</p>
               </div>
-              <button class="button button--subtle" type="button" disabled>Yakında</button>
+              <div class="profile-social-panel__actions">
+                <button class="button button--subtle" type="button" data-follow-list="followers" data-follow-owner="self">Takipçiler</button>
+                <button class="button button--subtle" type="button" data-follow-list="following" data-follow-owner="self">Takip Edilen</button>
+              </div>
             </section>
           </aside>
         </div>
@@ -1928,6 +1931,7 @@
                 </ul>
               </section>
             </section>
+
           </main>
         </div>
 
@@ -2264,7 +2268,7 @@
     <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=189"></script>
+    <script src="./app.js?v=193"></script>
   </body>
 </html>
 
