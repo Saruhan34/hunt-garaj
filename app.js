@@ -5145,6 +5145,8 @@ function updateProfileFollowViews(user = {}) {
     currentFollowSummaryUserId = currentUser.id;
     currentUser = mergeFollowSummary(currentUser, summary);
     saveCurrentUser(currentUser);
+    setFollowMetric(profileDashboardFollowers, summary.followers, "takipçi");
+    setFollowMetric(profileDashboardFollowing, summary.following, "takip edilen");
     if (profileStatFriends) profileStatFriends.textContent = String(summary.followers);
   }
   setFollowButtonState(publicProfileFollow, currentPublicProfile || user);
@@ -5600,6 +5602,7 @@ function renderCommunitySpotlight(profiles = lastCommunityUserProfiles) {
   }
   featuredProfiles.forEach((profile) => {
     const meta = profileSearchMeta(profile);
+    const vehicleCount = Math.max(0, Number(profile.vehicle_count || 0));
     const card = document.createElement("article");
     card.className = "community-spotlight-card";
     card.innerHTML = `
@@ -5607,14 +5610,16 @@ function renderCommunitySpotlight(profiles = lastCommunityUserProfiles) {
       <div>
         <small>${escapeHtml(meta.isPrivate ? "Gizli garaj" : "Açık koleksiyon")}</small>
         <strong>@${escapeHtml(profile.username || "koleksiyoner")}</strong>
-        <p>${escapeHtml(meta.visibility)}</p>
+        <p>${escapeHtml(vehicleCount ? `${vehicleCount} araç · ${formatFollowCount(meta.summary.followers, "takipçi")}` : meta.visibility)}</p>
       </div>
       <div class="community-spotlight-card__actions">
         <button type="button" data-spotlight-profile="${escapeHtml(profile.username)}">Profil</button>
+        <button class="${meta.summary.isFollowing ? "is-following" : ""}" type="button" data-spotlight-follow="${escapeHtml(profile.username)}" ${isOwnProfileUser(profile) ? "disabled" : ""}>${escapeHtml(isOwnProfileUser(profile) ? "Sen" : meta.summary.isFollowing ? "Takiptesin" : "Takip Et")}</button>
         <button type="button" data-spotlight-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>Garaj</button>
       </div>
     `;
     card.querySelector("[data-spotlight-profile]")?.addEventListener("click", () => navigateToPublicProfile(profile.username));
+    card.querySelector("[data-spotlight-follow]")?.addEventListener("click", () => void toggleFollowForUser(profile));
     card.querySelector("[data-spotlight-garage]")?.addEventListener("click", () => navigateToPublicGarage(profile.username));
     communitySpotlightGrid.appendChild(card);
   });
@@ -8321,6 +8326,9 @@ function publicProfileFeaturedItems() {
 function createPublicProfileVehicleCard(item) {
   const card = document.createElement("article");
   card.className = "public-profile-featured-card";
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", `${item.model || "Araç"} detayını aç`);
   const media = document.createElement("div");
   media.className = "public-profile-featured-card__media car-card__media";
   renderCarMedia(media, { ...item, photo: item.listingPhoto || item.photo || item.imageUrl || item.image_url || item.image });
@@ -8335,12 +8343,23 @@ function createPublicProfileVehicleCard(item) {
     <small>${escapeHtml(meta || "Varyant bilgisi hazırlanıyor")}</small>
   `;
   card.append(media, body);
+  const open = () => openGarageDetail(item);
+  card.addEventListener("click", open);
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      open();
+    }
+  });
   return card;
 }
 
 function createPublicProfileListingCard(item) {
   const card = document.createElement("article");
   card.className = "public-profile-listing-card";
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", `${item.model || "İlan"} ilanını aç`);
   const media = document.createElement("div");
   media.className = "public-profile-listing-card__media car-card__media";
   renderCarMedia(media, { ...item, photo: item.listingPhoto || item.photo || item.imageUrl || item.image_url || item.image });
@@ -8353,6 +8372,14 @@ function createPublicProfileListingCard(item) {
     <small>${escapeHtml([item.series, item.condition, item.city].filter(Boolean).join(" · ") || "İlan detayı")}</small>
   `;
   card.append(media, body);
+  const open = () => openListingDetail(item);
+  card.addEventListener("click", open);
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      open();
+    }
+  });
   return card;
 }
 
@@ -8692,8 +8719,8 @@ function renderProfileDashboard() {
   if (profileDashboardPoints) profileDashboardPoints.textContent = currentUser ? `${Number(stats.points || 0)} Radar Puanı` : "Giriş yap ve rankını göster";
   if (profileDashboardLocation) profileDashboardLocation.textContent = currentUser ? profileLocationText() : "Hunt Radar";
   if (profileDashboardJoined) profileDashboardJoined.textContent = currentUser?.createdAt ? `Katılım: ${formatProfileDate(currentUser.createdAt)}` : "Katılım tarihi girişten sonra görünür";
-  if (profileDashboardFollowers) profileDashboardFollowers.textContent = currentUser ? formatFollowCount(followSummary.followers, "takipçi") : "0 takipçi";
-  if (profileDashboardFollowing) profileDashboardFollowing.textContent = currentUser ? formatFollowCount(followSummary.following, "takip edilen") : "0 takip edilen";
+  setFollowMetric(profileDashboardFollowers, currentUser ? followSummary.followers : 0, "takipçi");
+  setFollowMetric(profileDashboardFollowing, currentUser ? followSummary.following : 0, "takip edilen");
   if (profileDashboardHandle) profileDashboardHandle.textContent = currentUser?.username ? `${currentUser.username} koleksiyon profili` : "Kullanıcı adı bekleniyor";
   if (profileStatGarage) profileStatGarage.textContent = String(garageTotal);
   if (profileStatPremium) profileStatPremium.textContent = String(premiumCount);
@@ -11224,9 +11251,11 @@ publicProfileFollow?.addEventListener("click", () => {
 });
 document.querySelectorAll("[data-follow-list]").forEach((button) => {
   button.addEventListener("click", () => {
-    const user = [publicGarageFollowerCount, publicGarageFollowingCount].includes(button)
-      ? publicGarageProfile
-      : currentPublicProfile || publicGarageProfile;
+    const user = button.dataset.followOwner === "self"
+      ? currentUser
+      : [publicGarageFollowerCount, publicGarageFollowingCount].includes(button)
+        ? publicGarageProfile
+        : currentPublicProfile || publicGarageProfile;
     if (user) void openFollowList(user, button.dataset.followList);
   });
 });

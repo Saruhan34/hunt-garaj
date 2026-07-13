@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=174" />
+    <link rel="stylesheet" href="./styles.css?v=178" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
@@ -668,8 +668,8 @@
               <div class="profile-dashboard__meta">
                 <span id="profileDashboardLocation">İstanbul</span>
                 <span id="profileDashboardJoined">Katılım tarihi bilinmiyor</span>
-                <span class="profile-dashboard__social-meta" id="profileDashboardFollowers">0 takipçi</span>
-                <span class="profile-dashboard__social-meta" id="profileDashboardFollowing">0 takip edilen</span>
+                <button class="profile-dashboard__follow-metric" id="profileDashboardFollowers" type="button" data-follow-list="followers" data-follow-owner="self">0 takipçi</button>
+                <button class="profile-dashboard__follow-metric" id="profileDashboardFollowing" type="button" data-follow-list="following" data-follow-owner="self">0 takip edilen</button>
                 <span id="profileDashboardHandle">Hunt Radar üyesi</span>
               </div>
             </div>
@@ -2264,7 +2264,7 @@
     <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=188"></script>
+    <script src="./app.js?v=189"></script>
   </body>
 </html>
 
