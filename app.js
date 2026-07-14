@@ -782,24 +782,33 @@ const profileDashboardBio = document.querySelector("#profileDashboardBio");
 const profileDashboardRankVisual = document.querySelector("#profileDashboardRankVisual");
 const profileDashboardRank = document.querySelector("#profileDashboardRank");
 const profileDashboardPoints = document.querySelector("#profileDashboardPoints");
+const profileDashboardBadgeCount = document.querySelector("#profileDashboardBadgeCount");
+const profileDashboardVehicleCount = document.querySelector("#profileDashboardVehicleCount");
 const profileDashboardLocation = document.querySelector("#profileDashboardLocation");
 const profileDashboardJoined = document.querySelector("#profileDashboardJoined");
 const profileDashboardFollowers = document.querySelector("#profileDashboardFollowers");
-const profileDashboardFollowing = document.querySelector("#profileDashboardFollowing");
 const profileDashboardHandle = document.querySelector("#profileDashboardHandle");
 const profileDashboardEdit = document.querySelector("#profileDashboardEdit");
 const profileDashboardShare = document.querySelector("#profileDashboardShare");
 const profileDashboardGarage = document.querySelector("#profileDashboardGarage");
 const profileStatGarage = document.querySelector("#profileStatGarage");
 const profileStatPremium = document.querySelector("#profileStatPremium");
+const profileStatHunt = document.querySelector("#profileStatHunt");
 const profileStatRadar = document.querySelector("#profileStatRadar");
 const profileStatWishlist = document.querySelector("#profileStatWishlist");
-const profileStatFriends = document.querySelector("#profileStatFriends");
+const profileStatPoints = document.querySelector("#profileStatPoints");
+const profileStatListings = document.querySelector("#profileStatListings");
 const profileRankProgressValue = document.querySelector("#profileRankProgressValue");
 const profileRankProgressTitle = document.querySelector("#profileRankProgressTitle");
 const profileRankProgressCopy = document.querySelector("#profileRankProgressCopy");
 const profileRankProgressFill = document.querySelector("#profileRankProgressFill");
 const profilePreferenceChips = document.querySelector("#profilePreferenceChips");
+const profileComparePremiumRate = document.querySelector("#profileComparePremiumRate");
+const profileCompareRareCount = document.querySelector("#profileCompareRareCount");
+const profileCompareWishlistCount = document.querySelector("#profileCompareWishlistCount");
+const profileBadgePreview = document.querySelector("#profileBadgePreview");
+const profileActivityTimeline = document.querySelector("#profileActivityTimeline");
+const profileFriendPreview = document.querySelector("#profileFriendPreview");
 const profileAccessPanel = document.querySelector("#profileAccessPanel");
 const profileAccessTitle = document.querySelector("#profileAccessTitle");
 const profileAccessCopy = document.querySelector("#profileAccessCopy");
@@ -2415,11 +2424,13 @@ function syncAppShell() {
   const isRewards = activeView === "rewards";
   const isProfile = activeView === "profile";
   const isAdmin = activeView === "admin";
+  const isAuthPending = Boolean(supabaseClient && !authInitialized);
   document.body.classList.toggle("is-home-view", isHome);
   document.body.classList.toggle("is-explore-view", isExplore);
   document.body.classList.toggle("is-community-view", isCommunity);
   document.body.classList.toggle("is-rewards-view", isRewards);
   document.body.classList.toggle("is-profile-view", isProfile);
+  document.body.classList.toggle("is-auth-pending", isAuthPending);
   document.body.classList.toggle("is-admin-view", isAdmin);
   document.body.classList.toggle("is-store-view", activeView === "stores");
   document.body.classList.toggle("is-market-view", activeView === "market");
@@ -2429,7 +2440,7 @@ function syncAppShell() {
   exploreModule?.classList.toggle("is-visible", isExplore);
   communityModule.classList.toggle("is-visible", isCommunity);
   rewardsModule.classList.toggle("is-visible", isRewards);
-  profileDashboard?.classList.toggle("is-visible", isProfile);
+  profileDashboard?.classList.toggle("is-visible", isProfile && !isAuthPending);
   if (isCommunity) syncCommunityHub();
   if (isExplore) void window.HuntRadarExplore?.activate();
   if (dashboardPageTitle) dashboardPageTitle.textContent = DASHBOARD_VIEW_TITLES[activeView] || "Ana Sayfa";
@@ -5079,6 +5090,13 @@ function setFollowMetric(element, value, label) {
   element.setAttribute("aria-label", formatFollowCount(value, label));
 }
 
+function setProfileHeroFriendMetric(value = 0) {
+  if (!profileDashboardFollowers) return;
+  const count = Math.max(0, Number(value || 0));
+  profileDashboardFollowers.innerHTML = `<i aria-hidden="true"></i><strong>${escapeHtml(count.toLocaleString("tr-TR"))}</strong><small>Arkadaş</small>`;
+  profileDashboardFollowers.setAttribute("aria-label", formatFollowCount(count, "arkadaş"));
+}
+
 function isOwnProfileUser(user = {}) {
   const id = profileId(user);
   if (id && currentUser?.id) return id === currentUser.id;
@@ -5098,8 +5116,8 @@ function setFollowButtonState(button, user = {}, options = {}) {
     : isOwn
       ? "Kendi Profilin"
       : summary.isFollowing
-        ? "Takiptesin"
-        : "Takip Et";
+        ? "Arkadaşsınız"
+        : "Arkadaş Ekle";
 }
 
 function updateCachedProfileFollow(user = {}) {
@@ -5120,27 +5138,25 @@ function updateProfileFollowViews(user = {}) {
   const summary = normalizeFollowSummary(user);
   if (publicProfileSummary && currentPublicProfile && normalize(currentPublicProfile.username) === normalize(user.username)) {
     const base = publicProfileSummary.dataset.baseText || publicProfileSummary.textContent || "";
-    publicProfileSummary.textContent = `${base} · ${formatFollowCount(summary.followers, "takipçi")}`;
+    publicProfileSummary.textContent = `${base} · ${formatFollowCount(summary.followers, "arkadaş")}`;
   }
   if (publicProfileFollowers && currentPublicProfile && normalize(currentPublicProfile.username) === normalize(user.username)) {
-    setFollowMetric(publicProfileFollowers, summary.followers, "takipçi");
+    setFollowMetric(publicProfileFollowers, summary.followers, "arkadaş");
   }
   if (publicProfileFollowing && currentPublicProfile && normalize(currentPublicProfile.username) === normalize(user.username)) {
-    setFollowMetric(publicProfileFollowing, summary.following, "takip edilen");
+    setFollowMetric(publicProfileFollowing, summary.following, "bağlantı");
   }
   if (publicGarageProfile && profileId(publicGarageProfile) === profileId(user)) {
     publicGarageProfile = mergeFollowSummary(publicGarageProfile, summary);
-    setFollowMetric(publicGarageFollowerCount, summary.followers, "takipçi");
-    setFollowMetric(publicGarageFollowingCount, summary.following, "takip edilen");
+    setFollowMetric(publicGarageFollowerCount, summary.followers, "arkadaş");
+    setFollowMetric(publicGarageFollowingCount, summary.following, "bağlantı");
   }
   if (currentUser && profileId(user) === currentUser.id) {
     currentFollowSummary = summary;
     currentFollowSummaryUserId = currentUser.id;
     currentUser = mergeFollowSummary(currentUser, summary);
     saveCurrentUser(currentUser);
-    setFollowMetric(profileDashboardFollowers, summary.followers, "takipçi");
-    setFollowMetric(profileDashboardFollowing, summary.following, "takip edilen");
-    if (profileStatFriends) profileStatFriends.textContent = String(summary.followers);
+    setProfileHeroFriendMetric(summary.followers);
   }
   setFollowButtonState(publicProfileFollow, currentPublicProfile || user);
   setFollowButtonState(publicGarageFollow, publicGarageProfile || user);
@@ -5211,7 +5227,7 @@ function renderFollowListBody(profiles = [], kind = "followers") {
     empty.className = "follow-list-empty";
     empty.innerHTML = `
       <span aria-hidden="true">◇</span>
-      <strong>${kind === "following" ? "Henüz takip edilen koleksiyoner yok" : "Henüz takipçi yok"}</strong>
+      <strong>${kind === "following" ? "Henüz bağlantı yok" : "Henüz arkadaş yok"}</strong>
       <small>Bağlantılar oluştuğunda bu alan premium profil kartlarıyla dolacak.</small>
     `;
     followListBody.appendChild(empty);
@@ -5272,8 +5288,8 @@ async function openFollowList(user = {}, kind = "followers") {
   const listKind = kind === "following" ? "following" : "followers";
   followListContext = { user, kind: listKind };
   if (followListEyebrow) followListEyebrow.textContent = "Koleksiyoner ağı";
-  if (followListTitle) followListTitle.textContent = listKind === "following" ? "Takip edilenler" : "Takipçiler";
-  if (followListSubtitle) followListSubtitle.textContent = `@${user.username || "koleksiyoner"} sosyal bağlantıları`;
+  if (followListTitle) followListTitle.textContent = listKind === "following" ? "Bağlantılar" : "Arkadaşlar";
+  if (followListSubtitle) followListSubtitle.textContent = `@${user.username || "koleksiyoner"} koleksiyoner ağı`;
   if (followListBody) followListBody.innerHTML = '<div class="follow-list-loading">Koleksiyonerler yükleniyor...</div>';
   followListModal?.classList.add("is-visible");
   followListModal?.setAttribute("aria-hidden", "false");
@@ -5304,12 +5320,12 @@ async function refreshCurrentFollowSummary() {
 
 async function toggleFollowForUser(user = {}) {
   if (!currentUser) {
-    openAuthModal("login", "Koleksiyonerleri takip etmek için giriş yapmalısın.");
+    openAuthModal("login", "Arkadaş eklemek için giriş yapmalısın.");
     return;
   }
   const id = profileId(user);
   if (!id) {
-    showToast("Bu profil için takip bilgisi hazır değil.");
+    showToast("Bu profil için arkadaşlık bilgisi hazır değil.");
     return;
   }
   if (isOwnProfileUser(user)) return;
@@ -5326,7 +5342,7 @@ async function toggleFollowForUser(user = {}) {
     currentPublicProfile = profileId(currentPublicProfile) === id ? local : currentPublicProfile;
     publicGarageProfile = profileId(publicGarageProfile) === id ? local : publicGarageProfile;
     updateProfileFollowViews(local);
-    showToast(nextFollowing ? "Koleksiyoner takip edildi." : "Takipten çıkarıldı.");
+    showToast(nextFollowing ? "Arkadaş eklendi." : "Arkadaşlıktan çıkarıldı.");
     return;
   }
   const { data, error } = await supabaseClient.rpc("set_profile_follow", {
@@ -5334,8 +5350,8 @@ async function toggleFollowForUser(user = {}) {
     p_following: nextFollowing
   });
   if (error) {
-    console.warn("Takip işlemi kaydedilemedi:", error.message);
-    showToast("Takip işlemi kaydedilemedi.");
+    console.warn("Arkadaşlık işlemi kaydedilemedi:", error.message);
+    showToast("Arkadaşlık işlemi kaydedilemedi.");
     setFollowButtonState(publicProfileFollow, user);
     setFollowButtonState(publicGarageFollow, user);
     return;
@@ -5346,7 +5362,7 @@ async function toggleFollowForUser(user = {}) {
   if (currentPublicProfile && profileId(currentPublicProfile) === id) currentPublicProfile = mergeFollowSummary(currentPublicProfile, summary);
   if (publicGarageProfile && profileId(publicGarageProfile) === id) publicGarageProfile = mergeFollowSummary(publicGarageProfile, summary);
   updateProfileFollowViews(merged);
-  showToast(summary.isFollowing ? "Koleksiyoner takip edildi." : "Takipten çıkarıldı.");
+  showToast(summary.isFollowing ? "Arkadaş eklendi." : "Arkadaşlıktan çıkarıldı.");
 }
 
 async function publicProfileByUsername(username) {
@@ -5424,9 +5440,9 @@ async function openPublicProfile(username) {
   const profilePoints = Number(user.radar_points || user.radarPoints || user.points || 0);
   const publicRank = Rewards?.rankFor(profilePoints);
   publicProfileSummary.dataset.baseText = isProfilePrivate ? "Özel profil" : `${listingCount} ilan · ${collectionCount} garaj kaydı`;
-  publicProfileSummary.textContent = `${publicProfileSummary.dataset.baseText} · ${formatFollowCount(followSummary.followers, "takipçi")}`;
-  setFollowMetric(publicProfileFollowers, followSummary.followers, "takipçi");
-  setFollowMetric(publicProfileFollowing, followSummary.following, "takip edilen");
+  publicProfileSummary.textContent = `${publicProfileSummary.dataset.baseText} · ${formatFollowCount(followSummary.followers, "arkadaş")}`;
+  setFollowMetric(publicProfileFollowers, followSummary.followers, "arkadaş");
+  setFollowMetric(publicProfileFollowing, followSummary.following, "bağlantı");
   if (publicProfileRank) publicProfileRank.textContent = publicRank?.title || "R1 Çaylak Avcı";
   setFollowButtonState(publicProfileFollow, currentPublicProfile);
   publicProfileListingsCount.textContent = String(listingCount);
@@ -5542,8 +5558,8 @@ function profileSearchMeta(profile = {}) {
     summary,
     isPrivate,
     visibility: isPrivate
-      ? `Gizli garaj · ${formatFollowCount(summary.followers, "takipçi")}`
-      : `${vehicleCount} araç · ${formatFollowCount(summary.followers, "takipçi")}${rarity}`
+      ? `Gizli garaj · ${formatFollowCount(summary.followers, "arkadaş")}`
+      : `${vehicleCount} araç · ${formatFollowCount(summary.followers, "arkadaş")}${rarity}`
   };
 }
 
@@ -5558,8 +5574,8 @@ function renderCollectorSearchResults(profiles = []) {
     row.innerHTML = `
       <span class="collector-result__avatar">${escapeHtml(userInitials(profile.username))}</span>
       <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(meta.visibility)}</small></span>
-      <span class="collector-result__action">${escapeHtml(meta.summary.isFollowing ? "Takipte" : meta.isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
-      <span class="collector-result__follow">${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Takiptesin" : "Takip Et")}</span>
+      <span class="collector-result__action">${escapeHtml(meta.summary.isFollowing ? "Arkadaş" : meta.isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
+      <span class="collector-result__follow">${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Arkadaşsınız" : "Arkadaş Ekle")}</span>
       <span class="collector-result__arrow" aria-hidden="true">→</span>
     `;
     row.addEventListener("click", (event) => {
@@ -5603,11 +5619,11 @@ function renderCommunitySpotlight(profiles = lastCommunityUserProfiles) {
       <div>
         <small>${escapeHtml(meta.isPrivate ? "Gizli garaj" : "Açık koleksiyon")}</small>
         <strong>@${escapeHtml(profile.username || "koleksiyoner")}</strong>
-        <p>${escapeHtml(vehicleCount ? `${vehicleCount} araç · ${formatFollowCount(meta.summary.followers, "takipçi")}` : meta.visibility)}</p>
+        <p>${escapeHtml(vehicleCount ? `${vehicleCount} araç · ${formatFollowCount(meta.summary.followers, "arkadaş")}` : meta.visibility)}</p>
       </div>
       <div class="community-spotlight-card__actions">
         <button type="button" data-spotlight-profile="${escapeHtml(profile.username)}">Profil</button>
-        <button class="${meta.summary.isFollowing ? "is-following" : ""}" type="button" data-spotlight-follow="${escapeHtml(profile.username)}" ${isOwnProfileUser(profile) ? "disabled" : ""}>${escapeHtml(isOwnProfileUser(profile) ? "Sen" : meta.summary.isFollowing ? "Takiptesin" : "Takip Et")}</button>
+        <button class="${meta.summary.isFollowing ? "is-following" : ""}" type="button" data-spotlight-follow="${escapeHtml(profile.username)}" ${isOwnProfileUser(profile) ? "disabled" : ""}>${escapeHtml(isOwnProfileUser(profile) ? "Sen" : meta.summary.isFollowing ? "Arkadaşsınız" : "Arkadaş Ekle")}</button>
         <button type="button" data-spotlight-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>Garaj</button>
       </div>
     `;
@@ -5651,12 +5667,12 @@ function renderCommunityUserResults(profiles = []) {
       </div>
       <div class="community-hunter-card__stats">
         <span><strong>${escapeHtml(vehicleCount.toLocaleString("tr-TR"))}</strong><small>araç</small></span>
-        <span><strong>${escapeHtml(meta.summary.followers.toLocaleString("tr-TR"))}</strong><small>takipçi</small></span>
+        <span><strong>${escapeHtml(meta.summary.followers.toLocaleString("tr-TR"))}</strong><small>arkadaş</small></span>
         <span><strong>${escapeHtml(bestHunt)}</strong><small>en iyi av</small></span>
       </div>
       <div class="community-hunter-card__actions">
         <button type="button" data-community-profile="${escapeHtml(profile.username)}">Profili Aç</button>
-        <button class="community-hunter-card__follow follow-button${meta.summary.isFollowing ? " is-following" : ""}" type="button" data-community-follow="${escapeHtml(profile.username)}" ${isOwnProfileUser(profile) ? "disabled" : ""}>${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Takiptesin" : "Takip Et")}</button>
+        <button class="community-hunter-card__follow follow-button${meta.summary.isFollowing ? " is-following" : ""}" type="button" data-community-follow="${escapeHtml(profile.username)}" ${isOwnProfileUser(profile) ? "disabled" : ""}>${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Arkadaşsınız" : "Arkadaş Ekle")}</button>
         <button type="button" data-community-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>Garaj</button>
       </div>
     `;
@@ -6698,6 +6714,21 @@ function rankImageMarkup(rank, className = "") {
   return imageMarkup(rank, rank.title || "Rank", `rank-image ${className}`);
 }
 
+function localRankForProfile(rank = {}) {
+  const key = String(rank.id || rank.icon || "r1").toLocaleLowerCase("tr-TR");
+  const files = {
+    r1: "R1.png",
+    r2: "R2.png",
+    r3: "R3.png",
+    r4: "R4.png",
+    th: "TH.png",
+    sth: "STH.png",
+    hr: "HR.png"
+  };
+  const image = `./assets/ranks/${files[key] || "R1.png"}`;
+  return { ...rank, image, storagePath: "", storage_path: "" };
+}
+
 function listingKeyForAdmin(item) {
   return listingFavoriteKey(item);
 }
@@ -6878,6 +6909,7 @@ async function initSupabaseAuth() {
     remoteCollectionListings = [];
   }
   authInitialized = true;
+  render();
   updateUserButton();
   syncAdminVisibility();
   if (publicGarageUsernameFromHash()) applyDashboardRoute({ replaceUnknown: false });
@@ -6915,15 +6947,16 @@ async function initSupabaseAuth() {
 function updateUserButton() {
   const notifications = unreadNotificationCount();
   const unreadCount = notifications.total;
+  const isAuthPending = Boolean(supabaseClient && !authInitialized);
   const rewardStats = currentUser && Rewards ? Rewards.statsFor(currentUser, state) : null;
   const activeRank = rewardStats && Rewards ? Rewards.rankFor(rewardStats.points) : null;
   const earnedBadges = currentUser && Rewards ? Rewards.badgesFor(currentUser, state) : [];
-  userButtonText.textContent = currentUser ? `@${currentUser.username}` : "Giriş Yap / Hesap Oluştur";
-  userButton.setAttribute("aria-label", currentUser ? `@${currentUser.username} profil menüsü` : "Giriş Yap / Hesap Oluştur");
+  userButtonText.textContent = currentUser ? `@${currentUser.username}` : isAuthPending ? "Oturum yükleniyor" : "Giriş Yap / Hesap Oluştur";
+  userButton.setAttribute("aria-label", currentUser ? `@${currentUser.username} profil menüsü` : isAuthPending ? "Oturum yükleniyor" : "Giriş Yap / Hesap Oluştur");
   if (userButtonMeta) {
     userButtonMeta.textContent = currentUser
       ? `${activeRank?.title || "R1 Çaylak Avcı"} · ${earnedBadges.length} rozet`
-      : "Misafir hesap";
+      : isAuthPending ? "Hesap kontrol ediliyor" : "Misafir hesap";
   }
   const initials = currentUser ? userInitials(currentUser.username) : "HR";
   const avatar = currentUser && Rewards ? Rewards.getAvatar(currentUser) : null;
@@ -6934,12 +6967,12 @@ function updateUserButton() {
     resetAvatarElement(userAvatar, initials);
     resetAvatarElement(accountMenuAvatar, initials);
   }
-  accountMenuName.textContent = currentUser ? `@${currentUser.username}` : "Misafir";
-  accountMenuEmail.textContent = currentUser ? currentUser.email : "Pazar ilanı için giriş yap.";
+  accountMenuName.textContent = currentUser ? `@${currentUser.username}` : isAuthPending ? "Oturum yükleniyor" : "Misafir";
+  accountMenuEmail.textContent = currentUser ? currentUser.email : isAuthPending ? "Hesap bilgileri kontrol ediliyor." : "Pazar ilanı için giriş yap.";
   if (accountMenuRank) {
     accountMenuRank.textContent = currentUser
       ? `${activeRank?.title || "R1 Çaylak Avcı"} · ${rewardStats?.points || 0} Radar Puanı · ${earnedBadges.length} rozet`
-      : "Giriş yaparak rank ve rozetlerini takip edebilirsin.";
+      : isAuthPending ? "Oturum tamamlanınca rank ve rozetler görünecek." : "Giriş yaparak rank ve rozetlerini takip edebilirsin.";
   }
   accountListingCount.textContent = currentUser
     ? allMarketListings().filter((listing) => normalize(listing.sellerUsername) === normalize(currentUser.username)).length
@@ -8258,8 +8291,8 @@ function renderPublicGarageProfile(profileName) {
   publicGarageRankName.textContent = rank?.title || "R1 Çaylak Avcı";
   publicGarageRadarPoints.textContent = `${Number(stats.points || 0)} Radar Puanı`;
   const followSummary = normalizeFollowSummary(publicGarageProfile);
-  setFollowMetric(publicGarageFollowerCount, followSummary.followers, "takipçi");
-  setFollowMetric(publicGarageFollowingCount, followSummary.following, "takip edilen");
+  setFollowMetric(publicGarageFollowerCount, followSummary.followers, "arkadaş");
+  setFollowMetric(publicGarageFollowingCount, followSummary.following, "bağlantı");
   setFollowButtonState(publicGarageFollow, publicGarageProfile);
   publicGarageBadgeCount.textContent = `${badges.length} rozet`;
   publicGarageJoinedAt.textContent = publicGarageProfile.created_at
@@ -8470,6 +8503,155 @@ function profileRadarCount(stats = {}) {
   return Number(stats.storeReports || stats.photoReports || 0) || fallback;
 }
 
+function profileRelativeShort(value) {
+  return formatRelativeCollectionTime(value).replace(/^Son güncelleme:\s*/i, "");
+}
+
+function profileActivityRows(garageItems = profileGarageItems()) {
+  const rows = [];
+  garageItems.forEach((item) => {
+    const date = item.updatedAt || item.createdAt || item.addedDate;
+    if (!date) return;
+    rows.push({
+      icon: "◇",
+      title: `${item.model || item.brand || "Araç"} garaja eklendi`,
+      meta: [item.series, item.year].filter(Boolean).join(" · ") || "Koleksiyon",
+      date
+    });
+  });
+  (Array.isArray(state.wishlist) ? state.wishlist : []).forEach((item) => {
+    const date = item.updatedAt || item.createdAt || item.addedDate;
+    if (!date || wishlistStatus(item) === "archived") return;
+    rows.push({
+      icon: "♡",
+      title: `${item.model || item.brand || "Araç"} istek listesine eklendi`,
+      meta: item.series || "Av planı",
+      date
+    });
+  });
+  (Array.isArray(state.stores) ? state.stores : []).forEach((item) => {
+    const date = item.updatedAt || item.createdAt || item.date;
+    if (!date) return;
+    rows.push({
+      icon: "◎",
+      title: `Radar bildirimi yaptı: ${item.store || item.title || "Mağaza"}`,
+      meta: [item.city, item.district].filter(Boolean).join(" · ") || item.status || "Hunt Radar",
+      date
+    });
+  });
+  return rows
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+}
+
+function renderProfileActivityTimeline(garageItems = profileGarageItems()) {
+  if (!profileActivityTimeline) return;
+  const rows = profileActivityRows(garageItems);
+  if (!rows.length) {
+    profileActivityTimeline.innerHTML = `
+      <div class="profile-empty-note">
+        <span aria-hidden="true">◎</span>
+        <strong>Henüz aktivite yok</strong>
+        <small>Garaj, istek listesi ve radar hareketlerin burada görünecek.</small>
+      </div>
+    `;
+    return;
+  }
+  profileActivityTimeline.innerHTML = rows.map((row) => `
+    <div class="profile-activity-item">
+      <span aria-hidden="true">${escapeHtml(row.icon)}</span>
+      <div>
+        <strong>${escapeHtml(row.title)}</strong>
+        <small>${escapeHtml(row.meta)}</small>
+      </div>
+      <time>${escapeHtml(profileRelativeShort(row.date))}</time>
+    </div>
+  `).join("");
+}
+
+function renderProfileBadgePreview(badges = []) {
+  if (!profileBadgePreview) return;
+  const earnedBadges = Array.isArray(badges) ? badges.map((badge) => ({ ...badge, earned: true })) : [];
+  const catalogue = Rewards?.BADGES?.length ? Rewards.BADGES : [
+    { id: "premium-hunter", title: "Premium Avcısı", description: "Premium araçları topluluğa haber ver.", tone: "gold" },
+    { id: "shelf-reporter", title: "Raf Muhbiri", description: "Düzenli ve doğru raf bilgileri paylaş.", tone: "teal" },
+    { id: "th-finder", title: "TH Bulucu", description: "Doğrulanan TH veya STH bulguları paylaş.", tone: "red" },
+    { id: "photo-proof", title: "Fotoğraflı Kanıtçı", description: "Radar notlarına gerçek raf fotoğrafı ekle.", tone: "red" }
+  ];
+  const earnedIds = new Set(earnedBadges.map((badge) => badge.id));
+  const fallbackOrder = ["premium-hunter", "shelf-reporter", "th-finder", "photo-proof", "trusted-seller", "community-guide", "empty-shelf", "first-trade"];
+  const lockedBadges = fallbackOrder
+    .map((id) => catalogue.find((badge) => badge.id === id))
+    .filter(Boolean)
+    .filter((badge) => !earnedIds.has(badge.id))
+    .map((badge) => ({ ...badge, earned: false }));
+  const visibleBadges = [...earnedBadges, ...lockedBadges].slice(0, 4);
+  profileBadgePreview.innerHTML = visibleBadges.map((badge) => `
+    <article class="${badge.earned ? "is-earned" : "is-locked"} reward-card--${escapeHtml(rewardVisualKey(badge.id, badge))}">
+      <span class="profile-badge-art" aria-hidden="true">
+        <img src="${escapeHtml(rewardBadgeAssetPath(badge.id))}" alt="" loading="lazy" decoding="async" />
+      </span>
+      <b>${badge.earned ? "Açıldı" : "Kilitli"}</b>
+      <strong>${escapeHtml(badge.title || "Hunt Radar Rozeti")}</strong>
+      <small>${escapeHtml(badge.description || badge.requirement || "Koleksiyoner itibarı")}</small>
+    </article>
+  `).join("");
+  profileBadgePreview.querySelectorAll(".profile-badge-art img").forEach((image) => {
+    image.addEventListener("error", () => {
+      image.hidden = true;
+      image.closest(".profile-badge-art")?.classList.add("is-fallback");
+    }, { once: true });
+  });
+}
+
+function renderProfileFriendPreview(friendCount = 0) {
+  if (!profileFriendPreview) return;
+  const count = Math.max(0, Number(friendCount || 0));
+  const friendCards = [
+    { username: "@hotwheelshunter", rank: "R3 Usta Avcı", points: "2.560" },
+    { username: "@diecastqueen", rank: "R2 Koleksiyoner", points: "1.980" },
+    { username: "@jdm.collector", rank: "R2 Koleksiyoner", points: "1.750" },
+    { username: "@mini.gt.tr", rank: "R1 Çaylak Avcı", points: "980" }
+  ];
+  profileFriendPreview.innerHTML = `
+    <div class="profile-friend-preview__cards">
+      ${friendCards.map((friend, index) => `
+        <article>
+          <span>${escapeHtml(friend.username.slice(1, 3).toLocaleUpperCase("tr-TR"))}</span>
+          <strong>${escapeHtml(friend.username)}</strong>
+          <small>${escapeHtml(friend.rank)}</small>
+          <em>${escapeHtml(friend.points)} Radar Puanı</em>
+          <button type="button" data-follow-list="followers" data-follow-owner="self">${index === 0 && count ? "Profili Gör" : "Önizleme"}</button>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function profileRareHuntCount(items = profileGarageItems()) {
+  return items
+    .filter((item) => isGarageChase(item) || isGarageHunt(item))
+    .reduce((total, item) => total + garageQuantity(item), 0);
+}
+
+function profileActiveListingCount() {
+  const activeStatuses = new Set(["", "Yayında", "Aktif"]);
+  const collectionListings = (Array.isArray(state.collection) ? state.collection : [])
+    .filter((item) => ["Satılık", "Takaslık"].includes(item.marketType));
+  const directListings = (Array.isArray(state.market) ? state.market : [])
+    .filter((item) => ["Satılık", "Takaslık"].includes(item.marketType));
+  return [...collectionListings, ...directListings]
+    .filter((item) => activeStatuses.has(item.listingStatus || "Yayında"))
+    .length;
+}
+
+function profileLatestCollectionDate(items = profileGarageItems()) {
+  const dates = items
+    .map((item) => new Date(item.updatedAt || item.createdAt || item.addedDate || 0).getTime())
+    .filter(Number.isFinite);
+  return dates.length ? new Date(Math.max(...dates)).toISOString() : "";
+}
+
 function profileDisplayName() {
   return currentUser?.username ? `@${currentUser.username}` : "@koleksiyoner";
 }
@@ -8547,11 +8729,18 @@ function renderProfileDashboard() {
   const premiumCount = garageItems.filter(isGaragePremium).reduce((total, item) => total + garageQuantity(item), 0);
   const garageTotal = garageItems.reduce((total, item) => total + garageQuantity(item), 0);
   const radarCount = profileRadarCount(stats);
+  const rareCount = profileRareHuntCount(garageItems);
+  const wishlistCount = profileWishlistCount();
+  const activeListingCount = profileActiveListingCount();
+  const premiumRate = garageTotal ? Math.round((premiumCount / garageTotal) * 100) : 0;
+  const latestCollectionDate = profileLatestCollectionDate(garageItems);
+  const badges = currentUser && Rewards ? Rewards.badgesFor(currentUser, state) : [];
   const preferences = profilePreferenceLabels(garageItems);
   if (currentUser && supabaseClient && currentFollowSummaryUserId !== currentUser.id) void refreshCurrentFollowSummary();
   const followSummary = currentUser && currentFollowSummaryUserId === currentUser.id
     ? currentFollowSummary
     : normalizeFollowSummary(currentUser || {});
+  const friendCount = currentUser ? followSummary.followers : 0;
   syncProfileDashboardTheme(preferences);
 
   if (profileDashboardAvatar) {
@@ -8564,19 +8753,25 @@ function renderProfileDashboard() {
   if (profileDashboardVisibility) profileDashboardVisibility.textContent = currentUser ? profileVisibilityLabel() : "Misafir";
   if (profileDashboardTitle) profileDashboardTitle.textContent = currentUser ? profileDisplayName() : "Profilini oluştur";
   if (profileDashboardBio) profileDashboardBio.textContent = currentUser ? profileBioText() : "Garajını, radar katkılarını ve koleksiyoncu kimliğini tek profilde topla.";
-  if (profileDashboardRankVisual) profileDashboardRankVisual.innerHTML = rankImageMarkup(rank, "profile-dashboard-rank-image");
+  if (profileDashboardRankVisual) profileDashboardRankVisual.innerHTML = rankImageMarkup(localRankForProfile(rank), "profile-dashboard-rank-image");
   if (profileDashboardRank) profileDashboardRank.textContent = currentUser ? (rank?.title || "R1 Çaylak Avcı") : "Koleksiyoncu Profili";
-  if (profileDashboardPoints) profileDashboardPoints.textContent = currentUser ? `${Number(stats.points || 0)} Radar Puanı` : "Giriş yap ve rankını göster";
+  if (profileDashboardPoints) profileDashboardPoints.textContent = currentUser ? Number(stats.points || 0).toLocaleString("tr-TR") : "0";
+  if (profileDashboardBadgeCount) profileDashboardBadgeCount.textContent = String(badges.length);
+  if (profileDashboardVehicleCount) profileDashboardVehicleCount.textContent = garageTotal.toLocaleString("tr-TR");
   if (profileDashboardLocation) profileDashboardLocation.textContent = currentUser ? profileLocationText() : "Hunt Radar";
   if (profileDashboardJoined) profileDashboardJoined.textContent = currentUser?.createdAt ? `Katılım: ${formatProfileDate(currentUser.createdAt)}` : "Katılım tarihi girişten sonra görünür";
-  setFollowMetric(profileDashboardFollowers, currentUser ? followSummary.followers : 0, "takipçi");
-  setFollowMetric(profileDashboardFollowing, currentUser ? followSummary.following : 0, "takip edilen");
-  if (profileDashboardHandle) profileDashboardHandle.textContent = currentUser?.username ? `${currentUser.username} koleksiyon profili` : "Kullanıcı adı bekleniyor";
+  setProfileHeroFriendMetric(friendCount);
+  if (profileDashboardHandle) profileDashboardHandle.textContent = latestCollectionDate ? `Son koleksiyon güncellemesi: ${profileRelativeShort(latestCollectionDate)}` : (currentUser?.username ? `${currentUser.username} koleksiyon profili` : "Kullanıcı adı bekleniyor");
   if (profileStatGarage) profileStatGarage.textContent = String(garageTotal);
   if (profileStatPremium) profileStatPremium.textContent = String(premiumCount);
+  if (profileStatHunt) profileStatHunt.textContent = String(rareCount);
   if (profileStatRadar) profileStatRadar.textContent = String(radarCount);
-  if (profileStatWishlist) profileStatWishlist.textContent = String(profileWishlistCount());
-  if (profileStatFriends) profileStatFriends.textContent = String(followSummary.followers || 0);
+  if (profileStatWishlist) profileStatWishlist.textContent = String(wishlistCount);
+  if (profileStatPoints) profileStatPoints.textContent = String(Number(stats.points || 0));
+  if (profileStatListings) profileStatListings.textContent = String(activeListingCount);
+  if (profileComparePremiumRate) profileComparePremiumRate.textContent = `${premiumRate}%`;
+  if (profileCompareRareCount) profileCompareRareCount.textContent = String(rareCount);
+  if (profileCompareWishlistCount) profileCompareWishlistCount.textContent = String(wishlistCount);
   if (profileRankProgressValue) profileRankProgressValue.textContent = `${progress.percent || 0}%`;
   if (profileRankProgressTitle) profileRankProgressTitle.textContent = progress.next ? `${progress.next.title} için ${progress.remaining} puan` : "Maksimum rank";
   if (profileRankProgressCopy) profileRankProgressCopy.textContent = progress.next ? "Radar bildirimi, doğrulama ve topluluk katkılarıyla koleksiyoncu profilin güçlenir." : "Hunt Radar profilin zirvede görünüyor.";
@@ -8585,6 +8780,9 @@ function renderProfileDashboard() {
   if (profilePreferenceChips) {
     profilePreferenceChips.innerHTML = preferences.map((label) => `<span>${escapeHtml(label)}</span>`).join("");
   }
+  renderProfileBadgePreview(badges);
+  renderProfileActivityTimeline(garageItems);
+  renderProfileFriendPreview(friendCount);
   renderProfileAccessPanel();
 }
 
@@ -11093,15 +11291,15 @@ publicProfileMessage.addEventListener("click", () => openMessageThreadForUser(cu
 publicProfileFollow?.addEventListener("click", () => {
   if (currentPublicProfile) void toggleFollowForUser(currentPublicProfile);
 });
-document.querySelectorAll("[data-follow-list]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const user = button.dataset.followOwner === "self"
-      ? currentUser
-      : [publicGarageFollowerCount, publicGarageFollowingCount].includes(button)
-        ? publicGarageProfile
-        : currentPublicProfile || publicGarageProfile;
-    if (user) void openFollowList(user, button.dataset.followList);
-  });
+document.addEventListener("click", (event) => {
+  const button = event.target?.closest?.("[data-follow-list]");
+  if (!button) return;
+  const user = button.dataset.followOwner === "self"
+    ? currentUser
+    : [publicGarageFollowerCount, publicGarageFollowingCount].includes(button)
+      ? publicGarageProfile
+      : currentPublicProfile || publicGarageProfile;
+  if (user) void openFollowList(user, button.dataset.followList);
 });
 publicProfileOpenGarage?.addEventListener("click", () => {
   const username = currentPublicProfileUsername;

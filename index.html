@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=186" />
+    <link rel="stylesheet" href="./styles.css?v=196" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
@@ -470,8 +470,8 @@
                 <div><strong id="publicGarageRankName">R1 Çaylak Avcı</strong><small id="publicGarageRadarPoints">0 Radar Puanı</small></div>
               </div>
               <div class="public-garage-profile__meta">
-                <button class="public-follow-metric" id="publicGarageFollowerCount" type="button" data-follow-list="followers">0 takipçi</button>
-                <button class="public-follow-metric" id="publicGarageFollowingCount" type="button" data-follow-list="following">0 takip edilen</button>
+                <button class="public-follow-metric" id="publicGarageFollowerCount" type="button" data-follow-list="followers">0 arkadaş</button>
+                <button class="public-follow-metric" id="publicGarageFollowingCount" type="button" data-follow-list="following">0 bağlantı</button>
                 <span id="publicGarageBadgeCount">0 rozet</span>
                 <span id="publicGarageJoinedAt">Katılım tarihi bilinmiyor</span>
                 <span id="publicGarageUpdatedAt">Koleksiyon güncellemesi yok</span>
@@ -479,7 +479,7 @@
               <div class="public-garage-profile__badges" id="publicGarageFeaturedBadges" aria-label="Öne çıkan rozetler"></div>
             </div>
             <div class="public-garage-profile__actions">
-              <button class="button button--primary follow-button" id="publicGarageFollow" type="button">Takip Et</button>
+              <button class="button button--primary follow-button" id="publicGarageFollow" type="button">Arkadaş Ekle</button>
             </div>
           </div>
           <div class="garage-dashboard__copy">
@@ -655,38 +655,52 @@
           <div class="profile-dashboard__identity">
             <div class="profile-dashboard__avatar reward-avatar" id="profileDashboardAvatar">HR</div>
             <div class="profile-dashboard__copy">
-              <div class="profile-dashboard__eyebrow">
-                <span>KOLEKSİYONER PROFİLİ</span>
-                <em id="profileDashboardVisibility">Herkese Açık</em>
+              <div class="profile-dashboard__title-row">
+                <h1 id="profileDashboardTitle">@kullanici</h1>
+                <span class="profile-verified-badge" aria-hidden="true"></span>
               </div>
-              <h1 id="profileDashboardTitle">@kullanici</h1>
-              <p id="profileDashboardBio">JDM, Boulevard ve premium avcısı.</p>
+              <p class="profile-dashboard__subtitle">Koleksiyoner Profili</p>
               <div class="profile-dashboard__rank">
                 <span id="profileDashboardRankVisual" aria-hidden="true"></span>
-                <div><strong id="profileDashboardRank">R1 Çaylak Avcı</strong><small id="profileDashboardPoints">0 Radar Puanı</small></div>
+                <div><strong id="profileDashboardRank">R1 Çaylak Avcı</strong></div>
+              </div>
+              <div class="profile-dashboard__hero-metrics" aria-label="Profil özeti">
+                <span class="profile-hero-metric profile-hero-metric--points"><i aria-hidden="true"></i><small>Radar Puanı</small><strong id="profileDashboardPoints">0</strong></span>
+                <span class="profile-hero-metric profile-hero-metric--badges"><i aria-hidden="true"></i><strong id="profileDashboardBadgeCount">0</strong><small>Rozet</small></span>
+                <button class="profile-hero-metric profile-hero-metric--friends" id="profileDashboardFollowers" type="button" data-follow-list="followers" data-follow-owner="self"><i aria-hidden="true"></i><strong>0</strong><small>Arkadaş</small></button>
+                <span class="profile-hero-metric profile-hero-metric--cars"><i aria-hidden="true"></i><strong id="profileDashboardVehicleCount">0</strong><small>Araç</small></span>
               </div>
               <div class="profile-dashboard__meta">
+                <span id="profileDashboardHandle">Son koleksiyon güncellemesi: Bugün</span>
                 <span id="profileDashboardLocation">İstanbul</span>
                 <span id="profileDashboardJoined">Katılım tarihi bilinmiyor</span>
-                <button class="profile-dashboard__follow-metric" id="profileDashboardFollowers" type="button" data-follow-list="followers" data-follow-owner="self">0 takipçi</button>
-                <button class="profile-dashboard__follow-metric" id="profileDashboardFollowing" type="button" data-follow-list="following" data-follow-owner="self">0 takip edilen</button>
-                <span id="profileDashboardHandle">Hunt Radar üyesi</span>
               </div>
+              <p id="profileDashboardBio">JDM, Boulevard ve premium avcısı.</p>
             </div>
           </div>
           <div class="profile-dashboard__actions">
-            <button class="button button--primary" id="profileDashboardEdit" type="button">Profili Düzenle</button>
-            <button class="button button--subtle" id="profileDashboardShare" type="button">Profili Paylaş</button>
-            <button class="button button--subtle" id="profileDashboardGarage" type="button">Garajı Gör</button>
+            <button class="button button--primary profile-action profile-action--primary" id="profileDashboardEdit" type="button"><span class="profile-action__icon profile-action__icon--user" aria-hidden="true"></span>Profili Düzenle</button>
+            <button class="button button--subtle profile-action" id="profileDashboardGarage" type="button"><span class="profile-action__icon profile-action__icon--car" aria-hidden="true"></span>Garajını Gör</button>
+            <button class="button button--subtle profile-action" id="profileDashboardShare" type="button"><span class="profile-action__icon profile-action__icon--link" aria-hidden="true"></span>Bağlantıyı Kopyala</button>
           </div>
         </header>
 
+        <nav class="profile-dashboard__tabs" aria-label="Profil bölümleri">
+          <button class="is-active" type="button"><span class="profile-tab-icon profile-tab-icon--overview" aria-hidden="true"></span>Genel Bakış</button>
+          <button type="button" data-route-view="collection"><span class="profile-tab-icon profile-tab-icon--garage" aria-hidden="true"></span>Garaj</button>
+          <button type="button" data-route-view="wishlist"><span class="profile-tab-icon profile-tab-icon--wishlist" aria-hidden="true"></span>İstek Listesi</button>
+          <button type="button" data-route-view="rewards"><span class="profile-tab-icon profile-tab-icon--badges" aria-hidden="true"></span>Rozetler</button>
+          <button type="button"><span class="profile-tab-icon profile-tab-icon--activity" aria-hidden="true"></span>Aktivite</button>
+          <button type="button" data-follow-list="followers" data-follow-owner="self"><span class="profile-tab-icon profile-tab-icon--friends" aria-hidden="true"></span>Arkadaşlar</button>
+        </nav>
+
         <div class="profile-dashboard__stats" aria-label="Profil istatistikleri">
-          <article><span aria-hidden="true">◇</span><small>Garaj</small><strong id="profileStatGarage">0</strong><em>Kayıtlı araç</em></article>
-          <article><span aria-hidden="true">★</span><small>Premium</small><strong id="profileStatPremium">0</strong><em>Özel av</em></article>
-          <article><span aria-hidden="true">⌁</span><small>Radar</small><strong id="profileStatRadar">0</strong><em>Katkı</em></article>
-          <article><span aria-hidden="true">☆</span><small>İstek</small><strong id="profileStatWishlist">0</strong><em>Av planı</em></article>
-          <article><span aria-hidden="true">♙</span><small>Takipçi</small><strong id="profileStatFriends">0</strong><em>Sosyal ağ</em></article>
+          <article class="profile-stat-card profile-stat-card--garage"><span class="profile-stat-icon profile-stat-icon--garage" aria-hidden="true"></span><small>Toplam Araç</small><strong id="profileStatGarage">0</strong><em>Garaj gücü</em></article>
+          <article class="profile-stat-card profile-stat-card--premium"><span class="profile-stat-icon profile-stat-icon--premium" aria-hidden="true"></span><small>Premium</small><strong id="profileStatPremium">0</strong><em>Özel av</em></article>
+          <article class="profile-stat-card profile-stat-card--hunt"><span class="profile-stat-icon profile-stat-icon--hunt" aria-hidden="true"></span><small>Chase / TH</small><strong id="profileStatHunt">0</strong><em>Nadir sinyal</em></article>
+          <article class="profile-stat-card profile-stat-card--wishlist"><span class="profile-stat-icon profile-stat-icon--wishlist" aria-hidden="true"></span><small>İstek Listesi</small><strong id="profileStatWishlist">0</strong><em>Av planı</em></article>
+          <article class="profile-stat-card profile-stat-card--points"><span class="profile-stat-icon profile-stat-icon--points" aria-hidden="true"></span><small>Radar Puanı</small><strong id="profileStatPoints">0</strong><em>İtibar</em></article>
+          <article class="profile-stat-card profile-stat-card--listings"><span class="profile-stat-icon profile-stat-icon--listings" aria-hidden="true"></span><small>Aktif İlan</small><strong id="profileStatListings">0</strong><em>Pazar</em></article>
         </div>
 
         <div class="profile-dashboard__layout">
@@ -719,19 +733,57 @@
               </div>
               <button class="button button--subtle" id="profileAccessEdit" type="button">Görünürlüğü Ayarla</button>
             </section>
-            <section class="profile-friends-preview profile-social-panel">
-              <div>
-                <p class="eyebrow">SOSYAL AĞ</p>
-                <h3>Takip bağlantıların</h3>
-                <p>Takipçi ve takip edilen koleksiyoner listelerini profilinden hızlıca yönet.</p>
-              </div>
-              <div class="profile-social-panel__actions">
-                <button class="button button--subtle" type="button" data-follow-list="followers" data-follow-owner="self">Takipçiler</button>
-                <button class="button button--subtle" type="button" data-follow-list="following" data-follow-owner="self">Takip Edilen</button>
-              </div>
-            </section>
           </aside>
         </div>
+
+        <section class="profile-overview-grid" aria-label="Profil genel bakış">
+          <article class="profile-insight-card profile-insight-card--compare">
+            <div class="profile-insight-card__head">
+              <div>
+                <p class="eyebrow">KOLEKSİYON KARŞILAŞTIRMASI</p>
+                <h3>Koleksiyon sinyalin</h3>
+              </div>
+              <span aria-hidden="true">⌘</span>
+            </div>
+            <div class="profile-compare-metrics">
+              <div><strong id="profileComparePremiumRate">0%</strong><small>Premium oranı</small></div>
+              <div><strong id="profileCompareRareCount">0</strong><small>Chase / TH</small></div>
+              <div><strong id="profileCompareWishlistCount">0</strong><small>Av hedefi</small></div>
+            </div>
+          </article>
+
+          <article class="profile-insight-card profile-insight-card--badges">
+            <div class="profile-insight-card__head">
+              <div>
+                <p class="eyebrow">ÖNE ÇIKAN ROZETLER</p>
+                <h3>İtibar koleksiyonu</h3>
+              </div>
+              <button type="button" data-route-view="rewards">Tümünü Gör</button>
+            </div>
+            <div class="profile-badge-preview" id="profileBadgePreview"></div>
+          </article>
+
+          <article class="profile-insight-card profile-insight-card--activity">
+            <div class="profile-insight-card__head">
+              <div>
+                <p class="eyebrow">SON AKTİVİTE</p>
+                <h3>Koleksiyon hareketleri</h3>
+              </div>
+            </div>
+            <div class="profile-activity-timeline" id="profileActivityTimeline"></div>
+          </article>
+
+          <article class="profile-insight-card profile-insight-card--friends">
+            <div class="profile-insight-card__head">
+              <div>
+                <p class="eyebrow">ARKADAŞLAR</p>
+                <h3>Koleksiyoner bağlantıların</h3>
+              </div>
+              <button type="button" data-follow-list="followers" data-follow-owner="self">Tümünü Gör</button>
+            </div>
+            <div class="profile-friend-preview" id="profileFriendPreview"></div>
+          </article>
+        </section>
       </section>
 
       <section class="community-module app-module-only" id="communityModule" aria-label="Forum ve topluluk">
@@ -1955,14 +2007,14 @@
             <h3 id="publicProfileUsername">@kullanici</h3>
             <p id="publicProfileSummary">0 ilan · 0 garaj kaydı</p>
             <div class="public-profile-social" aria-label="Sosyal profil özeti">
-              <button class="public-profile-social__metric" id="publicProfileFollowers" type="button" data-follow-list="followers">0 takipçi</button>
-              <button class="public-profile-social__metric" id="publicProfileFollowing" type="button" data-follow-list="following">0 takip edilen</button>
+              <button class="public-profile-social__metric" id="publicProfileFollowers" type="button" data-follow-list="followers">0 arkadaş</button>
+              <button class="public-profile-social__metric" id="publicProfileFollowing" type="button" data-follow-list="following">0 bağlantı</button>
               <span id="publicProfileRank">R1 Çaylak Avcı</span>
             </div>
           </div>
         </div>
         <div class="public-profile-actions">
-          <button class="button button--primary follow-button" id="publicProfileFollow" type="button">Takip Et</button>
+          <button class="button button--primary follow-button" id="publicProfileFollow" type="button">Arkadaş Ekle</button>
           <button class="button button--primary" id="publicProfileMessage" type="button">Mesaj g&ouml;nder</button>
           <button class="button button--subtle" id="publicProfileOpenGarage" type="button">Garajı aç</button>
         </div>
@@ -2202,10 +2254,10 @@
         <div class="section-heading">
           <div>
             <p class="eyebrow" id="followListEyebrow">Sosyal ağ</p>
-            <h2 id="followListTitle">Takipçiler</h2>
+            <h2 id="followListTitle">Arkadaşlar</h2>
             <p class="view-copy" id="followListSubtitle">Koleksiyoner bağlantıları yükleniyor.</p>
           </div>
-          <button class="delete-button" id="closeFollowListModal" type="button" aria-label="Takip listesini kapat">×</button>
+          <button class="delete-button" id="closeFollowListModal" type="button" aria-label="Arkadaş listesini kapat">×</button>
         </div>
         <div class="follow-list-body" id="followListBody">
           <div class="follow-list-loading">Koleksiyonerler yükleniyor...</div>
@@ -2268,7 +2320,7 @@
     <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=193"></script>
+    <script src="./app.js?v=203"></script>
   </body>
 </html>
 
