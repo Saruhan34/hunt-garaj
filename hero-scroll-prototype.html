@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hunt Radar Full Video Hero</title>
+    <link rel="stylesheet" href="./hero-scroll-prototype.css" />
+  </head>
+  <body>
+    <section class="hr-video-hero" data-video-hero>
+      <div class="hr-video-hero__sticky">
+        <video
+          id="scrollHeroVideo"
+          class="hr-video-hero__video"
+          src="./assets/hero-hunt-garage-reference.mp4"
+          muted
+          playsinline
+          preload="auto"
+        ></video>
+
+        <div class="hr-video-hero__shade" aria-hidden="true"></div>
+        <div class="hr-video-hero__radar" aria-hidden="true"></div>
+
+        <nav class="hr-landing-nav" aria-label="Landing navigasyon">
+          <a class="hr-landing-brand" href="./index.html" aria-label="Hunt Radar ana sayfa">
+            <span class="hr-landing-brand__mark" aria-hidden="true"></span>
+            <span>Hunt <strong>Radar</strong></span>
+          </a>
+          <div class="hr-landing-nav__links">
+            <a href="#garage">Garaj</a>
+            <a href="#radar">Radar</a>
+            <a href="#market">Pazar</a>
+            <a href="./index.html">Uygulamaya Gir</a>
+          </div>
+        </nav>
+
+        <div class="hr-video-hero__content">
+          <p class="hr-video-hero__eyebrow">Video scroll hero</p>
+          <h1>Koleksiyon avını radarına al.</h1>
+          <p>
+            Garajını kur, radar noktalarını takip et, pazar ve istek listeni tek
+            bir premium koleksiyon merkezinde yönet.
+          </p>
+          <div class="hr-video-hero__actions">
+            <a class="hr-button hr-button--primary" href="./index.html">Avı Başlat</a>
+            <a class="hr-button hr-button--ghost" href="#radar">Keşfet</a>
+          </div>
+        </div>
+
+        <div class="hr-video-hero__status" aria-hidden="true">
+          <span>00</span>
+          <div class="hr-video-hero__progress"><span></span></div>
+          <span>01</span>
+        </div>
+      </div>
+    </section>
+
+    <main class="hr-landing-followup">
+      <section class="hr-feature-band" aria-label="Hunt Radar modülleri">
+        <article id="garage">
+          <span>01</span>
+          <h2>Garaj</h2>
+          <p>Koleksiyonunu model, seri ve durum bilgisiyle düzenle.</p>
+        </article>
+        <article id="radar">
+          <span>02</span>
+          <h2>Radar</h2>
+          <p>Raf notlarını, sevkiyat sinyallerini ve av fırsatlarını izle.</p>
+        </article>
+        <article id="market">
+          <span>03</span>
+          <h2>Pazar</h2>
+          <p>İlanları, fiyatları ve aradığın modelleri tek yerde takip et.</p>
+        </article>
+      </section>
+    </main>
+
+    <script src="./hero-scroll-prototype.js"></script>
+  </body>
+</html>

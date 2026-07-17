@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hunt Radar Autoplay Video Hero</title>
+    <link rel="stylesheet" href="./hero-autoplay-prototype.css" />
+  </head>
+  <body>
+    <main class="hr-live-hero">
+      <video
+        id="liveHeroVideo"
+        class="hr-live-hero__video"
+        src="./assets/hero-hunt-garage-reference.mp4"
+        muted
+        playsinline
+        autoplay
+        loop
+        preload="auto"
+      ></video>
+
+      <div class="hr-live-hero__shade" aria-hidden="true"></div>
+      <div class="hr-live-hero__scan" aria-hidden="true"></div>
+      <div class="hr-live-hero__radar" aria-hidden="true"></div>
+
+      <nav class="hr-live-nav" aria-label="Landing navigasyon">
+        <a class="hr-live-brand" href="./index.html" aria-label="Hunt Radar ana sayfa">
+          <span class="hr-live-brand__mark" aria-hidden="true"></span>
+          <span>Hunt <strong>Radar</strong></span>
+        </a>
+        <div class="hr-live-nav__links">
+          <a href="./index.html">Uygulama</a>
+          <a href="./hero-scroll-prototype.html">Scroll Versiyon</a>
+        </div>
+      </nav>
+
+      <section class="hr-live-hero__content" aria-label="Hunt Radar giriş">
+        <p class="hr-live-hero__eyebrow">Canlı video hero</p>
+        <h1>Garaj sahnesi kendisi aksın.</h1>
+        <p>
+          Scroll beklemeden, video doğrudan arka planda çalışır. Hunt Radar girişinde
+          daha sinematik ve daha hızlı anlaşılır bir ilk izlenim verir.
+        </p>
+        <div class="hr-live-hero__actions">
+          <a class="hr-live-button hr-live-button--primary" href="./index.html">Avı Başlat</a>
+          <a class="hr-live-button hr-live-button--ghost" href="./hero-scroll-prototype.html">Scroll Versiyonu Gör</a>
+        </div>
+      </section>
+
+      <div class="hr-live-hero__timeline" aria-hidden="true">
+        <span>Video</span>
+        <div><span></span></div>
+      </div>
+    </main>
+
+    <script src="./hero-autoplay-prototype.js"></script>
+  </body>
+</html>

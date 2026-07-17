@@ -20,6 +20,7 @@ const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BU
 const HOTWHEELS_IMAGE_PROXY_URL = `${SUPABASE_URL}/functions/v1/hotwheels-image-proxy`;
 const MANAGED_ASSET_PATHS = [
   "garage-hero.png",
+  "hunt-radar-hero-car.webp",
   "hunt-radar-brand-portfolio.png",
   "f40-competizione-yellow.jpg",
   "porsche-911-carrera-t.jpg",
@@ -105,7 +106,7 @@ const DASHBOARD_ROUTES = {
   admin: "admin"
 };
 const DASHBOARD_VIEW_TITLES = {
-  home: "Ana Sayfa",
+  home: "Hunt Radar",
   stores: "Hunt Radar",
   market: "Pazar",
   explore: "Keşfet",
@@ -194,12 +195,12 @@ const CATALOG_RULES = {
 };
 
 const DEFAULT_SITE_CONFIG = {
-  heroEyebrow: "Hot Wheels garaj pazarı",
-  heroTitleOne: "HUNT",
-  heroTitleTwo: "RADAR",
-  heroCopy: "Hot Wheels garajını, pazar ilanlarını ve hunt bildirimlerini tek merkezde yönet.",
-  heroTagline: "Garajını kur, rafları takip et.",
-  heroImage: "./assets/garage-hero.png",
+  heroEyebrow: "Hunt Radar koleksiyon merkezi",
+  heroTitleOne: "Koleksiyonunu",
+  heroTitleTwo: "sahneye çıkar.",
+  heroCopy: "Garajını oluştur, modelleri keşfet ve koleksiyon avına başla.",
+  heroTagline: "Hunt Radar koleksiyon merkezi",
+  heroImage: "./assets/hunt-radar-hero-car.webp",
   bannerEnabled: false,
   bannerTitle: "Hunt Radar duyurusu",
   bannerText: "",
@@ -642,6 +643,14 @@ const featuredStoreMeta = document.querySelector("#featuredStoreMeta");
 const featuredSearch = document.querySelector("#featuredSearch");
 const featuredSearchMeta = document.querySelector("#featuredSearchMeta");
 const hero = document.querySelector(".hero");
+const homeHeroVideo = document.querySelector("#homeHeroVideo");
+const homeHeroVideoToggle = document.querySelector("#homeHeroVideoToggle");
+const landingLoginButton = document.querySelector("#landingLoginButton");
+const landingRegisterButton = document.querySelector("#landingRegisterButton");
+const landingTopGarageButton = document.querySelector("#landingTopGarageButton");
+const landingExploreButton = document.querySelector("#landingExploreButton");
+const landingGarageButton = document.querySelector("#landingGarageButton");
+const landingScrollCue = document.querySelector("#landingScrollCue");
 const heroEyebrow = document.querySelector("#heroEyebrow");
 const heroTitle = document.querySelector("#heroTitle");
 const heroCopy = document.querySelector("#heroCopy");
@@ -740,12 +749,14 @@ const publicGarageNoticeCopy = document.querySelector("#publicGarageNoticeCopy")
 const publicGarageProfileHeader = document.querySelector("#publicGarageProfileHeader");
 const publicGarageProfileAvatar = document.querySelector("#publicGarageProfileAvatar");
 const publicGarageProfileTitle = document.querySelector("#publicGarageProfileTitle");
+const publicGarageProfileEyebrow = publicGarageProfileHeader?.querySelector(".public-garage-profile__eyebrow > span");
 const publicGarageRankVisual = document.querySelector("#publicGarageRankVisual");
 const publicGarageRankName = document.querySelector("#publicGarageRankName");
 const publicGarageRadarPoints = document.querySelector("#publicGarageRadarPoints");
 const publicGarageFollowerCount = document.querySelector("#publicGarageFollowerCount");
 const publicGarageFollowingCount = document.querySelector("#publicGarageFollowingCount");
 const publicGarageBadgeCount = document.querySelector("#publicGarageBadgeCount");
+const publicGaragePointsMetric = document.querySelector("#publicGaragePointsMetric");
 const publicGarageJoinedAt = document.querySelector("#publicGarageJoinedAt");
 const publicGarageUpdatedAt = document.querySelector("#publicGarageUpdatedAt");
 const publicGarageFeaturedBadges = document.querySelector("#publicGarageFeaturedBadges");
@@ -778,6 +789,7 @@ const profileDashboard = document.querySelector("#profileDashboard");
 const profileDashboardAvatar = document.querySelector("#profileDashboardAvatar");
 const profileDashboardVisibility = document.querySelector("#profileDashboardVisibility");
 const profileDashboardTitle = document.querySelector("#profileDashboardTitle");
+const profileDashboardSubtitle = profileDashboard?.querySelector(".profile-dashboard__subtitle");
 const profileDashboardBio = document.querySelector("#profileDashboardBio");
 const profileDashboardRankVisual = document.querySelector("#profileDashboardRankVisual");
 const profileDashboardRank = document.querySelector("#profileDashboardRank");
@@ -1151,7 +1163,7 @@ const adminCropX = document.querySelector("#adminCropX");
 const adminCropY = document.querySelector("#adminCropY");
 
 const viewTitles = {
-  home: "Ana Sayfa",
+  home: "Hunt Radar",
   explore: "Keşfet",
   collection: "Garaj",
   wishlist: "İstek Listesi",
@@ -1301,12 +1313,33 @@ function loadCatalogOverrides() {
   }
 }
 
+function normalizeSiteConfig(config = {}) {
+  const merged = { ...DEFAULT_SITE_CONFIG, ...config };
+  const usesLegacyDefaultHero = (!config.heroImage || String(config.heroImage).includes("garage-hero.png"))
+    && (!config.heroTitleOne || config.heroTitleOne === "HUNT")
+    && (!config.heroTitleTwo || config.heroTitleTwo === "RADAR");
+  const usesPreviousDefaultHero = config.heroTitleOne === "Koleksiyon avını"
+    && config.heroTitleTwo === "radarına al."
+    && config.heroCopy === "Garajını kur, radar noktalarını keşfet, aradığın modelleri tek yerden takip et.";
+  const usesRecentDefaultHero = config.heroTitleOne === "Garaj sadece liste değil"
+    && config.heroTitleTwo === "koleksiyon sahnen olsun."
+    && config.heroCopy === "Hot Wheels koleksiyonunu düzenle, radar avlarını takip et ve aradığın modelleri tek merkezde bul.";
+  return usesLegacyDefaultHero || usesPreviousDefaultHero || usesRecentDefaultHero
+    ? {
+      ...merged,
+      heroEyebrow: DEFAULT_SITE_CONFIG.heroEyebrow,
+      heroTitleOne: DEFAULT_SITE_CONFIG.heroTitleOne,
+      heroTitleTwo: DEFAULT_SITE_CONFIG.heroTitleTwo,
+      heroCopy: DEFAULT_SITE_CONFIG.heroCopy,
+      heroTagline: DEFAULT_SITE_CONFIG.heroTagline,
+      heroImage: DEFAULT_SITE_CONFIG.heroImage
+    }
+    : merged;
+}
+
 function loadSiteConfig() {
   try {
-    return {
-      ...DEFAULT_SITE_CONFIG,
-      ...(JSON.parse(localStorage.getItem(SITE_SETTINGS_KEY)) || {})
-    };
+    return normalizeSiteConfig(JSON.parse(localStorage.getItem(SITE_SETTINGS_KEY)) || {});
   } catch {
     return { ...DEFAULT_SITE_CONFIG };
   }
@@ -2417,19 +2450,144 @@ function renderStorePagination() {
   radarPagination.append(desktop, mobile);
 }
 
+let homeHeroVideoManuallyPaused = false;
+
+function syncHomeHeroVideoToggle() {
+  if (!homeHeroVideoToggle || !homeHeroVideo) return;
+  const isPaused = homeHeroVideo.paused;
+  homeHeroVideoToggle.classList.toggle("is-paused", isPaused);
+  homeHeroVideoToggle.setAttribute("aria-pressed", String(isPaused));
+  homeHeroVideoToggle.setAttribute("aria-label", isPaused ? "Arka plan videosunu oynat" : "Arka plan videosunu duraklat");
+  homeHeroVideoToggle.title = isPaused ? "Videoyu oynat" : "Videoyu duraklat";
+}
+
+function syncHomeHeroVideoPlayback(shouldPlay = activeView === "home") {
+  if (!homeHeroVideo) return;
+  if (!shouldPlay || document.hidden || homeHeroVideoManuallyPaused) {
+    homeHeroVideo.pause();
+    syncHomeHeroVideoToggle();
+    return;
+  }
+  homeHeroVideo.muted = true;
+  homeHeroVideo.play().then(syncHomeHeroVideoToggle).catch(syncHomeHeroVideoToggle);
+}
+
+let landingExitInProgress = false;
+let landingWheelDistance = 0;
+let landingWheelResetTimer = 0;
+let landingTouchStartY = null;
+
+function syncLandingAuthActions() {
+  const isAuthPending = Boolean(supabaseClient && !authInitialized);
+  const isSignedIn = Boolean(currentUser);
+  if (landingLoginButton) {
+    landingLoginButton.hidden = isSignedIn;
+    landingLoginButton.disabled = isAuthPending;
+  }
+  if (landingRegisterButton) {
+    landingRegisterButton.hidden = isSignedIn;
+    landingRegisterButton.disabled = isAuthPending;
+  }
+  if (landingTopGarageButton) {
+    landingTopGarageButton.hidden = !isSignedIn;
+    landingTopGarageButton.classList.toggle("is-hidden", !isSignedIn);
+  }
+}
+
+function enterDashboardFromLanding(view = "explore") {
+  if (activeView !== "home" || landingExitInProgress) return;
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduceMotion) {
+    navigateToView(view, { clearSearch: true });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    return;
+  }
+
+  landingExitInProgress = true;
+  document.body.classList.add("is-landing-transition");
+  navigateToView(view, { clearSearch: true });
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => document.body.classList.add("is-landing-exiting"));
+  });
+
+  window.setTimeout(() => {
+    document.body.classList.add("is-dashboard-arriving");
+    document.body.classList.remove("is-landing-transition", "is-landing-exiting");
+    landingExitInProgress = false;
+    syncAppShell();
+    window.setTimeout(() => document.body.classList.remove("is-dashboard-arriving"), 560);
+  }, 1040);
+}
+
+function openGarageFromLanding() {
+  if (currentUser) {
+    enterDashboardFromLanding("collection");
+    return;
+  }
+  pendingAuthAction = () => enterDashboardFromLanding("collection");
+  openAuthModal("login", "Garajını açmak için giriş yap veya yeni hesap oluştur.");
+}
+
+function landingInteractionIsBlocked() {
+  return activeView !== "home"
+    || landingExitInProgress
+    || authModal?.classList.contains("is-visible");
+}
+
+function handleLandingWheel(event) {
+  if (landingInteractionIsBlocked() || event.deltaY <= 0) return;
+  landingWheelDistance += event.deltaY;
+  window.clearTimeout(landingWheelResetTimer);
+  landingWheelResetTimer = window.setTimeout(() => {
+    landingWheelDistance = 0;
+  }, 420);
+  if (landingWheelDistance >= 90) {
+    landingWheelDistance = 0;
+    enterDashboardFromLanding("explore");
+  }
+}
+
+function handleLandingKeydown(event) {
+  if (landingInteractionIsBlocked()) return;
+  const target = event.target;
+  if (target instanceof HTMLElement && target.closest("button, a, input, textarea, select")) return;
+  if (!["ArrowDown", "PageDown", " "].includes(event.key)) return;
+  event.preventDefault();
+  enterDashboardFromLanding("explore");
+}
+
+function handleLandingTouchStart(event) {
+  if (landingInteractionIsBlocked()) return;
+  landingTouchStartY = event.touches?.[0]?.clientY ?? null;
+}
+
+function handleLandingTouchEnd(event) {
+  if (landingInteractionIsBlocked() || landingTouchStartY === null) return;
+  const touchEndY = event.changedTouches?.[0]?.clientY ?? landingTouchStartY;
+  const swipeDistance = landingTouchStartY - touchEndY;
+  landingTouchStartY = null;
+  if (swipeDistance >= 54) enterDashboardFromLanding("explore");
+}
+
 function syncAppShell() {
   const isHome = activeView === "home";
+  const keepLandingStage = landingExitInProgress && document.body.classList.contains("is-landing-transition");
   const isExplore = activeView === "explore";
   const isCommunity = activeView === "community";
   const isRewards = activeView === "rewards";
   const isProfile = activeView === "profile";
+  const isPublicProfile = isPublicProfileRoute();
   const isAdmin = activeView === "admin";
   const isAuthPending = Boolean(supabaseClient && !authInitialized);
-  document.body.classList.toggle("is-home-view", isHome);
+  document.body.classList.toggle("is-home-view", isHome || keepLandingStage);
   document.body.classList.toggle("is-explore-view", isExplore);
   document.body.classList.toggle("is-community-view", isCommunity);
   document.body.classList.toggle("is-rewards-view", isRewards);
   document.body.classList.toggle("is-profile-view", isProfile);
+  document.body.classList.toggle("is-public-profile-view", isPublicProfile && isProfile);
   document.body.classList.toggle("is-auth-pending", isAuthPending);
   document.body.classList.toggle("is-admin-view", isAdmin);
   document.body.classList.toggle("is-store-view", activeView === "stores");
@@ -2437,13 +2595,16 @@ function syncAppShell() {
   document.body.classList.toggle("is-collection-view", activeView === "collection");
   document.body.classList.toggle("is-wishlist-view", activeView === "wishlist");
   document.body.classList.toggle("is-module-view", !isHome && !isCommunity && !isRewards);
+  if (isHome && !landingExitInProgress) document.body.classList.remove("is-landing-exiting");
+  syncLandingAuthActions();
+  syncHomeHeroVideoPlayback(isHome || keepLandingStage);
   exploreModule?.classList.toggle("is-visible", isExplore);
   communityModule.classList.toggle("is-visible", isCommunity);
   rewardsModule.classList.toggle("is-visible", isRewards);
   profileDashboard?.classList.toggle("is-visible", isProfile && !isAuthPending);
   if (isCommunity) syncCommunityHub();
   if (isExplore) void window.HuntRadarExplore?.activate();
-  if (dashboardPageTitle) dashboardPageTitle.textContent = DASHBOARD_VIEW_TITLES[activeView] || "Ana Sayfa";
+  if (dashboardPageTitle) dashboardPageTitle.textContent = DASHBOARD_VIEW_TITLES[activeView] || "Hunt Radar";
   syncDashboardViewHeader();
   updateWishlistFloatingAction();
 }
@@ -5333,6 +5494,10 @@ async function toggleFollowForUser(user = {}) {
   const nextFollowing = !currentSummary.isFollowing;
   setFollowButtonState(publicProfileFollow, mergeFollowSummary(user, currentSummary), { loading: true });
   setFollowButtonState(publicGarageFollow, mergeFollowSummary(user, currentSummary), { loading: true });
+  if (isPublicProfileRoute() && publicGarageProfile && profileId(publicGarageProfile) === id) {
+    setProfileActionContent(profileDashboardEdit, "profile-action__icon--user", "Kaydediliyor...");
+    if (profileDashboardEdit) profileDashboardEdit.disabled = true;
+  }
   if (!supabaseClient) {
     const local = mergeFollowSummary(user, {
       ...currentSummary,
@@ -5342,6 +5507,7 @@ async function toggleFollowForUser(user = {}) {
     currentPublicProfile = profileId(currentPublicProfile) === id ? local : currentPublicProfile;
     publicGarageProfile = profileId(publicGarageProfile) === id ? local : publicGarageProfile;
     updateProfileFollowViews(local);
+    renderProfileDashboard();
     showToast(nextFollowing ? "Arkadaş eklendi." : "Arkadaşlıktan çıkarıldı.");
     return;
   }
@@ -5362,6 +5528,7 @@ async function toggleFollowForUser(user = {}) {
   if (currentPublicProfile && profileId(currentPublicProfile) === id) currentPublicProfile = mergeFollowSummary(currentPublicProfile, summary);
   if (publicGarageProfile && profileId(publicGarageProfile) === id) publicGarageProfile = mergeFollowSummary(publicGarageProfile, summary);
   updateProfileFollowViews(merged);
+  renderProfileDashboard();
   showToast(summary.isFollowing ? "Arkadaş eklendi." : "Arkadaşlıktan çıkarıldı.");
 }
 
@@ -5731,6 +5898,7 @@ async function loadPublicGarage(username) {
   publicGarageUsername = username;
   publicGarageLoading = true;
   publicGarageMissingOnly = false;
+  publicGarageProfile = null;
   publicGarageRewards = null;
   publicGarageItems = [];
   render();
@@ -5742,7 +5910,7 @@ async function loadPublicGarage(username) {
   }
   if (normalize(username) === normalize(currentUser.username)) {
     clearPublicGarageContext();
-    navigateToView("collection", { replace: true, clearSearch: true });
+    navigateToView(isPublicProfileRoute() ? "profile" : "collection", { replace: true, clearSearch: true });
     return;
   }
   const page = await publicGaragePageByUsername(username);
@@ -6772,7 +6940,7 @@ async function loadSiteConfigFromSupabase() {
     .eq("key", "site_config")
     .maybeSingle();
   if (!error && data?.value) {
-    siteConfig = { ...DEFAULT_SITE_CONFIG, ...data.value };
+    siteConfig = normalizeSiteConfig(data.value || {});
     catalogOverrides = siteConfig.catalogOverrides || catalogOverrides;
     saveCatalogOverrides();
     saveSiteConfigLocal();
@@ -6993,6 +7161,7 @@ function updateUserButton() {
   topNotificationButton.classList.toggle("is-logged-out", !currentUser);
   userButton.classList.toggle("is-logged-in", Boolean(currentUser));
   accountLogout.disabled = !currentUser;
+  syncLandingAuthActions();
   syncAdminVisibility();
   syncStoreFormAuthState();
 }
@@ -7217,8 +7386,10 @@ function cancelProfileExploreSelection() {
   navigateToView("profile", { clearSearch: true, scroll: true });
 }
 
-function currentProfileTags() {
-  return Array.isArray(currentUser?.favoriteTags) ? currentUser.favoriteTags : [];
+function currentProfileTags(user = currentUser) {
+  if (Array.isArray(user?.favoriteTags)) return user.favoriteTags;
+  if (Array.isArray(user?.favorite_tags)) return user.favorite_tags;
+  return [];
 }
 
 function selectedProfileTags() {
@@ -8286,15 +8457,23 @@ function renderPublicGarageProfile(profileName) {
     publicGarageProfile
   );
   const isProfileRoute = isPublicProfileRoute();
+  if (publicGarageProfileEyebrow) {
+    publicGarageProfileEyebrow.textContent = isProfileRoute ? "KOLEKSİYONER PROFİLİ" : "KOLEKSİYONER GARAJI";
+  }
   publicGarageProfileTitle.textContent = isProfileRoute ? `@${profileName}` : `@${profileName} Garajı`;
   publicGarageRankVisual.innerHTML = rankImageMarkup(rank, "public-garage-rank-image");
   publicGarageRankName.textContent = rank?.title || "R1 Çaylak Avcı";
   publicGarageRadarPoints.textContent = `${Number(stats.points || 0)} Radar Puanı`;
+  if (publicGaragePointsMetric) {
+    publicGaragePointsMetric.innerHTML = `<strong>${escapeHtml(Number(stats.points || 0).toLocaleString("tr-TR"))}</strong><small>Radar Puanı</small>`;
+  }
   const followSummary = normalizeFollowSummary(publicGarageProfile);
   setFollowMetric(publicGarageFollowerCount, followSummary.followers, "arkadaş");
   setFollowMetric(publicGarageFollowingCount, followSummary.following, "bağlantı");
   setFollowButtonState(publicGarageFollow, publicGarageProfile);
-  publicGarageBadgeCount.textContent = `${badges.length} rozet`;
+  if (publicGarageBadgeCount) {
+    publicGarageBadgeCount.innerHTML = `<strong>${escapeHtml(String(badges.length))}</strong><small>Rozet</small>`;
+  }
   publicGarageJoinedAt.textContent = publicGarageProfile.created_at
     ? `Katılım: ${formatProfileDate(publicGarageProfile.created_at)}`
     : "Katılım tarihi bilinmiyor";
@@ -8604,9 +8783,10 @@ function renderProfileBadgePreview(badges = []) {
   });
 }
 
-function renderProfileFriendPreview(friendCount = 0) {
+function renderProfileFriendPreview(friendCount = 0, options = {}) {
   if (!profileFriendPreview) return;
   const count = Math.max(0, Number(friendCount || 0));
+  const owner = options.isPublic ? "public-profile" : "self";
   const friendCards = [
     { username: "@hotwheelshunter", rank: "R3 Usta Avcı", points: "2.560" },
     { username: "@diecastqueen", rank: "R2 Koleksiyoner", points: "1.980" },
@@ -8621,7 +8801,7 @@ function renderProfileFriendPreview(friendCount = 0) {
           <strong>${escapeHtml(friend.username)}</strong>
           <small>${escapeHtml(friend.rank)}</small>
           <em>${escapeHtml(friend.points)} Radar Puanı</em>
-          <button type="button" data-follow-list="followers" data-follow-owner="self">${index === 0 && count ? "Profili Gör" : "Önizleme"}</button>
+          <button type="button" data-follow-list="followers" data-follow-owner="${owner}">${index === 0 && count ? "Profili Gör" : "Önizleme"}</button>
         </article>
       `).join("")}
     </div>
@@ -8652,21 +8832,21 @@ function profileLatestCollectionDate(items = profileGarageItems()) {
   return dates.length ? new Date(Math.max(...dates)).toISOString() : "";
 }
 
-function profileDisplayName() {
-  return currentUser?.username ? `@${currentUser.username}` : "@koleksiyoner";
+function profileDisplayName(user = currentUser) {
+  return user?.username ? `@${user.username}` : "@koleksiyoner";
 }
 
-function profileBioText() {
-  return currentUser?.bio || currentUser?.profileBio || "JDM, Boulevard ve premium avcısı.";
+function profileBioText(user = currentUser) {
+  return user?.bio || user?.profileBio || "JDM, Boulevard ve premium avcısı.";
 }
 
-function profileLocationText() {
-  return currentUser?.location || currentUser?.city || "İstanbul";
+function profileLocationText(user = currentUser) {
+  return user?.location || user?.city || "İstanbul";
 }
 
-function profileVisibilityLabel() {
-  if (!currentUser) return "Misafir";
-  const state = profileAccessState(currentUser);
+function profileVisibilityLabel(user = currentUser) {
+  if (!user) return "Misafir";
+  const state = profileAccessState(user);
   if (!state.profilePublic) return "Profil Gizli";
   if (!state.garagePublic) return "Profil Açık · Garaj Gizli";
   return "Herkese Açık";
@@ -8688,26 +8868,37 @@ function syncProfileDashboardTheme(tags = profilePreferenceLabels()) {
   profileDashboard.classList.add(profileThemeClass(tags));
 }
 
-function renderProfileAccessPanel() {
-  if (!profileAccessPanel) return;
-  const state = profileAccessState(currentUser);
-  profileDashboard?.classList.toggle("is-profile-private", !state.profilePublic);
-  profileDashboard?.classList.toggle("is-garage-private", !state.garagePublic);
-  profileAccessPanel.classList.toggle("is-profile-private", !state.profilePublic);
-  profileAccessPanel.classList.toggle("is-garage-private", !state.garagePublic);
-  if (profileAccessTitle) profileAccessTitle.textContent = currentUser ? state.title : "Giriş sonrası hazır";
-  if (profileAccessCopy) {
-    profileAccessCopy.textContent = currentUser
-      ? state.copy
-      : "Profil ve garaj görünürlüğünü giriş yaptıktan sonra tek yerden yönetebilirsin.";
-  }
-  if (profileAccessProfileState) profileAccessProfileState.textContent = currentUser ? state.profileLabel : "Profil: Giriş gerekli";
-  if (profileAccessGarageState) profileAccessGarageState.textContent = currentUser ? state.garageLabel : "Garaj: Giriş gerekli";
-  if (profileAccessWishlistState) profileAccessWishlistState.textContent = state.wishlistLabel;
+function profileAccessPublicCopy(access = {}) {
+  if (!access.profilePublic) return "Bu koleksiyoner profil detaylarını gizli tutuyor. Yalnızca açık bilgiler gösterilir.";
+  if (!access.garagePublic) return "Profil kimliği açık, garaj görünürlüğü kapalı. Garaj sekmesi sınırlı çalışır.";
+  return "Profil kimliği ve garajı diğer koleksiyonerler tarafından görülebilir. İstek listesi gizli kalır.";
 }
 
-function profilePreferenceLabels(items = profileGarageItems()) {
-  const explicitTags = currentProfileTags();
+function renderProfileAccessPanel(user = currentUser, options = {}) {
+  if (!profileAccessPanel) return;
+  const access = profileAccessState(user);
+  profileDashboard?.classList.toggle("is-profile-private", !access.profilePublic);
+  profileDashboard?.classList.toggle("is-garage-private", !access.garagePublic);
+  profileDashboard?.classList.toggle("is-public-profile-shell", Boolean(options.isPublic));
+  profileDashboard?.classList.toggle("is-own-profile-shell", !options.isPublic);
+  profileAccessPanel.classList.toggle("is-profile-private", !access.profilePublic);
+  profileAccessPanel.classList.toggle("is-garage-private", !access.garagePublic);
+  if (profileAccessTitle) profileAccessTitle.textContent = user ? access.title : "Giriş sonrası hazır";
+  if (profileAccessCopy) {
+    profileAccessCopy.textContent = user
+      ? options.isPublic
+        ? profileAccessPublicCopy(access)
+        : access.copy
+      : "Profil ve garaj görünürlüğünü giriş yaptıktan sonra tek yerden yönetebilirsin.";
+  }
+  if (profileAccessProfileState) profileAccessProfileState.textContent = user ? access.profileLabel : "Profil: Giriş gerekli";
+  if (profileAccessGarageState) profileAccessGarageState.textContent = user ? access.garageLabel : "Garaj: Giriş gerekli";
+  if (profileAccessWishlistState) profileAccessWishlistState.textContent = access.wishlistLabel;
+  if (profileAccessEdit) profileAccessEdit.hidden = Boolean(options.isPublic || !currentUser);
+}
+
+function profilePreferenceLabels(items = profileGarageItems(), user = currentUser) {
+  const explicitTags = currentProfileTags(user);
   if (explicitTags.length) return explicitTags.slice(0, 5);
   const haystack = items.map((item) => [item.brand, item.model, item.series, item.rarity, item.rarityLabel].filter(Boolean).join(" ")).join(" ");
   const labels = [];
@@ -8720,48 +8911,177 @@ function profilePreferenceLabels(items = profileGarageItems()) {
   return (labels.length ? labels : ["Hot Wheels", "Regular", "Av Planı"]).slice(0, 5);
 }
 
+function profileWishlistCountFor(user = currentUser) {
+  if (!user || user === currentUser) return profileWishlistCount();
+  return Math.max(0, Number(user.wishlist_count ?? user.wishlistCount ?? 0));
+}
+
+function profileActiveListingCountFor(user = currentUser) {
+  if (!user || user === currentUser) return profileActiveListingCount();
+  return publicProfileListingItems(user.username).length;
+}
+
+function profileDashboardContext() {
+  const isPublic = isPublicProfileRoute();
+  if (isPublic) {
+    const username = publicGarageProfile?.username || publicProfileUsernameFromHash();
+    const user = publicGarageProfile || { username, profile_visibility: "public", garage_visibility: "public" };
+    const access = profileAccessState(user);
+    const garageItems = !publicGarageLoading && access.profilePublic && access.garagePublic ? publicGarageItems : [];
+    const stats = publicGarageProfile && Rewards ? publicGarageRewardStats() : { points: 0, events: [] };
+    const badges = publicGarageProfile && Rewards
+      ? Rewards.badgesForStats
+        ? Rewards.badgesForStats(stats)
+        : Rewards.badgesFor(user, state)
+      : [];
+    const followSummary = normalizeFollowSummary(user);
+    return {
+      isPublic: true,
+      user,
+      garageItems,
+      stats,
+      badges,
+      followSummary,
+      friendCount: followSummary.followers,
+      wishlistCount: profileWishlistCountFor(user),
+      activeListingCount: profileActiveListingCountFor(user),
+      loading: publicGarageLoading || !publicGarageProfile,
+      access
+    };
+  }
+  const stats = currentUser && Rewards ? Rewards.statsFor(currentUser, state) : { points: 0, events: [] };
+  const badges = currentUser && Rewards ? Rewards.badgesFor(currentUser, state) : [];
+  const followSummary = currentUser && currentFollowSummaryUserId === currentUser.id
+    ? currentFollowSummary
+    : normalizeFollowSummary(currentUser || {});
+  return {
+    isPublic: false,
+    user: currentUser,
+    garageItems: profileGarageItems(),
+    stats,
+    badges,
+    followSummary,
+    friendCount: currentUser ? followSummary.followers : 0,
+    wishlistCount: profileWishlistCount(),
+    activeListingCount: profileActiveListingCount(),
+    loading: false,
+    access: profileAccessState(currentUser)
+  };
+}
+
+function setProfileActionContent(button, iconClass, label) {
+  if (!button) return;
+  button.innerHTML = `<span class="profile-action__icon ${iconClass}" aria-hidden="true"></span>${escapeHtml(label)}`;
+}
+
+function syncProfileActionButtons(context = profileDashboardContext()) {
+  const user = context.user || {};
+  if (context.isPublic) {
+    const summary = normalizeFollowSummary(user);
+    const isOwn = isOwnProfileUser(user);
+    const label = context.loading
+      ? "Profil Yükleniyor"
+      : isOwn
+        ? "Kendi Profilin"
+        : summary.isFollowing
+          ? "Arkadaşsınız"
+          : "Arkadaş Ekle";
+    setProfileActionContent(profileDashboardEdit, "profile-action__icon--user", label);
+    profileDashboardEdit?.classList.toggle("is-following", summary.isFollowing && !isOwn);
+    if (profileDashboardEdit) {
+      profileDashboardEdit.disabled = context.loading || isOwn;
+      profileDashboardEdit.setAttribute("aria-pressed", String(summary.isFollowing && !isOwn));
+    }
+    setProfileActionContent(profileDashboardGarage, "profile-action__icon--car", "Garajını Gör");
+    setProfileActionContent(profileDashboardShare, "profile-action__icon--link", "Bağlantıyı Kopyala");
+    if (profileDashboardGarage) profileDashboardGarage.disabled = context.loading || !context.access?.garagePublic;
+    if (profileDashboardShare) profileDashboardShare.disabled = context.loading;
+    return;
+  }
+  setProfileActionContent(profileDashboardEdit, "profile-action__icon--user", "Profili Düzenle");
+  setProfileActionContent(profileDashboardGarage, "profile-action__icon--car", "Garajını Gör");
+  setProfileActionContent(profileDashboardShare, "profile-action__icon--link", "Bağlantıyı Kopyala");
+  if (profileDashboardEdit) {
+    profileDashboardEdit.disabled = false;
+    profileDashboardEdit.classList.remove("is-following");
+    profileDashboardEdit.setAttribute("aria-pressed", "false");
+  }
+  if (profileDashboardGarage) profileDashboardGarage.disabled = false;
+  if (profileDashboardShare) profileDashboardShare.disabled = false;
+}
+
 function renderProfileDashboard() {
   if (!profileDashboard) return;
-  const garageItems = profileGarageItems();
-  const stats = currentUser && Rewards ? Rewards.statsFor(currentUser, state) : { points: 0 };
+  const context = profileDashboardContext();
+  const { user, garageItems, stats, badges, isPublic, loading, access } = context;
   const rank = Rewards?.rankFor(stats.points) || Rewards?.RANKS?.[0] || null;
   const progress = Rewards?.rankProgress ? Rewards.rankProgress(stats.points || 0) : { percent: 0, next: null, remaining: 0 };
   const premiumCount = garageItems.filter(isGaragePremium).reduce((total, item) => total + garageQuantity(item), 0);
   const garageTotal = garageItems.reduce((total, item) => total + garageQuantity(item), 0);
   const radarCount = profileRadarCount(stats);
   const rareCount = profileRareHuntCount(garageItems);
-  const wishlistCount = profileWishlistCount();
-  const activeListingCount = profileActiveListingCount();
+  const wishlistCount = context.wishlistCount;
+  const activeListingCount = context.activeListingCount;
   const premiumRate = garageTotal ? Math.round((premiumCount / garageTotal) * 100) : 0;
   const latestCollectionDate = profileLatestCollectionDate(garageItems);
-  const badges = currentUser && Rewards ? Rewards.badgesFor(currentUser, state) : [];
-  const preferences = profilePreferenceLabels(garageItems);
-  if (currentUser && supabaseClient && currentFollowSummaryUserId !== currentUser.id) void refreshCurrentFollowSummary();
-  const followSummary = currentUser && currentFollowSummaryUserId === currentUser.id
-    ? currentFollowSummary
-    : normalizeFollowSummary(currentUser || {});
-  const friendCount = currentUser ? followSummary.followers : 0;
+  const preferences = profilePreferenceLabels(garageItems, user);
+  if (!isPublic && currentUser && supabaseClient && currentFollowSummaryUserId !== currentUser.id) void refreshCurrentFollowSummary();
+  const friendCount = context.friendCount;
   syncProfileDashboardTheme(preferences);
+  profileDashboard.classList.toggle("is-public-profile-shell", isPublic);
+  profileDashboard.classList.toggle("is-own-profile-shell", !isPublic);
+  profileDashboard.classList.toggle("is-loading-profile", Boolean(loading));
 
   if (profileDashboardAvatar) {
-    if (currentUser && Rewards) {
-      applyAvatarElement(profileDashboardAvatar, Rewards.getAvatar(currentUser), currentUser);
+    if (user && Rewards) {
+      const avatar = isPublic
+        ? { type: "preset", id: user.avatar_id || user.avatarId || "garage-shield" }
+        : Rewards.getAvatar(user);
+      applyAvatarElement(profileDashboardAvatar, avatar, user);
     } else {
       profileDashboardAvatar.textContent = "HR";
     }
   }
-  if (profileDashboardVisibility) profileDashboardVisibility.textContent = currentUser ? profileVisibilityLabel() : "Misafir";
-  if (profileDashboardTitle) profileDashboardTitle.textContent = currentUser ? profileDisplayName() : "Profilini oluştur";
-  if (profileDashboardBio) profileDashboardBio.textContent = currentUser ? profileBioText() : "Garajını, radar katkılarını ve koleksiyoncu kimliğini tek profilde topla.";
+  if (profileDashboardVisibility) profileDashboardVisibility.textContent = user ? profileVisibilityLabel(user) : "Misafir";
+  if (profileDashboardSubtitle) profileDashboardSubtitle.textContent = isPublic ? "Koleksiyoner Profili" : "Koleksiyoner Profili";
+  if (profileDashboardTitle) {
+    profileDashboardTitle.textContent = loading
+      ? `@${publicProfileUsernameFromHash() || "koleksiyoner"}`
+      : user
+        ? profileDisplayName(user)
+        : "Profilini oluştur";
+  }
+  if (profileDashboardBio) {
+    profileDashboardBio.textContent = loading
+      ? "Koleksiyoner profili yükleniyor."
+      : user
+        ? access.profilePublic
+          ? profileBioText(user)
+          : "Bu koleksiyoner profil detaylarını gizli tutuyor."
+        : "Garajını, radar katkılarını ve koleksiyoncu kimliğini tek profilde topla.";
+  }
   if (profileDashboardRankVisual) profileDashboardRankVisual.innerHTML = rankImageMarkup(localRankForProfile(rank), "profile-dashboard-rank-image");
-  if (profileDashboardRank) profileDashboardRank.textContent = currentUser ? (rank?.title || "R1 Çaylak Avcı") : "Koleksiyoncu Profili";
-  if (profileDashboardPoints) profileDashboardPoints.textContent = currentUser ? Number(stats.points || 0).toLocaleString("tr-TR") : "0";
+  if (profileDashboardRank) profileDashboardRank.textContent = user ? (rank?.title || "R1 Çaylak Avcı") : "Koleksiyoncu Profili";
+  if (profileDashboardPoints) profileDashboardPoints.textContent = user ? Number(stats.points || 0).toLocaleString("tr-TR") : "0";
   if (profileDashboardBadgeCount) profileDashboardBadgeCount.textContent = String(badges.length);
   if (profileDashboardVehicleCount) profileDashboardVehicleCount.textContent = garageTotal.toLocaleString("tr-TR");
-  if (profileDashboardLocation) profileDashboardLocation.textContent = currentUser ? profileLocationText() : "Hunt Radar";
-  if (profileDashboardJoined) profileDashboardJoined.textContent = currentUser?.createdAt ? `Katılım: ${formatProfileDate(currentUser.createdAt)}` : "Katılım tarihi girişten sonra görünür";
+  if (profileDashboardLocation) profileDashboardLocation.textContent = user ? profileLocationText(user) : "Hunt Radar";
+  const createdAt = user?.createdAt || user?.created_at;
+  if (profileDashboardJoined) profileDashboardJoined.textContent = createdAt ? `Katılım: ${formatProfileDate(createdAt)}` : (isPublic ? "Katılım tarihi bilinmiyor" : "Katılım tarihi girişten sonra görünür");
   setProfileHeroFriendMetric(friendCount);
-  if (profileDashboardHandle) profileDashboardHandle.textContent = latestCollectionDate ? `Son koleksiyon güncellemesi: ${profileRelativeShort(latestCollectionDate)}` : (currentUser?.username ? `${currentUser.username} koleksiyon profili` : "Kullanıcı adı bekleniyor");
+  if (profileDashboardFollowers) {
+    profileDashboardFollowers.dataset.followOwner = isPublic ? "public-profile" : "self";
+  }
+  profileDashboard.querySelectorAll("[data-follow-owner]").forEach((button) => {
+    button.dataset.followOwner = isPublic ? "public-profile" : "self";
+  });
+  if (profileDashboardHandle) {
+    profileDashboardHandle.textContent = latestCollectionDate
+      ? `Son koleksiyon güncellemesi: ${profileRelativeShort(latestCollectionDate)}`
+      : user?.username
+        ? `${user.username} koleksiyon profili`
+        : "Kullanıcı adı bekleniyor";
+  }
   if (profileStatGarage) profileStatGarage.textContent = String(garageTotal);
   if (profileStatPremium) profileStatPremium.textContent = String(premiumCount);
   if (profileStatHunt) profileStatHunt.textContent = String(rareCount);
@@ -8782,8 +9102,9 @@ function renderProfileDashboard() {
   }
   renderProfileBadgePreview(badges);
   renderProfileActivityTimeline(garageItems);
-  renderProfileFriendPreview(friendCount);
-  renderProfileAccessPanel();
+  renderProfileFriendPreview(friendCount, { isPublic });
+  renderProfileAccessPanel(user, { isPublic });
+  syncProfileActionButtons(context);
 }
 
 function updateGarageDashboard() {
@@ -10782,7 +11103,7 @@ function isPublicProfileRoute(hash = window.location.hash) {
 
 function dashboardViewFromHash(hash = window.location.hash) {
   if (publicGarageUsernameFromHash(hash)) return "collection";
-  if (publicProfileUsernameFromHash(hash)) return "collection";
+  if (publicProfileUsernameFromHash(hash)) return "profile";
   const route = String(hash || "").replace(/^#\/?/, "").split(/[?#]/)[0].trim();
   return DASHBOARD_VIEWS_BY_ROUTE[route] || "";
 }
@@ -10944,6 +11265,21 @@ document.querySelectorAll("[data-view]:not(.segmented__button)").forEach((button
 
 document.querySelectorAll("[data-route-view]").forEach((button) => {
   button.addEventListener("click", () => {
+    if (isPublicProfileRoute()) {
+      const username = publicGarageProfile?.username || publicProfileUsernameFromHash();
+      if (button.dataset.routeView === "collection" && username) {
+        navigateToPublicGarage(username);
+        return;
+      }
+      if (button.dataset.routeView === "wishlist") {
+        showToast("İstek listeleri profil güvenliği için gizli tutuluyor.");
+        return;
+      }
+      if (button.dataset.routeView === "rewards") {
+        document.querySelector(".profile-insight-card--badges")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+    }
     navigateToView(button.dataset.routeView, { clearSearch: true, scroll: true });
   });
 });
@@ -10952,9 +11288,22 @@ dashboardMenuToggle?.addEventListener("click", toggleDashboardMenu);
 dashboardSidebarBackdrop?.addEventListener("click", closeDashboardMenu);
 dashboardPrimaryAction?.addEventListener("click", () => runDashboardViewAction("primary"));
 dashboardSecondaryAction?.addEventListener("click", () => runDashboardViewAction("secondary"));
-profileDashboardEdit?.addEventListener("click", () => openProfileStudio("identity"));
+profileDashboardEdit?.addEventListener("click", () => {
+  if (isPublicProfileRoute()) {
+    if (publicGarageProfile) void toggleFollowForUser(publicGarageProfile);
+    return;
+  }
+  openProfileStudio("identity");
+});
 profileAccessEdit?.addEventListener("click", () => openProfileStudio("privacy"));
-profileDashboardGarage?.addEventListener("click", () => navigateToView("collection", { clearSearch: true, scroll: true }));
+profileDashboardGarage?.addEventListener("click", () => {
+  if (isPublicProfileRoute()) {
+    const username = publicGarageProfile?.username || publicProfileUsernameFromHash();
+    if (username) navigateToPublicGarage(username);
+    return;
+  }
+  navigateToView("collection", { clearSearch: true, scroll: true });
+});
 profileTagEditor?.addEventListener("change", updateProfileTagEditorState);
 profileVisibilityOptions?.addEventListener("change", syncProfileVisibilityVisualState);
 saveProfileIdentityButton?.addEventListener("click", async () => {
@@ -10981,10 +11330,22 @@ profileStudioContent?.addEventListener("scroll", () => {
 closeProfileStudioButton?.addEventListener("click", closeProfileStudio);
 profileStudio?.querySelectorAll("[data-close-profile-studio]").forEach((button) => button.addEventListener("click", closeProfileStudio));
 profileDashboardShare?.addEventListener("click", async () => {
-  const url = `${window.location.href.split("#")[0]}#/profil`;
+  const isPublic = isPublicProfileRoute();
+  const username = publicGarageProfile?.username || publicProfileUsernameFromHash();
+  const url = `${window.location.href.split("#")[0]}${isPublic && username ? publicProfileHash(username) : "#/profil"}`;
+  const title = isPublic && username
+    ? `@${username} Hunt Radar Profili`
+    : currentUser
+      ? `${profileDisplayName()} Hunt Radar Profili`
+      : "Hunt Radar Profil";
+  const text = isPublic && username
+    ? `@${username} Hunt Radar koleksiyon profilini incele.`
+    : currentUser
+      ? `${profileDisplayName()} Hunt Radar koleksiyon profilini incele.`
+      : "Hunt Radar koleksiyon profili";
   const shareData = {
-    title: currentUser ? `${profileDisplayName()} Hunt Radar Profili` : "Hunt Radar Profil",
-    text: currentUser ? `${profileDisplayName()} Hunt Radar koleksiyon profilini incele.` : "Hunt Radar koleksiyon profili",
+    title,
+    text,
     url
   };
   try {
@@ -11296,6 +11657,8 @@ document.addEventListener("click", (event) => {
   if (!button) return;
   const user = button.dataset.followOwner === "self"
     ? currentUser
+    : button.dataset.followOwner === "public-profile"
+      ? publicGarageProfile
     : [publicGarageFollowerCount, publicGarageFollowingCount].includes(button)
       ? publicGarageProfile
       : currentPublicProfile || publicGarageProfile;
@@ -11614,6 +11977,24 @@ wishlistContinueSearchButton?.addEventListener("click", (event) => {
 });
 wishlistFloatingAdd?.addEventListener("click", openAndRevealWishlistComposer);
 window.addEventListener("scroll", updateWishlistFloatingAction, { passive: true });
+landingLoginButton?.addEventListener("click", () => openAuthModal("login"));
+landingRegisterButton?.addEventListener("click", () => openAuthModal("register"));
+landingTopGarageButton?.addEventListener("click", openGarageFromLanding);
+landingExploreButton?.addEventListener("click", () => enterDashboardFromLanding("explore"));
+landingGarageButton?.addEventListener("click", openGarageFromLanding);
+landingScrollCue?.addEventListener("click", () => enterDashboardFromLanding("explore"));
+window.addEventListener("wheel", handleLandingWheel, { passive: true });
+window.addEventListener("keydown", handleLandingKeydown);
+window.addEventListener("touchstart", handleLandingTouchStart, { passive: true });
+window.addEventListener("touchend", handleLandingTouchEnd, { passive: true });
+homeHeroVideoToggle?.addEventListener("click", () => {
+  homeHeroVideoManuallyPaused = !homeHeroVideoManuallyPaused;
+  syncHomeHeroVideoPlayback(activeView === "home");
+});
+homeHeroVideo?.addEventListener("play", syncHomeHeroVideoToggle);
+homeHeroVideo?.addEventListener("pause", syncHomeHeroVideoToggle);
+syncHomeHeroVideoToggle();
+document.addEventListener("visibilitychange", () => syncHomeHeroVideoPlayback(activeView === "home"));
 wishlistCatalogSearch?.addEventListener("input", () => {
   wishlistEditingRecord = null;
   wishlistBrowseWhileSelected = false;

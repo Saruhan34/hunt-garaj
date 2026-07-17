@@ -4,14 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hunt Radar</title>
-    <link rel="stylesheet" href="./styles.css?v=216" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css?v=234" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=1" />
   </head>
-  <body class="dashboard-shell">
+  <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
     <aside class="dashboard-sidebar" id="dashboardSidebar" aria-label="Ana menü">
-      <a class="dashboard-sidebar__brand" href="#/ana-sayfa" aria-label="Hunt Radar ana sayfa">
+      <a class="dashboard-sidebar__brand" href="#/ana-sayfa" aria-label="Hunt Radar landing ekranı">
         <span class="brand__mark" aria-hidden="true">
           <img class="brand__mark-image" src="./assets/hunt-radar-logo-official.png" alt="" />
         </span>
@@ -22,7 +25,6 @@
       </a>
       <nav class="dashboard-sidebar__nav">
         <span class="dashboard-sidebar__label">Menü</span>
-        <button type="button" data-route-view="home"><i aria-hidden="true">⌂</i><span>Ana Sayfa</span></button>
         <button type="button" data-route-view="stores"><i aria-hidden="true">⌁</i><span>Hunt Radar</span></button>
         <button type="button" data-route-view="market"><i aria-hidden="true">₺</i><span>Pazar</span></button>
         <button type="button" data-route-view="explore"><i aria-hidden="true">◎</i><span>Keşfet</span></button>
@@ -46,14 +48,35 @@
     </aside>
 
     <header class="hero">
+      <video
+        class="hero__video"
+        id="homeHeroVideo"
+        src="./assets/hero-hunt-garage-reference.mp4"
+        muted
+        playsinline
+        autoplay
+        loop
+        preload="auto"
+        aria-hidden="true"
+      ></video>
       <div class="hero__shade"></div>
       <div class="hero__radar-orbit" aria-hidden="true"></div>
       <div class="hero__scanline" aria-hidden="true"></div>
+      <button
+        class="hero__video-toggle"
+        id="homeHeroVideoToggle"
+        type="button"
+        aria-label="Arka plan videosunu duraklat"
+        aria-pressed="false"
+        title="Videoyu duraklat"
+      >
+        <span class="hero__video-toggle-icon" aria-hidden="true"></span>
+      </button>
       <nav class="topbar" aria-label="Ana gezinme">
         <button class="dashboard-menu-toggle" id="dashboardMenuToggle" type="button" aria-label="Menüyü aç" aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
-        <a class="brand" href="#/ana-sayfa" aria-label="Hunt Radar ana sayfa">
+        <a class="brand" href="#/ana-sayfa" aria-label="Hunt Radar landing ekranı">
           <span class="brand__mark" aria-hidden="true">
             <img class="brand__mark-image" src="./assets/hunt-radar-logo-official.png" alt="" />
           </span>
@@ -64,10 +87,9 @@
         </a>
         <div class="dashboard-page-identity">
           <small>Hunt Radar Dashboard</small>
-          <strong id="dashboardPageTitle">Ana Sayfa</strong>
+          <strong id="dashboardPageTitle">Hunt Radar</strong>
         </div>
         <div class="top-module-nav" aria-label="Modül navigasyonu">
-          <button type="button" data-view="home">Ana Sayfa</button>
           <button type="button" data-view="explore">Keşfet</button>
           <button type="button" data-view="collection">Garaj</button>
           <button type="button" data-view="market">Pazar</button>
@@ -124,22 +146,29 @@
             </section>
           </div>
         </div>
+        <div class="landing-auth-actions" aria-label="Hesap işlemleri">
+          <button class="landing-auth-link" id="landingLoginButton" type="button">Giriş Yap</button>
+          <button class="landing-auth-button" id="landingRegisterButton" type="button">Hesap Oluştur</button>
+          <button class="landing-auth-button is-hidden" id="landingTopGarageButton" type="button">Garajımı Aç</button>
+        </div>
       </nav>
 
       <section class="hero__content">
-        <p class="eyebrow" id="heroEyebrow">Hot Wheels garaj pazarı</p>
-        <h1 id="heroTitle"><span>HUNT</span><span>RADAR</span></h1>
+        <p class="eyebrow" id="heroEyebrow">Hunt Radar koleksiyon merkezi</p>
+        <h1 id="heroTitle"><span>Koleksiyonunu</span><span>sahneye çıkar.</span></h1>
         <p class="hero__copy" id="heroCopy">
-          Hot Wheels garajını, pazar ilanlarını ve hunt bildirimlerini tek merkezde yönet.
+          Garajını oluştur, modelleri keşfet ve koleksiyon avına başla.
         </p>
-        <p class="hero__tagline" id="heroTagline">Garajını kur, rafları takip et.</p>
+        <p class="hero__tagline" id="heroTagline">Hunt Radar koleksiyon merkezi</p>
         <div class="hero__buttons">
-          <button class="button button--primary" type="button" data-jump-view="collection">Garajı Aç</button>
-          <button class="button button--ghost" type="button" data-jump-view="market">Pazarı Keşfet</button>
-          <button class="button button--ghost" type="button" data-jump-view="stores">Hunt Radar’a Git</button>
-          <button class="button button--ghost" type="button" data-jump-view="wishlist">İstek Listem</button>
+          <button class="button button--primary" id="landingExploreButton" type="button">Keşfetmeye Başla</button>
+          <button class="button button--ghost" id="landingGarageButton" type="button">Garajımı Aç</button>
         </div>
       </section>
+      <button class="landing-scroll-cue" id="landingScrollCue" type="button" aria-label="Keşfet bölümüne geç">
+        <span>Aşağı kaydır</span>
+        <i aria-hidden="true"></i>
+      </button>
     </header>
 
     <main>
@@ -470,9 +499,10 @@
                 <div><strong id="publicGarageRankName">R1 Çaylak Avcı</strong><small id="publicGarageRadarPoints">0 Radar Puanı</small></div>
               </div>
               <div class="public-garage-profile__meta">
-                <button class="public-follow-metric" id="publicGarageFollowerCount" type="button" data-follow-list="followers">0 arkadaş</button>
-                <button class="public-follow-metric" id="publicGarageFollowingCount" type="button" data-follow-list="following">0 bağlantı</button>
-                <span id="publicGarageBadgeCount">0 rozet</span>
+                <span class="public-hero-metric public-hero-metric--points" id="publicGaragePointsMetric"><strong>0</strong><small>Radar Puanı</small></span>
+                <span class="public-hero-metric public-hero-metric--badges" id="publicGarageBadgeCount"><strong>0</strong><small>Rozet</small></span>
+                <button class="public-follow-metric public-hero-metric public-hero-metric--friends" id="publicGarageFollowerCount" type="button" data-follow-list="followers"><strong>0</strong><small>Arkadaş</small></button>
+                <button class="public-follow-metric public-hero-metric public-hero-metric--following" id="publicGarageFollowingCount" type="button" data-follow-list="following">0 bağlantı</button>
                 <span id="publicGarageJoinedAt">Katılım tarihi bilinmiyor</span>
                 <span id="publicGarageUpdatedAt">Koleksiyon güncellemesi yok</span>
               </div>
@@ -1111,7 +1141,6 @@
           <input id="searchInput" type="search" placeholder="Model, seri, mağaza ya da not ara" />
         </div>
         <div class="segmented" role="tablist" aria-label="Liste seçimi">
-          <button class="segmented__button" type="button" data-view="home">Ana Sayfa</button>
           <button class="segmented__button" type="button" data-view="explore">Keşfet</button>
           <button class="segmented__button is-active" type="button" data-view="collection">Garaj</button>
           <button class="segmented__button" type="button" data-view="wishlist">İstek Listesi</button>
@@ -1449,10 +1478,10 @@
             <div>
               <p class="eyebrow">Admin merkezi</p>
               <h2>Site yönetimi</h2>
-              <p class="field-hint">Ana sayfa, vitrin, katalog, içerik ve kayıtları buradan yönet. Supabase bağlıysa değişiklikler public sitede görünür.</p>
+              <p class="field-hint">Landing, vitrin, katalog, içerik ve kayıtları buradan yönet. Supabase bağlıysa değişiklikler public sitede görünür.</p>
             </div>
             <div class="admin-tabs" role="tablist" aria-label="Admin bölümleri">
-              <button class="is-active" type="button" data-admin-tab="home">Ana sayfa</button>
+              <button class="is-active" type="button" data-admin-tab="home">Landing</button>
               <button type="button" data-admin-tab="featured">Öne çıkanlar</button>
               <button type="button" data-admin-tab="catalog">Katalog</button>
               <button type="button" data-admin-tab="vehicle-suggestions">Araç önerileri</button>
@@ -1500,7 +1529,7 @@
                 <label for="adminBannerText">Banner metni</label>
                 <textarea id="adminBannerText" rows="2"></textarea>
               </div>
-              <button class="button button--primary" id="saveSiteContent" type="button">Ana sayfayı kaydet</button>
+              <button class="button button--primary" id="saveSiteContent" type="button">Landing'i kaydet</button>
             </div>
 
             <div class="admin-section" data-admin-section="featured">
@@ -1642,7 +1671,7 @@
                 </label>
                 <label class="admin-toggle">
                   <input id="adminRewardPreviewEnabled" type="checkbox" />
-                  <span>Ana sayfa preview aktif</span>
+                  <span>Landing önizlemesi aktif</span>
                 </label>
               </div>
               <div class="field">
@@ -1701,7 +1730,6 @@
     </main>
 
     <nav class="bottom-nav" aria-label="Mobil navigasyon">
-      <button type="button" data-view="home">Ana Sayfa</button>
       <button type="button" data-view="explore">Keşfet</button>
       <button type="button" data-view="collection">Garaj</button>
       <button type="button" data-view="market">Pazar</button>
@@ -2319,7 +2347,7 @@
     <script src="./explore-page.js?v=6"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=203"></script>
+    <script src="./app.js?v=210"></script>
   </body>
 </html>
 
