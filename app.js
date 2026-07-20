@@ -528,8 +528,14 @@ let activeGarageFilter = "Tümü";
 let activeGarageSort = "newest";
 let activeGaragePackaging = "Tümü";
 let activeGarageCondition = "Tümü";
-let activeWishlistFilter = "all";
+let activeWishlistPriority = "all";
+let activeWishlistStatus = "all";
+let activeWishlistPrice = "all";
 let activeWishlistSort = "newest";
+let wishlistSelectionMode = false;
+let visibleWishlistItems = [];
+let wishlistBulkPending = false;
+const selectedWishlistIds = new Set();
 let selectedWishlistCatalogVehicle = null;
 let wishlistEditingRecord = null;
 let wishlistBrowseWhileSelected = false;
@@ -1053,6 +1059,24 @@ const garageQuantityInput = document.querySelector("#carQuantity");
 const garageQuantityDecrease = document.querySelector("#garageQuantityDecrease");
 const garageQuantityIncrease = document.querySelector("#garageQuantityIncrease");
 const wishlistDashboard = document.querySelector("#wishlistDashboard");
+const wishlistCommandSearchInput = document.querySelector("#wishlistCommandSearchInput");
+const wishlistSearchClear = document.querySelector("#wishlistSearchClear");
+const wishlistResultCount = document.querySelector("#wishlistResultCount");
+const wishlistResultsSummary = document.querySelector("#wishlistResultsSummary");
+const wishlistCards = document.querySelector("#wishlistCards");
+const wishlistBulkToggle = document.querySelector("#wishlistBulkToggle");
+const wishlistSelectionRow = document.querySelector("#wishlistSelectionRow");
+const wishlistSelectVisible = document.querySelector("#wishlistSelectVisible");
+const wishlistSelectVisibleLabel = document.querySelector("#wishlistSelectVisibleLabel");
+const wishlistVisibleSelectionSummary = document.querySelector("#wishlistVisibleSelectionSummary");
+const wishlistBulkBar = document.querySelector("#wishlistBulkBar");
+const wishlistBulkCount = document.querySelector("#wishlistBulkCount");
+const wishlistBulkCancel = document.querySelector("#wishlistBulkCancel");
+const wishlistBulkEditor = document.querySelector("#wishlistBulkEditor");
+const wishlistBulkEditorTitle = document.querySelector("#wishlistBulkEditorTitle");
+const wishlistBulkEditorClose = document.querySelector("#wishlistBulkEditorClose");
+const wishlistBulkPriceForm = document.querySelector("#wishlistBulkPriceForm");
+const wishlistBulkPrice = document.querySelector("#wishlistBulkPrice");
 const toggleWishlistComposerButton = document.querySelector("#toggleWishlistComposer");
 const wishlistComposer = document.querySelector("#wishlistComposer");
 const closeWishlistComposerButton = document.querySelector("#closeWishlistComposer");
@@ -1077,6 +1101,11 @@ const wishlistSubmitHint = document.querySelector("#wishlistSubmitHint");
 const wishlistFilterChips = document.querySelector("#wishlistFilterChips");
 const wishlistSortSelect = document.querySelector("#wishlistSortSelect");
 const wishlistFloatingAdd = document.querySelector("#wishlistFloatingAdd");
+const wishlistFilterToggle = document.querySelector("#wishlistFilterToggle");
+const wishlistFilterClose = document.querySelector("#wishlistFilterClose");
+const wishlistResetFilters = document.querySelector("#wishlistResetFilters");
+const wishlistActiveFilterCount = document.querySelector("#wishlistActiveFilterCount");
+const wishlistMobileFilterCount = document.querySelector("#wishlistMobileFilterCount");
 
 // Keep the drawer outside dashboard stacking contexts so it always sits above its backdrop.
 if (carForm?.parentElement !== document.body) {
@@ -2288,7 +2317,8 @@ function ownedRemoteRecord(type, row) {
 }
 
 function matchesSearch(item) {
-  const query = normalize(searchInput.value);
+  const source = activeView === "wishlist" ? wishlistCommandSearchInput : searchInput;
+  const query = normalize(source?.value || "");
   if (!query) return true;
   return normalize(Object.values(item).join(" ")).includes(query);
 }
@@ -2331,13 +2361,19 @@ function render() {
     ? getActiveList()
     : getActiveList().filter(matchesViewFilters).filter(matchesSearch);
   let list = sortActiveList(filteredList);
+  visibleWishlistItems = activeView === "wishlist" ? list : [];
   if (activeView === "stores" && !supabaseClient) {
     const from = (storeCurrentPage - 1) * STORE_PAGE_SIZE;
     list = list.slice(from, from + STORE_PAGE_SIZE);
   }
   cards.innerHTML = "";
   if (garageCards) garageCards.innerHTML = "";
-  const collectionTarget = activeView === "collection" && garageCards ? garageCards : cards;
+  if (wishlistCards) wishlistCards.innerHTML = "";
+  const collectionTarget = activeView === "collection" && garageCards
+    ? garageCards
+    : activeView === "wishlist" && wishlistCards
+      ? wishlistCards
+      : cards;
   listTitle.textContent = viewTitles[activeView] || viewTitles.collection;
   viewCopy.textContent = viewCopies[activeView] || "";
   visibleCount.textContent = activeView === "stores"
@@ -2367,7 +2403,7 @@ function render() {
       : `${list.length} sonuç · ${activeGarageSort === "model" ? "Model sırasına göre" : activeGarageSort === "oldest" ? "Eskiden yeniye" : "Yeniden eskiye"}`;
   }
   renderListFilters();
-  if (activeView === "wishlist") updateWishlistDashboard();
+  if (activeView === "wishlist") updateWishlistDashboard(list);
 
   if (activeView === "stores" && storePageLoading) {
     renderStoreLoadingCards();
@@ -2375,8 +2411,9 @@ function render() {
     list.forEach((item) => {
       collectionTarget.appendChild(createCard(item));
     });
-    if (activeView === "wishlist" && list.length === 0) cards.appendChild(createWishlistEmptyState());
+    if (activeView === "wishlist" && list.length === 0) collectionTarget.appendChild(createWishlistEmptyState());
   }
+  if (activeView === "wishlist") syncWishlistSelectionUI();
   renderStorePagination();
 
   updateMetrics();
@@ -3242,25 +3279,315 @@ function closeGarageDetail() {
   garageDetailModal.setAttribute("aria-hidden", "true");
 }
 
-function updateWishlistDashboard() {
+function wishlistFilterState() {
+  return {
+    priority: activeWishlistPriority,
+    status: activeWishlistStatus,
+    price: activeWishlistPrice
+  };
+}
+
+function resetWishlistFilters({ renderView = false } = {}) {
+  activeWishlistPriority = "all";
+  activeWishlistStatus = "all";
+  activeWishlistPrice = "all";
+  if (renderView) render();
+}
+
+function wishlistQuickFilter() {
+  const state = wishlistFilterState();
+  if (state.priority === "all" && state.status === "all" && state.price === "all") return "all";
+  if (state.priority === "wanted" && state.status === "all" && state.price === "all") return "wanted";
+  if (state.priority === "all" && state.status === "all" && state.price === "priced") return "priced";
+  if (state.priority === "all" && state.status === "missing" && state.price === "all") return "missing";
+  if (state.priority === "all" && state.status === "acquired" && state.price === "all") return "acquired";
+  return "";
+}
+
+function applyWishlistQuickFilter(filter = "all") {
+  resetWishlistFilters();
+  if (filter === "wanted") activeWishlistPriority = "wanted";
+  if (filter === "priced") activeWishlistPrice = "priced";
+  if (filter === "missing") activeWishlistStatus = "missing";
+  if (filter === "acquired") activeWishlistStatus = "acquired";
+}
+
+function wishlistSelectionKey(item = {}) {
+  const vehicle = catalogVehicleIdentity(item);
+  return String(item.id || vehicle.catalogId || [vehicle.model, vehicle.year, vehicle.series, vehicle.toyNumber]
+    .map((value) => normalize(value))
+    .join("|") || crypto.randomUUID());
+}
+
+function selectedWishlistRecords() {
+  return state.wishlist.filter((item) => selectedWishlistIds.has(wishlistSelectionKey(item)));
+}
+
+function closeWishlistBulkEditor() {
+  if (!wishlistBulkEditor) return;
+  wishlistBulkEditor.hidden = true;
+  wishlistBulkEditor.querySelectorAll("[data-wishlist-bulk-panel]").forEach((panel) => { panel.hidden = true; });
+}
+
+function syncWishlistSelectionUI() {
+  const validKeys = new Set(
+    state.wishlist
+      .filter((item) => wishlistStatus(item) !== "archived")
+      .map(wishlistSelectionKey)
+  );
+  [...selectedWishlistIds].forEach((key) => {
+    if (!validKeys.has(key)) selectedWishlistIds.delete(key);
+  });
+  if (!validKeys.size) wishlistSelectionMode = false;
+
+  const visibleKeys = visibleWishlistItems.map(wishlistSelectionKey);
+  const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedWishlistIds.has(key));
+  const selectedCount = selectedWishlistIds.size;
+  document.body.classList.toggle("is-wishlist-selection-mode", wishlistSelectionMode);
+  document.body.classList.toggle("is-wishlist-bulk-active", wishlistSelectionMode && selectedCount > 0);
+  wishlistBulkToggle?.setAttribute("aria-pressed", String(wishlistSelectionMode));
+  if (wishlistBulkToggle) wishlistBulkToggle.disabled = validKeys.size === 0;
+  const bulkToggleLabel = wishlistBulkToggle?.querySelector("span");
+  if (bulkToggleLabel) bulkToggleLabel.textContent = wishlistSelectionMode ? "Bitti" : "Seç";
+  if (toggleWishlistComposerButton) toggleWishlistComposerButton.disabled = wishlistSelectionMode;
+  if (wishlistSelectionRow) wishlistSelectionRow.hidden = !wishlistSelectionMode;
+  if (wishlistSelectVisible) {
+    wishlistSelectVisible.disabled = visibleKeys.length === 0;
+    wishlistSelectVisible.setAttribute("aria-pressed", String(allVisibleSelected));
+  }
+  if (wishlistSelectVisibleLabel) wishlistSelectVisibleLabel.textContent = allVisibleSelected
+    ? "Görünenlerin seçimini kaldır"
+    : "Görünenlerin tümünü seç";
+  if (wishlistVisibleSelectionSummary) wishlistVisibleSelectionSummary.textContent = `${visibleKeys.length} araç görünür`;
+  if (wishlistBulkCount) wishlistBulkCount.textContent = String(selectedCount);
+  if (wishlistBulkBar) wishlistBulkBar.hidden = !wishlistSelectionMode || selectedCount === 0;
+  if (!selectedCount) closeWishlistBulkEditor();
+
+  wishlistCards?.querySelectorAll("[data-wishlist-selection-id]").forEach((card) => {
+    const selected = selectedWishlistIds.has(card.dataset.wishlistSelectionId);
+    card.classList.toggle("is-selected", selected);
+    card.querySelector(".wishlist-card-select")?.setAttribute("aria-pressed", String(selected));
+  });
+}
+
+function setWishlistSelectionMode(isActive, { focusToggle = false } = {}) {
+  wishlistSelectionMode = Boolean(isActive);
+  if (wishlistSelectionMode) {
+    setWishlistComposerOpen(false, { focusSearch: false });
+    document.body.classList.remove("is-wishlist-filter-open");
+    wishlistFilterToggle?.setAttribute("aria-expanded", "false");
+  } else {
+    selectedWishlistIds.clear();
+    closeWishlistBulkEditor();
+  }
+  syncWishlistSelectionUI();
+  if (focusToggle) wishlistBulkToggle?.focus({ preventScroll: true });
+}
+
+function toggleWishlistRecordSelection(item) {
+  const key = wishlistSelectionKey(item);
+  if (selectedWishlistIds.has(key)) selectedWishlistIds.delete(key);
+  else selectedWishlistIds.add(key);
+  syncWishlistSelectionUI();
+}
+
+function openWishlistBulkEditor(action) {
+  if (!wishlistBulkEditor || !selectedWishlistIds.size || wishlistBulkPending) return;
+  const titles = {
+    priority: "Önceliği değiştir",
+    price: "Hedef fiyat belirle",
+    found: "Bulundu olarak işaretle",
+    remove: "İstekleri kaldır"
+  };
+  wishlistBulkEditor.querySelectorAll("[data-wishlist-bulk-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.wishlistBulkPanel !== action;
+  });
+  wishlistBulkEditor.hidden = false;
+  if (wishlistBulkEditorTitle) wishlistBulkEditorTitle.textContent = titles[action] || "Seçili araçları düzenle";
+  if (action === "price" && wishlistBulkPrice) {
+    wishlistBulkPrice.value = "";
+    window.setTimeout(() => wishlistBulkPrice.focus(), 40);
+  } else {
+    window.setTimeout(() => wishlistBulkEditor.querySelector(`[data-wishlist-bulk-panel="${action}"] button`)?.focus(), 40);
+  }
+}
+
+function setWishlistBulkPending(isPending) {
+  wishlistBulkPending = Boolean(isPending);
+  wishlistBulkBar?.classList.toggle("is-busy", wishlistBulkPending);
+  wishlistBulkEditor?.querySelectorAll("button, input").forEach((control) => { control.disabled = wishlistBulkPending; });
+}
+
+async function applyWishlistBulkPatch(patchFactory, successMessage) {
+  const items = selectedWishlistRecords();
+  if (!items.length) return false;
+  return runAfterAuth(async () => {
+    setWishlistBulkPending(true);
+    let updatedCount = 0;
+    try {
+      for (const item of items) {
+        if (!isOwnedByCurrentUser("wishlist", item)) continue;
+        const before = structuredClone(item);
+        const patch = typeof patchFactory === "function" ? patchFactory(item) : patchFactory;
+        Object.assign(item, patch, { updatedAt: new Date().toISOString() });
+        const synced = supabaseClient ? await syncPublicRecord("wishlist", item) : true;
+        if (!synced) {
+          Object.keys(item).forEach((key) => delete item[key]);
+          Object.assign(item, before);
+          continue;
+        }
+        updatedCount += 1;
+        window.HuntRadarExplore?.membershipChanged(catalogVehicleIdentity(item));
+      }
+      saveState();
+      render();
+      closeWishlistBulkEditor();
+      showToast(updatedCount
+        ? `${updatedCount} araç için ${successMessage}`
+        : "Seçili araçlar güncellenemedi.");
+      return updatedCount > 0;
+    } finally {
+      setWishlistBulkPending(false);
+      syncWishlistSelectionUI();
+    }
+  }, "Toplu işlem yapmak için hesabına giriş yap.");
+}
+
+async function markSelectedWishlistFound() {
+  const items = selectedWishlistRecords();
+  if (!items.length) return false;
+  return runAfterAuth(async () => {
+    setWishlistBulkPending(true);
+    const completedKeys = new Set();
+    let completedCount = 0;
+    try {
+      for (const item of items) {
+        const key = wishlistSelectionKey(item);
+        if (wishlistStatus(item) === "acquired") {
+          completedKeys.add(key);
+          continue;
+        }
+        if (wishlistIsOwned(item)) {
+          const before = structuredClone(item);
+          const now = new Date().toISOString();
+          Object.assign(item, { status: "acquired", acquiredAt: now, updatedAt: now });
+          const synced = supabaseClient ? await syncPublicRecord("wishlist", item) : true;
+          if (!synced) {
+            Object.keys(item).forEach((property) => delete item[property]);
+            Object.assign(item, before);
+            continue;
+          }
+          completedKeys.add(key);
+          completedCount += 1;
+          continue;
+        }
+        const acquired = await acquireWishlistVehicle(item);
+        if (acquired) {
+          completedKeys.add(key);
+          completedCount += 1;
+        }
+      }
+      completedKeys.forEach((key) => selectedWishlistIds.delete(key));
+      saveState();
+      render();
+      closeWishlistBulkEditor();
+      if (completedCount) showToast(`${completedCount} araç garaja taşındı ve bulundu olarak işaretlendi.`);
+      else if (selectedWishlistIds.size) showToast("Bazı araçlar garaja taşınamadı; seçimleri korundu.");
+      if (!selectedWishlistIds.size) setWishlistSelectionMode(false);
+      return completedCount > 0;
+    } finally {
+      setWishlistBulkPending(false);
+      syncWishlistSelectionUI();
+    }
+  }, "Araçları garajına taşımak için hesabına giriş yap.");
+}
+
+async function removeSelectedWishlistItems() {
+  const items = selectedWishlistRecords();
+  if (!items.length) return false;
+  return runAfterAuth(async () => {
+    setWishlistBulkPending(true);
+    const removedKeys = new Set();
+    try {
+      for (const item of items) {
+        if (!isOwnedByCurrentUser("wishlist", item)) continue;
+        try {
+          const vehicle = catalogVehicleIdentity(item);
+          const remote = await setWishlistItemRemote(vehicle, false, item);
+          const removed = remote.fallback ? await deletePublicRecord("wishlist", item) : true;
+          if (!removed) continue;
+          removedKeys.add(wishlistSelectionKey(item));
+          window.HuntRadarExplore?.membershipChanged(vehicle);
+        } catch (error) {
+          console.warn("Toplu istek kaldırma başarısız:", error);
+        }
+      }
+      state.wishlist = state.wishlist.filter((item) => !removedKeys.has(wishlistSelectionKey(item)));
+      removedKeys.forEach((key) => selectedWishlistIds.delete(key));
+      saveState();
+      render();
+      closeWishlistBulkEditor();
+      showToast(removedKeys.size
+        ? `${removedKeys.size} araç istek listesinden kaldırıldı.`
+        : "Seçili araçlar kaldırılamadı.");
+      if (!selectedWishlistIds.size) setWishlistSelectionMode(false);
+      return removedKeys.size > 0;
+    } finally {
+      setWishlistBulkPending(false);
+      syncWishlistSelectionUI();
+    }
+  }, "İstekleri kaldırmak için hesabına giriş yap.");
+}
+
+function updateWishlistDashboard(visibleItems = []) {
   if (!wishlistDashboard) return;
   const items = state.wishlist.filter((item) => wishlistStatus(item) !== "archived");
+  const activeItems = items.filter((item) => wishlistStatus(item) === "active");
+  const priorityCounts = {
+    wanted: activeItems.filter((item) => normalizeWishlistPriority(item.priority) === "Çok istiyorum").length,
+    priority: activeItems.filter((item) => normalizeWishlistPriority(item.priority) === "Öncelikli").length,
+    opportunity: activeItems.filter((item) => normalizeWishlistPriority(item.priority) === "Fırsat olursa").length,
+    watching: activeItems.filter((item) => normalizeWishlistPriority(item.priority) === "Takipte").length
+  };
+  const pricedCount = activeItems.filter((item) => wishlistPriceValue(item.targetPrice || item.budget)).length;
+  const missingCount = activeItems.filter((item) => !wishlistIsOwned(item)).length;
+  const acquiredCount = items.filter((item) => wishlistStatus(item) === "acquired").length;
   const setCount = (id, count) => {
     const node = document.querySelector(`#${id}`);
     if (node) node.textContent = String(count);
   };
   setCount("wishlistStatTotal", items.length);
-  setCount("wishlistStatWanted", items.filter((item) => wishlistStatus(item) === "active" && normalizeWishlistPriority(item.priority) === "Çok istiyorum").length);
-  setCount("wishlistStatPriced", items.filter((item) => wishlistStatus(item) === "active" && wishlistPriceValue(item.targetPrice || item.budget)).length);
-  setCount("wishlistStatMissing", items.filter((item) => wishlistStatus(item) === "active" && !wishlistIsOwned(item)).length);
-  setCount("wishlistStatAcquired", items.filter((item) => wishlistStatus(item) === "acquired").length);
+  setCount("wishlistStatWanted", priorityCounts.wanted);
+  setCount("wishlistStatPriced", pricedCount);
+  setCount("wishlistStatMissing", missingCount);
+  setCount("wishlistStatAcquired", acquiredCount);
+  setCount("wishlistFilterPriorityAll", activeItems.length);
+  setCount("wishlistFilterWanted", priorityCounts.wanted);
+  setCount("wishlistFilterPriority", priorityCounts.priority);
+  setCount("wishlistFilterOpportunity", priorityCounts.opportunity);
+  setCount("wishlistFilterWatching", priorityCounts.watching);
+  setCount("wishlistFilterStatusAll", items.length);
+  setCount("wishlistFilterMissing", missingCount);
+  setCount("wishlistFilterAcquired", acquiredCount);
+  setCount("wishlistFilterPriceAll", activeItems.length);
+  setCount("wishlistFilterPriced", pricedCount);
+  setCount("wishlistFilterUnpriced", Math.max(0, activeItems.length - pricedCount));
+  const filters = wishlistFilterState();
   wishlistFilterChips?.querySelectorAll("[data-wishlist-filter]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.wishlistFilter === activeWishlistFilter);
+    button.classList.toggle("is-active", filters[button.dataset.wishlistFilterGroup] === button.dataset.wishlistFilter);
   });
+  const quickFilter = wishlistQuickFilter();
   wishlistDashboard.querySelectorAll("[data-wishlist-stat]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.wishlistStat === activeWishlistFilter);
+    button.classList.toggle("is-active", button.dataset.wishlistStat === quickFilter);
   });
   if (wishlistSortSelect && wishlistSortSelect.value !== activeWishlistSort) wishlistSortSelect.value = activeWishlistSort;
+  const activeFilterCount = Object.values(filters).filter((value) => value !== "all").length;
+  if (wishlistActiveFilterCount) wishlistActiveFilterCount.textContent = `${activeFilterCount} aktif`;
+  if (wishlistMobileFilterCount) wishlistMobileFilterCount.textContent = String(activeFilterCount);
+  if (wishlistResultCount) wishlistResultCount.textContent = `${visibleItems.length} araç`;
+  const sortLabels = { newest: "Yeni eklenen", priority: "Öncelik", price: "Hedef fiyat", model: "Araç adı", year: "Yıl" };
+  if (wishlistResultsSummary) wishlistResultsSummary.textContent = `${visibleItems.length} sonuç · ${sortLabels[activeWishlistSort] || "Yeni eklenen"}`;
+  if (wishlistSearchClear) wishlistSearchClear.hidden = !wishlistCommandSearchInput?.value;
 }
 
 function createWishlistEmptyState() {
@@ -3274,7 +3601,7 @@ function createWishlistEmptyState() {
     const action = event.target.closest("[data-empty-action]")?.dataset.emptyAction;
     if (action === "explore") navigateToView("explore", { clearSearch: true, scroll: true });
     if (action === "add") openWishlistComposer();
-    if (action === "reset") { activeWishlistFilter = "all"; render(); }
+    if (action === "reset") resetWishlistFilters({ renderView: true });
   });
   return section;
 }
@@ -3390,25 +3717,67 @@ function createCard(item) {
     });
     const body = card.querySelector(".vehicle-card__body");
     const actions = body?.querySelector(".vehicle-card__actions");
+    const wishMeta = body?.querySelector(".vehicle-card__wish-meta");
+    const targetPriceChip = wishMeta?.querySelector(".vehicle-card__target-price");
+    const insights = body ? document.createElement("div") : null;
+    if (insights) insights.className = "wishlist-card-insights";
+    if (price && body) {
+      const target = document.createElement("div");
+      target.className = "wishlist-card-target";
+      target.innerHTML = `<small>Hedef Fiyat</small><strong>${escapeHtml(price.toLocaleString("tr-TR"))} TL</strong>`;
+      insights?.appendChild(target);
+      targetPriceChip?.remove();
+    }
+    if (wishMeta && !wishMeta.children.length) wishMeta.remove();
+    if (body) {
+      const status = document.createElement("span");
+      status.className = `wishlist-card-status${owned || statusValue === "acquired" ? " is-owned" : ""}`;
+      status.textContent = statusValue === "acquired" ? "Bulundu" : owned ? "Garajda var" : "Garajda yok";
+      insights?.appendChild(status);
+      const timeline = document.createElement("div");
+      timeline.className = "wishlist-card-timeline";
+      const tracking = wishlistTrackingLabel(item);
+      const acquired = statusValue === "acquired" && item.acquiredAt ? `Garaja taşındı: ${wishlistDateLabel(item.acquiredAt)}` : "";
+      timeline.textContent = [tracking, acquired].filter(Boolean).join(" · ");
+      if (timeline.textContent) insights?.appendChild(timeline);
+      const specs = body.querySelector(".vehicle-card__specs");
+      if (insights?.children.length) specs?.insertAdjacentElement("afterend", insights);
+    }
     if (item.notes && body) {
       const note = document.createElement("p");
       note.className = "wishlist-card-note";
       note.textContent = item.notes;
       body.insertBefore(note, actions || null);
     }
-    if (body) {
-      const status = document.createElement("span");
-      status.className = `wishlist-card-status${owned || statusValue === "acquired" ? " is-owned" : ""}`;
-      status.textContent = statusValue === "acquired" ? "✓ Alındı" : owned ? "✓ Garajda var" : "◉ Garajda yok";
-      body.insertBefore(status, actions || null);
-      const timeline = document.createElement("div");
-      timeline.className = "wishlist-card-timeline";
-      const tracking = wishlistTrackingLabel(item);
-      const acquired = statusValue === "acquired" && item.acquiredAt ? `Garaja taşındı: ${wishlistDateLabel(item.acquiredAt)}` : "";
-      timeline.textContent = [tracking, acquired].filter(Boolean).join(" · ");
-      if (timeline.textContent) body.insertBefore(timeline, actions || null);
-    }
     if (statusValue === "acquired") card.classList.add("is-acquired");
+    if (actions) card.appendChild(actions);
+    const selectionKey = wishlistSelectionKey(item);
+    card.dataset.wishlistSelectionId = selectionKey;
+    const selectionButton = document.createElement("button");
+    selectionButton.type = "button";
+    selectionButton.className = "wishlist-card-select";
+    selectionButton.setAttribute("aria-label", `${item.model || "Araç"} seç`);
+    selectionButton.setAttribute("aria-pressed", String(selectedWishlistIds.has(selectionKey)));
+    selectionButton.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 12 4 4 8-9"/></svg>';
+    selectionButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleWishlistRecordSelection(item);
+    });
+    card.prepend(selectionButton);
+    card.addEventListener("click", (event) => {
+      if (!wishlistSelectionMode || event.target.closest(".wishlist-card-select")) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      toggleWishlistRecordSelection(item);
+    }, true);
+    card.addEventListener("keydown", (event) => {
+      if (!wishlistSelectionMode || !["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      toggleWishlistRecordSelection(item);
+    }, true);
+    card.classList.toggle("is-selected", selectedWishlistIds.has(selectionKey));
     return card;
   }
   const template = document.querySelector("#cardTemplate");
@@ -3547,13 +3916,19 @@ function matchesViewFilters(item) {
 
   if (activeView === "wishlist") {
     const status = wishlistStatus(item);
-    if (activeWishlistFilter === "acquired") return status === "acquired";
-    if (status !== "active") return false;
-    if (activeWishlistFilter === "wanted") return normalizeWishlistPriority(item.priority) === "Çok istiyorum";
-    if (activeWishlistFilter === "priority") return normalizeWishlistPriority(item.priority) === "Öncelikli";
-    if (activeWishlistFilter === "opportunity") return normalizeWishlistPriority(item.priority) === "Fırsat olursa";
-    if (activeWishlistFilter === "priced") return Boolean(wishlistPriceValue(item.targetPrice || item.budget));
-    if (activeWishlistFilter === "missing") return !wishlistIsOwned(item);
+    if (!["active", "acquired"].includes(status)) return false;
+    if (activeWishlistStatus === "acquired" && status !== "acquired") return false;
+    if (activeWishlistStatus === "missing" && (status !== "active" || wishlistIsOwned(item))) return false;
+    const priorityMap = {
+      wanted: "Çok istiyorum",
+      priority: "Öncelikli",
+      opportunity: "Fırsat olursa",
+      watching: "Takipte"
+    };
+    if (activeWishlistPriority !== "all" && (status !== "active" || normalizeWishlistPriority(item.priority) !== priorityMap[activeWishlistPriority])) return false;
+    const hasPrice = Boolean(wishlistPriceValue(item.targetPrice || item.budget));
+    if (activeWishlistPrice === "priced" && !hasPrice) return false;
+    if (activeWishlistPrice === "unpriced" && hasPrice) return false;
     return true;
   }
 
@@ -9551,11 +9926,13 @@ function wishlistSaveErrorMessage(error) {
 
 function setWishlistComposerOpen(isOpen, { focusSearch = true } = {}) {
   if (!wishlistComposer) return;
+  const wasOpen = !wishlistComposer.hidden;
   wishlistComposer.hidden = !isOpen;
   wishlistComposer.setAttribute("aria-hidden", String(!isOpen));
+  document.body.classList.toggle("is-wishlist-composer-open", isOpen);
   toggleWishlistComposerButton?.setAttribute("aria-expanded", String(isOpen));
   if (isOpen && focusSearch) window.setTimeout(() => wishlistCatalogSearch?.focus(), 80);
-  if (!isOpen) toggleWishlistComposerButton?.focus({ preventScroll: true });
+  if (!isOpen && wasOpen) toggleWishlistComposerButton?.focus({ preventScroll: true });
 }
 
 function updateWishlistFloatingAction() {
@@ -11241,6 +11618,13 @@ function setActiveView(view, options = {}) {
     closeGarageDetail();
   }
 
+  if (view !== "wishlist") {
+    setWishlistComposerOpen(false, { focusSearch: false });
+    document.body.classList.remove("is-wishlist-filter-open");
+    wishlistFilterToggle?.setAttribute("aria-expanded", "false");
+    setWishlistSelectionMode(false);
+  }
+
   if (view !== "market") {
     activeMarketFavorite = "Tüm ilanlar";
     activeMarketType = "Tümü";
@@ -11982,6 +12366,25 @@ garageFilterClose?.addEventListener("click", () => {
 });
 garageEmptyExplore?.addEventListener("click", () => navigateToView("explore", { clearSearch: true, scroll: true }));
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("is-wishlist-composer-open")) {
+    closeWishlistComposer();
+    return;
+  }
+  if (event.key === "Escape" && document.body.classList.contains("is-wishlist-filter-open")) {
+    document.body.classList.remove("is-wishlist-filter-open");
+    wishlistFilterToggle?.setAttribute("aria-expanded", "false");
+    wishlistFilterToggle?.focus();
+    return;
+  }
+  if (event.key === "Escape" && wishlistBulkEditor && !wishlistBulkEditor.hidden) {
+    closeWishlistBulkEditor();
+    wishlistBulkBar?.querySelector("[data-wishlist-bulk-action]")?.focus();
+    return;
+  }
+  if (event.key === "Escape" && wishlistSelectionMode) {
+    setWishlistSelectionMode(false, { focusToggle: true });
+    return;
+  }
   if (event.key === "Escape" && document.body.classList.contains("is-collector-search-open")) {
     setCollectorSearchOpen(false);
     toggleCollectorSearchButton?.focus();
@@ -11993,7 +12396,13 @@ document.addEventListener("keydown", (event) => {
     garageFilterToggle?.focus();
     return;
   }
-  if (activeView !== "collection" || event.key.toLowerCase() !== "k" || !event.ctrlKey) return;
+  if (event.key.toLowerCase() !== "k" || !(event.ctrlKey || event.metaKey)) return;
+  if (activeView === "wishlist") {
+    event.preventDefault();
+    wishlistCommandSearchInput?.focus();
+    return;
+  }
+  if (activeView !== "collection") return;
   event.preventDefault();
   garageCommandSearchInput?.focus();
 });
@@ -12044,6 +12453,49 @@ deleteCatalogOverride.addEventListener("click", hideSelectedCatalogItem);
 saveAdminContent.addEventListener("click", saveAdminContentItem);
 
 toggleWishlistComposerButton?.addEventListener("click", () => setWishlistComposerOpen(Boolean(wishlistComposer?.hidden)));
+wishlistBulkToggle?.addEventListener("click", () => setWishlistSelectionMode(!wishlistSelectionMode));
+wishlistSelectVisible?.addEventListener("click", () => {
+  const visibleKeys = visibleWishlistItems.map(wishlistSelectionKey);
+  const allSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedWishlistIds.has(key));
+  visibleKeys.forEach((key) => {
+    if (allSelected) selectedWishlistIds.delete(key);
+    else selectedWishlistIds.add(key);
+  });
+  syncWishlistSelectionUI();
+});
+wishlistBulkCancel?.addEventListener("click", () => setWishlistSelectionMode(false, { focusToggle: true }));
+wishlistBulkEditorClose?.addEventListener("click", closeWishlistBulkEditor);
+wishlistBulkBar?.addEventListener("click", (event) => {
+  const actionButton = event.target.closest("[data-wishlist-bulk-action]");
+  if (!actionButton) return;
+  openWishlistBulkEditor(actionButton.dataset.wishlistBulkAction);
+});
+wishlistBulkEditor?.addEventListener("click", (event) => {
+  const priorityButton = event.target.closest("[data-wishlist-bulk-priority]");
+  if (priorityButton) {
+    void applyWishlistBulkPatch(
+      { priority: normalizeWishlistPriority(priorityButton.dataset.wishlistBulkPriority) },
+      "öncelik güncellendi."
+    );
+    return;
+  }
+  const confirmButton = event.target.closest("[data-wishlist-bulk-confirm]");
+  if (confirmButton?.dataset.wishlistBulkConfirm === "found") void markSelectedWishlistFound();
+  if (confirmButton?.dataset.wishlistBulkConfirm === "remove") void removeSelectedWishlistItems();
+});
+wishlistBulkPriceForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const price = wishlistPriceValue(wishlistBulkPrice?.value);
+  if (!price) {
+    wishlistBulkPrice?.focus();
+    showToast("Geçerli bir hedef fiyat gir.");
+    return;
+  }
+  void applyWishlistBulkPatch(
+    { targetPrice: price, budget: `${price} TL` },
+    "hedef fiyat güncellendi."
+  );
+});
 closeWishlistComposerButton?.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -12156,18 +12608,37 @@ wishlistComposerForm?.addEventListener("submit", async (event) => {
 wishlistFilterChips?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-wishlist-filter]");
   if (!button) return;
-  activeWishlistFilter = button.dataset.wishlistFilter;
+  const group = button.dataset.wishlistFilterGroup;
+  if (group === "priority") activeWishlistPriority = button.dataset.wishlistFilter;
+  if (group === "status") activeWishlistStatus = button.dataset.wishlistFilter;
+  if (group === "price") activeWishlistPrice = button.dataset.wishlistFilter;
   render();
 });
 wishlistDashboard?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-wishlist-stat]");
   if (!button) return;
-  activeWishlistFilter = button.dataset.wishlistStat;
+  applyWishlistQuickFilter(button.dataset.wishlistStat);
   render();
 });
 wishlistSortSelect?.addEventListener("change", () => {
   activeWishlistSort = wishlistSortSelect.value;
   render();
+});
+wishlistCommandSearchInput?.addEventListener("input", render);
+wishlistSearchClear?.addEventListener("click", () => {
+  wishlistCommandSearchInput.value = "";
+  wishlistCommandSearchInput.focus();
+  render();
+});
+wishlistResetFilters?.addEventListener("click", () => resetWishlistFilters({ renderView: true }));
+wishlistFilterToggle?.addEventListener("click", () => {
+  const willOpen = !document.body.classList.contains("is-wishlist-filter-open");
+  document.body.classList.toggle("is-wishlist-filter-open", willOpen);
+  wishlistFilterToggle.setAttribute("aria-expanded", String(willOpen));
+});
+wishlistFilterClose?.addEventListener("click", () => {
+  document.body.classList.remove("is-wishlist-filter-open");
+  wishlistFilterToggle?.setAttribute("aria-expanded", "false");
 });
 
 document.querySelector("#storeForm").addEventListener("submit", (event) => {

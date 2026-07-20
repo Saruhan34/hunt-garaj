@@ -334,7 +334,7 @@
     appendChip(meta, vehicle.toyNumber, "number");
     body.appendChild(meta);
 
-    if (mode === "garage" || mode === "public-garage") {
+    if (mode === "garage" || mode === "public-garage" || mode === "wishlist") {
       const specs = document.createElement("dl");
       specs.className = "vehicle-card__specs";
       [
@@ -352,19 +352,21 @@
       });
       body.appendChild(specs);
 
-      const garageMeta = document.createElement("div");
-      garageMeta.className = "vehicle-card__garage-meta";
-      [
-        vehicle.packagingStatus || vehicle.condition,
-        vehicle.forSale ? "Satılık" : "",
-        vehicle.forTrade ? "Takaslık" : "",
-        vehicle.estimatedValue ? `${vehicle.estimatedValue}${/tl/i.test(vehicle.estimatedValue) ? "" : " TL"}` : ""
-      ].filter(Boolean).forEach((value) => {
-        const item = document.createElement("span");
-        item.textContent = value;
-        garageMeta.appendChild(item);
-      });
-      body.appendChild(garageMeta);
+      if (mode === "garage" || mode === "public-garage") {
+        const garageMeta = document.createElement("div");
+        garageMeta.className = "vehicle-card__garage-meta";
+        [
+          vehicle.packagingStatus || vehicle.condition,
+          vehicle.forSale ? "Satılık" : "",
+          vehicle.forTrade ? "Takaslık" : "",
+          vehicle.estimatedValue ? `${vehicle.estimatedValue}${/tl/i.test(vehicle.estimatedValue) ? "" : " TL"}` : ""
+        ].filter(Boolean).forEach((value) => {
+          const item = document.createElement("span");
+          item.textContent = value;
+          garageMeta.appendChild(item);
+        });
+        body.appendChild(garageMeta);
+      }
     }
 
     if (mode === "wishlist" && (vehicle.priority || vehicle.budget)) {
@@ -463,6 +465,12 @@
 
     if (mode === "wishlist" && options.onRemove) {
       const remove = createIconButton("İstek listesinden kaldır", "vehicle-card__remove", "Kaldır");
+      remove.innerHTML = `
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/>
+        </svg>
+        <span>Kaldır</span>
+      `;
       remove.addEventListener("click", (event) => {
         stopButtonEvent(event);
         void options.onRemove?.(vehicle);
@@ -474,6 +482,13 @@
       const menuWrap = document.createElement("div");
       menuWrap.className = "vehicle-card__quick-menu";
       const menuToggle = createIconButton("Hızlı işlemler", "vehicle-card__quick-toggle", "•••");
+      menuToggle.innerHTML = `
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M4 6h7M15 6h5M4 12h3M11 12h9M4 18h9M17 18h3"/>
+          <circle cx="13" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="18" r="2"/>
+        </svg>
+        <span>İşlemler</span>
+      `;
       menuToggle.setAttribute("aria-expanded", "false");
       const menu = document.createElement("div");
       menu.className = "vehicle-card__quick-popover";

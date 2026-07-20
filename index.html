@@ -9,8 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css?v=234" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
-    <link rel="stylesheet" href="./explore.css?v=18" />
-    <link rel="stylesheet" href="./garage.css?v=11" />
+    <link rel="stylesheet" href="./explore.css?v=19" />
+    <link rel="stylesheet" href="./garage.css?v=12" />
+  <link rel="stylesheet" href="./wishlist.css?v=9" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -312,26 +313,37 @@
       </section>
 
       <section class="wishlist-dashboard app-module-only" id="wishlistDashboard" aria-labelledby="wishlistDashboardTitle">
-        <header class="wishlist-hero">
-          <div class="wishlist-hero__identity">
-            <span class="wishlist-hero__icon" aria-hidden="true">★</span>
-            <div>
-              <p class="eyebrow">AV PLANI</p>
-              <h1 id="wishlistDashboardTitle">İstek Listesi</h1>
-              <p>Aradığın modelleri hedef fiyat, öncelik ve notlarla takip et.</p>
-            </div>
+        <header class="wishlist-commandbar">
+          <div class="wishlist-commandbar__title module-jargon">
+            <span class="module-jargon__label">KOLEKSİYON</span>
+            <h1 class="module-jargon__title" id="wishlistDashboardTitle">İstek Listesi</h1>
           </div>
-          <button class="button button--primary wishlist-hero__add" id="toggleWishlistComposer" type="button" aria-controls="wishlistComposer" aria-expanded="false">
-            <span aria-hidden="true">＋</span> İstek Ekle
+          <label class="wishlist-command-search" for="wishlistCommandSearchInput">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+            <span class="sr-only">İstek listesinde ara</span>
+            <input id="wishlistCommandSearchInput" type="search" autocomplete="off" aria-keyshortcuts="Control+K Meta+K" placeholder="İstek listesinde ara" />
+            <kbd>Ctrl K</kbd>
+            <button id="wishlistSearchClear" type="button" aria-label="İstek listesi aramasını temizle" hidden>×</button>
+          </label>
+          <div class="wishlist-command-result" aria-live="polite">
+            <strong id="wishlistResultCount">0 araç</strong>
+            <span>takip ediliyor</span>
+          </div>
+          <label class="wishlist-sort" for="wishlistSortSelect"><span>Sırala</span><select id="wishlistSortSelect"><option value="newest">Yeni eklenen</option><option value="priority">Öncelik</option><option value="price">Hedef fiyat</option><option value="model">Araç adı</option><option value="year">Yıl</option></select></label>
+          <button class="wishlist-bulk-toggle" id="wishlistBulkToggle" type="button" aria-pressed="false">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>Seç</span>
+          </button>
+          <button class="button button--primary wishlist-command-add" id="toggleWishlistComposer" type="button" aria-label="İstek Ekle" aria-controls="wishlistComposer" aria-expanded="false">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>İstek Ekle</span>
           </button>
         </header>
 
         <div class="wishlist-stats" aria-label="İstek listesi istatistikleri">
-          <button type="button" data-wishlist-stat="all"><span aria-hidden="true">☷</span><small>Toplam İstek</small><strong id="wishlistStatTotal">0</strong><em>Tüm isteklerin</em></button>
-          <button type="button" data-wishlist-stat="wanted"><span aria-hidden="true">♡</span><small>Çok İstiyorum</small><strong id="wishlistStatWanted">0</strong><em>En yüksek öncelik</em></button>
-          <button type="button" data-wishlist-stat="priced"><span aria-hidden="true">◎</span><small>Hedef Fiyatlı</small><strong id="wishlistStatPriced">0</strong><em>Hedef fiyat belirli</em></button>
-          <button type="button" data-wishlist-stat="missing"><span aria-hidden="true">⌂</span><small>Garajda Olmayan</small><strong id="wishlistStatMissing">0</strong><em>Henüz garajda yok</em></button>
-          <button type="button" data-wishlist-stat="acquired"><span aria-hidden="true">✓</span><small>Bulunanlar</small><strong id="wishlistStatAcquired">0</strong><em>Garaja taşındı</em></button>
+          <button type="button" data-wishlist-stat="all"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><path d="M2 6h.01M2 12h.01M2 18h.01"/></svg></span><small>Toplam İstek</small><strong id="wishlistStatTotal">0</strong></button>
+          <button type="button" data-wishlist-stat="wanted"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/></svg></span><small>Çok İstiyorum</small><strong id="wishlistStatWanted">0</strong></button>
+          <button type="button" data-wishlist-stat="priced"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><small>Hedef Fiyatlı</small><strong id="wishlistStatPriced">0</strong></button>
+          <button type="button" data-wishlist-stat="missing"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 11 8-7 8 7v8H4z"/><path d="M9 19v-5h6v5"/></svg></span><small>Garajda Olmayan</small><strong id="wishlistStatMissing">0</strong></button>
+          <button type="button" data-wishlist-stat="acquired"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></span><small>Bulunanlar</small><strong id="wishlistStatAcquired">0</strong></button>
         </div>
 
         <section class="wishlist-composer" id="wishlistComposer" aria-labelledby="wishlistComposerTitle" hidden>
@@ -371,18 +383,88 @@
           </form>
         </section>
 
-        <div class="wishlist-toolbar">
-          <div class="wishlist-filter-chips" id="wishlistFilterChips" aria-label="İstek listesi filtreleri">
-            <button class="is-active" type="button" data-wishlist-filter="all">Tümü</button>
-            <button type="button" data-wishlist-filter="wanted">♥ Çok İstiyorum</button>
-            <button type="button" data-wishlist-filter="priority">★ Öncelikli</button>
-            <button type="button" data-wishlist-filter="opportunity">◉ Fırsat Olursa</button>
-            <button type="button" data-wishlist-filter="priced">◎ Hedef Fiyatlı</button>
-            <button type="button" data-wishlist-filter="missing">⌂ Garajda Olmayan</button>
-            <button type="button" data-wishlist-filter="acquired">✓ Bulunanlar</button>
-          </div>
-          <label class="wishlist-sort" for="wishlistSortSelect"><span>Sırala</span><select id="wishlistSortSelect"><option value="newest">Yeni eklenen</option><option value="priority">Öncelik</option><option value="price">Hedef fiyat</option><option value="model">Araç adı</option><option value="year">Yıl</option></select></label>
+        <button class="wishlist-filter-toggle" id="wishlistFilterToggle" type="button" aria-controls="wishlistFilterRail" aria-expanded="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Filtreler</span><b id="wishlistMobileFilterCount">0</b>
+        </button>
+
+        <div class="wishlist-layout">
+          <aside class="wishlist-filter-rail" id="wishlistFilterRail" aria-label="İstek listesi filtreleri">
+            <div class="wishlist-filter-heading">
+              <div><span>FİLTRELER</span><strong id="wishlistActiveFilterCount">0 aktif</strong></div>
+              <div><button id="wishlistResetFilters" type="button">Temizle</button><button class="wishlist-filter-close" id="wishlistFilterClose" type="button" aria-label="Filtreleri kapat">×</button></div>
+            </div>
+            <div class="wishlist-filter-chips" id="wishlistFilterChips">
+              <fieldset class="wishlist-filter-group">
+                <legend><i aria-hidden="true"></i>Öncelik</legend>
+                <button class="is-active" type="button" data-wishlist-filter-group="priority" data-wishlist-filter="all"><span></span>Tümü<b id="wishlistFilterPriorityAll">0</b></button>
+                <button type="button" data-wishlist-filter-group="priority" data-wishlist-filter="wanted"><span></span>Çok İstiyorum<b id="wishlistFilterWanted">0</b></button>
+                <button type="button" data-wishlist-filter-group="priority" data-wishlist-filter="priority"><span></span>Öncelikli<b id="wishlistFilterPriority">0</b></button>
+                <button type="button" data-wishlist-filter-group="priority" data-wishlist-filter="opportunity"><span></span>Fırsat Olursa<b id="wishlistFilterOpportunity">0</b></button>
+                <button type="button" data-wishlist-filter-group="priority" data-wishlist-filter="watching"><span></span>Takipte<b id="wishlistFilterWatching">0</b></button>
+              </fieldset>
+              <fieldset class="wishlist-filter-group">
+                <legend><i aria-hidden="true"></i>Durum</legend>
+                <button class="is-active" type="button" data-wishlist-filter-group="status" data-wishlist-filter="all"><span></span>Tümü<b id="wishlistFilterStatusAll">0</b></button>
+                <button type="button" data-wishlist-filter-group="status" data-wishlist-filter="missing"><span></span>Garajda Olmayan<b id="wishlistFilterMissing">0</b></button>
+                <button type="button" data-wishlist-filter-group="status" data-wishlist-filter="acquired"><span></span>Bulunanlar<b id="wishlistFilterAcquired">0</b></button>
+              </fieldset>
+              <fieldset class="wishlist-filter-group">
+                <legend><i aria-hidden="true"></i>Hedef Fiyat</legend>
+                <button class="is-active" type="button" data-wishlist-filter-group="price" data-wishlist-filter="all"><span></span>Tümü<b id="wishlistFilterPriceAll">0</b></button>
+                <button type="button" data-wishlist-filter-group="price" data-wishlist-filter="priced"><span></span>Fiyat Belirlenenler<b id="wishlistFilterPriced">0</b></button>
+                <button type="button" data-wishlist-filter-group="price" data-wishlist-filter="unpriced"><span></span>Fiyatı Olmayanlar<b id="wishlistFilterUnpriced">0</b></button>
+              </fieldset>
+            </div>
+          </aside>
+
+          <section class="wishlist-results" aria-labelledby="wishlistResultsTitle">
+            <header class="wishlist-results__heading">
+              <div><span>AV PLANI</span><h2 id="wishlistResultsTitle">Takipteki araçlar</h2></div>
+              <p id="wishlistResultsSummary">0 sonuç · Yeni eklenen</p>
+            </header>
+            <div class="wishlist-selection-row" id="wishlistSelectionRow" hidden>
+              <button id="wishlistSelectVisible" type="button" aria-pressed="false">
+                <span class="wishlist-selection-row__check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 12 3 3 7-7"/></svg></span>
+                <span id="wishlistSelectVisibleLabel">Görünenlerin tümünü seç</span>
+              </button>
+              <small id="wishlistVisibleSelectionSummary">0 araç görünür</small>
+            </div>
+            <div class="wishlist-card-grid" id="wishlistCards"></div>
+          </section>
         </div>
+        <section class="wishlist-bulk-bar" id="wishlistBulkBar" aria-label="Toplu istek listesi işlemleri" hidden>
+          <div class="wishlist-bulk-bar__count"><strong id="wishlistBulkCount">0</strong><span>araç seçildi</span></div>
+          <div class="wishlist-bulk-bar__actions">
+            <button type="button" data-wishlist-bulk-action="priority"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span>Öncelik</span></button>
+            <button type="button" data-wishlist-bulk-action="price"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Hedef Fiyat</span></button>
+            <button type="button" data-wishlist-bulk-action="found"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg><span>Bulundu</span></button>
+            <button class="is-danger" type="button" data-wishlist-bulk-action="remove"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg><span>Kaldır</span></button>
+          </div>
+          <button class="wishlist-bulk-bar__cancel" id="wishlistBulkCancel" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg><span>Seçimi İptal</span></button>
+
+          <div class="wishlist-bulk-editor" id="wishlistBulkEditor" role="dialog" aria-modal="false" aria-labelledby="wishlistBulkEditorTitle" hidden>
+            <header><div><small>TOPLU İŞLEM</small><strong id="wishlistBulkEditorTitle">Seçili araçları düzenle</strong></div><button id="wishlistBulkEditorClose" type="button" aria-label="Toplu işlem panelini kapat">×</button></header>
+            <section class="wishlist-bulk-panel" data-wishlist-bulk-panel="priority" hidden>
+              <p>Seçili araçların yeni önceliğini belirle.</p>
+              <div class="wishlist-bulk-priorities">
+                <button type="button" data-wishlist-bulk-priority="Çok istiyorum"><i class="is-wanted"></i>Çok İstiyorum</button>
+                <button type="button" data-wishlist-bulk-priority="Öncelikli"><i class="is-priority"></i>Öncelikli</button>
+                <button type="button" data-wishlist-bulk-priority="Fırsat olursa"><i class="is-opportunity"></i>Fırsat Olursa</button>
+                <button type="button" data-wishlist-bulk-priority="Takipte"><i class="is-watching"></i>Takipte</button>
+              </div>
+            </section>
+            <form class="wishlist-bulk-panel wishlist-bulk-price" id="wishlistBulkPriceForm" data-wishlist-bulk-panel="price" hidden>
+              <label for="wishlistBulkPrice"><span>Yeni hedef fiyat</span><div><input id="wishlistBulkPrice" type="number" inputmode="decimal" min="1" max="10000000" step="0.01" placeholder="500" required/><em>TL</em></div></label>
+              <button type="submit">Fiyatı Uygula</button>
+            </form>
+            <section class="wishlist-bulk-panel wishlist-bulk-confirm" data-wishlist-bulk-panel="found" hidden>
+              <span class="is-success" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></span><div><strong>Garaja taşı ve bulundu olarak işaretle</strong><p>Seçili araçlar garajına birer adet eklenecek.</p></div><button type="button" data-wishlist-bulk-confirm="found">Onayla</button>
+            </section>
+            <section class="wishlist-bulk-panel wishlist-bulk-confirm" data-wishlist-bulk-panel="remove" hidden>
+              <span class="is-danger" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></span><div><strong>Seçili istekleri kaldır</strong><p>Bu işlem seçili araçları istek listenden çıkarır.</p></div><button class="is-danger" type="button" data-wishlist-bulk-confirm="remove">Kaldır</button>
+            </section>
+          </div>
+        </section>
         <button class="wishlist-floating-add" id="wishlistFloatingAdd" type="button" aria-controls="wishlistComposer" hidden><span aria-hidden="true">＋</span> İstek Ekle</button>
       </section>
 
@@ -2448,12 +2530,12 @@
 
     <script src="./catalog-2026.js?v=8"></script>
     <script src="./catalog-lines-2026.js?v=3"></script>
-    <script src="./vehicle-components.js?v=12"></script>
+    <script src="./vehicle-components.js?v=14"></script>
     <script src="./explore-service.js?v=6"></script>
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=216"></script>
+    <script src="./app.js?v=219"></script>
   </body>
 </html>
 

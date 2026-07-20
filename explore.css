@@ -186,7 +186,8 @@ body.dashboard-shell.is-explore-view .explore-module {
 
 .explore-search {
   display: grid;
-  min-height: 52px;
+  height: 48px;
+  min-height: 48px;
   grid-template-columns: 24px minmax(0, 1fr) auto 40px;
   align-items: center;
   gap: 11px;
@@ -252,7 +253,7 @@ body.dashboard-shell.is-explore-view .explore-module {
 .explore-search button {
   display: grid;
   width: 40px;
-  height: 50px;
+  height: 46px;
   place-items: center;
   border: 0;
   border-left: 1px solid var(--explore-line);
@@ -276,6 +277,8 @@ body.dashboard-shell.is-explore-view .explore-module {
 .explore-commandbar__result {
   display: grid;
   min-width: 0;
+  min-height: 48px;
+  align-content: center;
   gap: 3px;
 }
 
@@ -298,6 +301,7 @@ body.dashboard-shell.is-explore-view .explore-module {
 .explore-sort {
   position: relative;
   display: grid;
+  height: 48px;
   min-width: 0;
 }
 
@@ -334,7 +338,8 @@ body.dashboard-shell.is-explore-view .explore-module {
 
 .explore-sort select {
   appearance: none;
-  min-height: 42px;
+  height: 48px;
+  min-height: 48px;
   padding: 0 40px 0 10px;
   font: 600 0.68rem/1 var(--explore-ui);
 }
@@ -353,7 +358,8 @@ body.dashboard-shell.is-explore-view .explore-module {
 
 .explore-quick-action {
   display: inline-flex;
-  min-height: 42px;
+  height: 48px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -1273,6 +1279,7 @@ body.is-wishlist-view #cards {
   }
 
   .explore-quick-action {
+    height: 40px;
     min-height: 40px;
   }
 
