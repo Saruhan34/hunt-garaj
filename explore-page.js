@@ -14,6 +14,7 @@
     assortment: "",
     caseCode: "",
     membership: "any",
+    sort: "model_asc",
     items: [],
     total: 0,
     cursor: null,
@@ -51,7 +52,8 @@
       segment: state.segment,
       assortment: state.assortment,
       caseCode: state.caseCode,
-      membership: state.membership
+      membership: state.membership,
+      sort: state.sort
     };
   }
 
@@ -96,7 +98,26 @@
     const grid = element("#exploreVehicleGrid");
     if (!grid) return;
     grid.innerHTML = "";
-    state.items.forEach((vehicle, index) => grid.appendChild(Vehicles.createCard(vehicle, cardOptions(vehicle, "explore", index < 12))));
+    state.items.forEach((vehicle, index) => {
+      const card = Vehicles.createCard(vehicle, cardOptions(vehicle, "explore", index < 12));
+      const meta = card.querySelector(".vehicle-card__meta");
+      if (meta) {
+        [
+          ["year", vehicle.year || "—"],
+          ["case", vehicle.caseCode || "—"],
+          ["number", vehicle.toyNumber || "—"]
+        ].forEach(([tone, value]) => {
+          let chip = meta.querySelector(`.vehicle-chip--${tone}`);
+          if (!chip) {
+            chip = document.createElement("span");
+            chip.className = `vehicle-chip vehicle-chip--${tone}`;
+            meta.appendChild(chip);
+          }
+          chip.textContent = String(value);
+        });
+      }
+      grid.appendChild(card);
+    });
   }
 
   function renderProfileSelectionBar() {
@@ -146,7 +167,7 @@
       ["series", "Seri", state.series],
       ["year", "Yıl", state.year],
       ["segment", "Segment", state.segment],
-      ["assortment", "Assortment", state.assortment],
+      ["assortment", "Paket grubu", state.assortment],
       ["caseCode", "Case", state.caseCode],
       ["membership", "Durum", state.membership === "any" ? "" : state.membership]
     ].filter((entry) => entry[2]);
@@ -155,16 +176,21 @@
   function renderFilterChips() {
     const target = element("#exploreActiveFilters");
     if (!target) return;
+    const entries = activeFilterEntries();
+    const activeCount = element("#exploreActiveFilterCount");
+    const reset = element("#exploreResetFilters");
+    if (activeCount) activeCount.textContent = `${entries.length} aktif`;
+    if (reset instanceof HTMLButtonElement) reset.disabled = entries.length === 0;
     target.innerHTML = "";
-    activeFilterEntries().forEach(([key, label, value]) => {
+    entries.forEach(([key, label, value]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "explore-filter-chip";
       const membershipLabels = {
         owned: "Garajımda",
-        not_owned: "Garajımda değil",
-        wishlist: "İstek Listesinde",
-        not_wishlist: "İstek Listesinde Değil"
+        not_owned: "Eksikler",
+        wishlist: "İstek Listem",
+        not_wishlist: "İstek Dışı"
       };
       button.textContent = `${label}: ${membershipLabels[value] || value} ×`;
       button.addEventListener("click", () => {
@@ -183,8 +209,10 @@
     const empty = element("#exploreEmptyState");
     const error = element("#exploreErrorState");
     const mobileCount = element("#exploreResultCountMobile");
+    const filterApply = element("#exploreFilterApply");
     if (count) count.textContent = state.loading && !state.loaded ? "Katalog taranıyor…" : `${state.total.toLocaleString("tr-TR")} araç`;
     if (mobileCount) mobileCount.textContent = state.loading && !state.loaded ? "Katalog taranıyor…" : `${state.total.toLocaleString("tr-TR")} araç`;
+    if (filterApply) filterApply.textContent = state.loading && !state.loaded ? "Sonuçlar Hazırlanıyor" : `${state.total.toLocaleString("tr-TR")} Aracı Göster`;
     if (source) source.textContent = state.source === "supabase" ? "Canlı katalog" : "Hunt Radar kataloğu";
     setVisible(empty, state.loaded && !state.loading && !state.error && state.items.length === 0);
     setVisible(error, state.error);
@@ -258,7 +286,7 @@
     populateSelect("#exploreSeriesFilter", facets.series, "Tüm seriler");
     populateSelect("#exploreYearFilter", facets.years, "Tüm yıllar");
     populateSelect("#exploreSegmentFilter", facets.segments, "Tüm segmentler");
-    populateSelect("#exploreAssortmentFilter", facets.assortments, "Tüm assortment'lar");
+    populateSelect("#exploreAssortmentFilter", facets.assortments, "Tüm paket grupları");
     populateSelect("#exploreCaseFilter", facets.cases, "Tüm case'ler");
     syncControls();
   }
@@ -278,6 +306,8 @@
       const select = element(selector);
       if (select instanceof HTMLSelectElement) select.value = state[key] || "";
     });
+    const sort = element("#exploreSortSelect");
+    if (sort instanceof HTMLSelectElement) sort.value = state.sort;
     document.querySelectorAll("[data-explore-membership]").forEach((button) => {
       button.classList.toggle("is-active", button.dataset.exploreMembership === state.membership);
     });
@@ -307,6 +337,14 @@
   function closeDetail() {
     activeDetailVehicle = null;
     Vehicles.closeDetail();
+  }
+
+  function setFilterDrawerOpen(open, returnFocus = false) {
+    const toggle = element("#exploreFilterToggle");
+    document.body.classList.toggle("is-explore-filter-open", open);
+    toggle?.setAttribute("aria-expanded", String(open));
+    if (open) window.setTimeout(() => element("#exploreFilterClose")?.focus(), 0);
+    else if (returnFocus) toggle?.focus();
   }
 
   function resetFilters() {
@@ -433,6 +471,10 @@
         void runSearch(false);
       });
     });
+    element("#exploreSortSelect")?.addEventListener("change", (event) => {
+      state.sort = event.currentTarget.value || "model_asc";
+      void runSearch(false);
+    });
     document.querySelectorAll("[data-explore-membership]").forEach((button) => {
       button.addEventListener("click", () => {
         state.membership = button.dataset.exploreMembership || "any";
@@ -445,7 +487,10 @@
     element("#exploreProfileSelectionDone")?.addEventListener("click", () => endProfileSelection(true));
     element("#exploreProfileSelectionCancel")?.addEventListener("click", () => endProfileSelection(false));
     element("#exploreSuggestVehicle")?.addEventListener("click", openSuggestion);
-    element("#exploreFilterToggle")?.addEventListener("click", () => document.body.classList.toggle("is-explore-filter-open"));
+    element("#exploreFilterToggle")?.addEventListener("click", () => setFilterDrawerOpen(!document.body.classList.contains("is-explore-filter-open")));
+    element("#exploreFilterClose")?.addEventListener("click", () => setFilterDrawerOpen(false, true));
+    element("#exploreFilterBackdrop")?.addEventListener("click", () => setFilterDrawerOpen(false, true));
+    element("#exploreFilterApply")?.addEventListener("click", () => setFilterDrawerOpen(false, true));
     element("#vehicleSuggestionClose")?.addEventListener("click", closeSuggestion);
     element("#vehicleSuggestionCancel")?.addEventListener("click", closeSuggestion);
     element("#vehicleSuggestionModal")?.addEventListener("click", (event) => {
@@ -455,8 +500,14 @@
     element("#vehicleDetailClose")?.addEventListener("click", closeDetail);
     element("#vehicleDetailBackdrop")?.addEventListener("click", closeDetail);
     document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k" && document.body.classList.contains("is-explore-view")) {
+        event.preventDefault();
+        search?.focus();
+        search?.select();
+      }
       if (event.key === "Escape") closeDetail();
       if (event.key === "Escape") closeSuggestion();
+      if (event.key === "Escape" && document.body.classList.contains("is-explore-filter-open")) setFilterDrawerOpen(false, true);
     });
 
     const sentinel = element("#exploreScrollSentinel");
@@ -482,7 +533,7 @@
 
   function deactivate() {
     closeDetail();
-    document.body.classList.remove("is-explore-filter-open");
+    setFilterDrawerOpen(false);
   }
 
   function configure(options = {}) {

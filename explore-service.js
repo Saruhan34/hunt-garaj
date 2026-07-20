@@ -196,6 +196,30 @@
     return true;
   }
 
+  function rarityRank(vehicle) {
+    const rank = {
+      super_treasure_hunt: 0,
+      chase: 1,
+      treasure_hunt: 2,
+      mattel_creations: 3,
+      premium: 4,
+      exclusive: 5,
+      zamac: 6,
+      silver_series: 7,
+      red_edition: 8,
+      regular: 9
+    };
+    return rank[String(vehicle.raritySegment || "regular").toLowerCase()] ?? 9;
+  }
+
+  function compareVehicles(sort) {
+    const byModel = (a, b) => a.model.localeCompare(b.model, "tr") || a.catalogId.localeCompare(b.catalogId, "tr");
+    if (sort === "year_desc") return (a, b) => Number(b.year || 0) - Number(a.year || 0) || byModel(a, b);
+    if (sort === "year_asc") return (a, b) => Number(a.year || 0) - Number(b.year || 0) || byModel(a, b);
+    if (sort === "rarity") return (a, b) => rarityRank(a) - rarityRank(b) || byModel(a, b);
+    return byModel;
+  }
+
   function localSearch(options) {
     const query = normalizeText(options.query);
     const offset = Math.max(0, Number(options.cursor || 0));
@@ -209,7 +233,7 @@
       if (!matchesFilter(vehicle.assortment, options.assortment)) return false;
       if (!matchesFilter(vehicle.caseCode, options.caseCode)) return false;
       return matchesMembership(vehicle, options.membership);
-    }).sort((a, b) => a.model.localeCompare(b.model, "tr") || a.catalogId.localeCompare(b.catalogId, "tr"));
+    }).sort(compareVehicles(options.sort));
     const page = items.slice(offset, offset + PAGE_SIZE);
     return {
       items: page,
@@ -239,7 +263,7 @@
     const items = (data || []).map((row) => mergeVehicle(metadata.get(row.id), row));
     const last = items.at(-1);
     return {
-      items,
+      items: options.sort && options.sort !== "model_asc" ? [...items].sort(compareVehicles(options.sort)) : items,
       total: Number(data?.[0]?.total_count || items.length),
       nextCursor: items.length === PAGE_SIZE && last ? { model: last.model, id: last.catalogId } : null,
       source: "supabase"

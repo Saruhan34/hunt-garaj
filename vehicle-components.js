@@ -335,6 +335,23 @@
     body.appendChild(meta);
 
     if (mode === "garage" || mode === "public-garage") {
+      const specs = document.createElement("dl");
+      specs.className = "vehicle-card__specs";
+      [
+        ["Yıl", vehicle.year || "—"],
+        ["Case", vehicle.caseCode || "—"],
+        ["Toy No", vehicle.toyNumber || "—"]
+      ].forEach(([label, value]) => {
+        const cell = document.createElement("div");
+        const term = document.createElement("dt");
+        const detail = document.createElement("dd");
+        term.textContent = label;
+        detail.textContent = value;
+        cell.append(term, detail);
+        specs.appendChild(cell);
+      });
+      body.appendChild(specs);
+
       const garageMeta = document.createElement("div");
       garageMeta.className = "vehicle-card__garage-meta";
       [

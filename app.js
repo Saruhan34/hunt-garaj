@@ -526,6 +526,8 @@ let activeStoreEvidence = "Tümü";
 let activeCollectionOwner = "Tümü";
 let activeGarageFilter = "Tümü";
 let activeGarageSort = "newest";
+let activeGaragePackaging = "Tümü";
+let activeGarageCondition = "Tümü";
 let activeWishlistFilter = "all";
 let activeWishlistSort = "newest";
 let selectedWishlistCatalogVehicle = null;
@@ -713,8 +715,23 @@ const openGarageDrawerButton = document.querySelector("#openGarageDrawer");
 const closeGarageDrawerButton = document.querySelector("#closeGarageDrawer");
 const garageDrawerBackdrop = document.querySelector("#garageDrawerBackdrop");
 const garageSearchInput = document.querySelector("#garageSearchInput");
+const garageCommandSearchInput = document.querySelector("#garageCommandSearchInput");
 const garageFilterChips = document.querySelector("#garageFilterChips");
 const garageSortSelect = document.querySelector("#garageSortSelect");
+const garageCommandSortSelect = document.querySelector("#garageCommandSortSelect");
+const garagePackagingFilter = document.querySelector("#garagePackagingFilter");
+const garageConditionFilter = document.querySelector("#garageConditionFilter");
+const garageResetFilters = document.querySelector("#garageResetFilters");
+const garageFilterToggle = document.querySelector("#garageFilterToggle");
+const garageFilterClose = document.querySelector("#garageFilterClose");
+const garageFilterRail = document.querySelector("#garageFilterRail");
+const garageCards = document.querySelector("#garageCards");
+const garageEmptyState = document.querySelector("#garageEmptyState");
+const garageEmptyExplore = document.querySelector("#garageEmptyExplore");
+const garageResultCount = document.querySelector("#garageResultCount");
+const garageCollectionSummary = document.querySelector("#garageCollectionSummary");
+const garageActiveFilterCount = document.querySelector("#garageActiveFilterCount");
+const garageMobileFilterCount = document.querySelector("#garageMobileFilterCount");
 const garageStatTotal = document.querySelector("#garageStatTotal");
 const garageStatRegular = document.querySelector("#garageStatRegular");
 const garageStatPremium = document.querySelector("#garageStatPremium");
@@ -2319,6 +2336,8 @@ function render() {
     list = list.slice(from, from + STORE_PAGE_SIZE);
   }
   cards.innerHTML = "";
+  if (garageCards) garageCards.innerHTML = "";
+  const collectionTarget = activeView === "collection" && garageCards ? garageCards : cards;
   listTitle.textContent = viewTitles[activeView] || viewTitles.collection;
   viewCopy.textContent = viewCopies[activeView] || "";
   visibleCount.textContent = activeView === "stores"
@@ -2337,7 +2356,16 @@ function render() {
         : activeView === "wishlist"
           ? ""
           : "Henüz kayıt yok.";
-  emptyState.classList.toggle("is-visible", activeView !== "wishlist" && !storePageLoading && list.length === 0);
+  emptyState.classList.toggle("is-visible", activeView !== "collection" && activeView !== "wishlist" && !storePageLoading && list.length === 0);
+  if (garageEmptyState) {
+    garageEmptyState.classList.toggle("is-visible", activeView === "collection" && !publicGarageLoading && list.length === 0);
+  }
+  if (garageResultCount) garageResultCount.textContent = `${list.length} araç`;
+  if (garageCollectionSummary) {
+    garageCollectionSummary.textContent = publicGarageLoading
+      ? "Koleksiyon yükleniyor."
+      : `${list.length} sonuç · ${activeGarageSort === "model" ? "Model sırasına göre" : activeGarageSort === "oldest" ? "Eskiden yeniye" : "Yeniden eskiye"}`;
+  }
   renderListFilters();
   if (activeView === "wishlist") updateWishlistDashboard();
 
@@ -2345,7 +2373,7 @@ function render() {
     renderStoreLoadingCards();
   } else {
     list.forEach((item) => {
-      cards.appendChild(createCard(item));
+      collectionTarget.appendChild(createCard(item));
     });
     if (activeView === "wishlist" && list.length === 0) cards.appendChild(createWishlistEmptyState());
   }
@@ -3505,6 +3533,8 @@ function createCard(item) {
 function matchesViewFilters(item) {
   if (activeView === "collection") {
     if (publicGarageUsername && publicGarageMissingOnly && publicGarageOwnKeys.has(garageVehicleIdentityKey(item))) return false;
+    if (activeGaragePackaging !== "Tümü" && (item.packagingStatus || "") !== activeGaragePackaging) return false;
+    if (activeGarageCondition !== "Tümü" && (item.condition || "") !== activeGarageCondition) return false;
     if (activeGarageFilter === "Regular") return !isGaragePremium(item) && !isGarageHunt(item) && !isGarageChase(item) && !isGarageSilver(item);
     if (activeGarageFilter === "Premium") return isGaragePremium(item);
     if (activeGarageFilter === "Chase") return isGarageChase(item);
@@ -5639,6 +5669,7 @@ function closePublicProfileModal() {
 function setCollectorSearchOpen(open) {
   if (!collectorSearchPanel) return;
   collectorSearchPanel.hidden = !open;
+  document.body.classList.toggle("is-collector-search-open", open);
   toggleCollectorSearchButton?.setAttribute("aria-expanded", String(open));
   if (open) window.setTimeout(() => collectorSearchInput?.focus(), 0);
 }
@@ -5741,7 +5772,7 @@ function renderCollectorSearchResults(profiles = []) {
     row.innerHTML = `
       <span class="collector-result__avatar">${escapeHtml(userInitials(profile.username))}</span>
       <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(meta.visibility)}</small></span>
-      <span class="collector-result__action">${escapeHtml(meta.summary.isFollowing ? "Arkadaş" : meta.isPrivate ? "Garaj Gizli" : "Garaja Git")}</span>
+      <span class="collector-result__action">${escapeHtml(meta.isPrivate ? "Garaj Gizli" : "Garajı Gör")}</span>
       <span class="collector-result__follow">${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Arkadaşsınız" : "Arkadaş Ekle")}</span>
       <span class="collector-result__arrow" aria-hidden="true">→</span>
     `;
@@ -9132,9 +9163,18 @@ function updateGarageDashboard() {
     button.classList.toggle("is-active", button.dataset.garageFilter === activeGarageFilter);
   });
   if (garageSortSelect && garageSortSelect.value !== activeGarageSort) garageSortSelect.value = activeGarageSort;
-  if (activeView === "collection" && garageSearchInput && garageSearchInput.value !== searchInput.value) {
-    garageSearchInput.value = searchInput.value;
+  if (garageCommandSortSelect && garageCommandSortSelect.value !== activeGarageSort) garageCommandSortSelect.value = activeGarageSort;
+  if (garagePackagingFilter && garagePackagingFilter.value !== activeGaragePackaging) garagePackagingFilter.value = activeGaragePackaging;
+  if (garageConditionFilter && garageConditionFilter.value !== activeGarageCondition) garageConditionFilter.value = activeGarageCondition;
+  if (activeView === "collection") {
+    if (garageSearchInput && garageSearchInput.value !== searchInput.value) garageSearchInput.value = searchInput.value;
+    if (garageCommandSearchInput && garageCommandSearchInput.value !== searchInput.value) garageCommandSearchInput.value = searchInput.value;
   }
+  const activeFilterCount = Number(activeGarageFilter !== "Tümü")
+    + Number(activeGaragePackaging !== "Tümü")
+    + Number(activeGarageCondition !== "Tümü");
+  if (garageActiveFilterCount) garageActiveFilterCount.textContent = `${activeFilterCount} aktif`;
+  if (garageMobileFilterCount) garageMobileFilterCount.textContent = String(activeFilterCount);
   const viewingPublicGarage = Boolean(publicGarageUsername);
   const profileName = publicGarageProfile?.username || publicGarageUsername;
   garageDashboardOwnCopy?.classList.toggle("is-hidden", viewingPublicGarage);
@@ -9144,7 +9184,7 @@ function updateGarageDashboard() {
   garageDashboard.querySelectorAll(".garage-stat--public").forEach((stat) => stat.classList.toggle("is-hidden", !viewingPublicGarage));
   garageDashboard.querySelectorAll(".garage-stat--own").forEach((stat) => stat.classList.toggle("is-hidden", viewingPublicGarage));
   if (!viewingPublicGarage) {
-    if (garageDashboardEyebrow) garageDashboardEyebrow.textContent = "KİŞİSEL KOLEKSİYON";
+    if (garageDashboardEyebrow) garageDashboardEyebrow.textContent = "KİŞİSEL";
     if (garageDashboardTitle) garageDashboardTitle.textContent = "Garaj";
     if (garageDashboardCopy) garageDashboardCopy.textContent = "Koleksiyonundaki araçları görüntüle, filtrele ve yönet.";
   }
@@ -11174,6 +11214,7 @@ function setActiveView(view, options = {}) {
     return;
   }
   const enteringStores = view === "stores" && activeView !== "stores";
+  const enteringCollection = view === "collection" && activeView !== "collection";
   const leavingExplore = view !== "explore" && activeView === "explore";
   activeView = view;
 
@@ -11195,6 +11236,7 @@ function setActiveView(view, options = {}) {
     activeCollectionOwner = "Tümü";
     activeGarageFilter = "Tümü";
     activeGarageSort = "newest";
+    setCollectorSearchOpen(false);
     closeGarageDrawer();
     closeGarageDetail();
   }
@@ -11230,6 +11272,10 @@ function setActiveView(view, options = {}) {
   syncAdminVisibility();
   closeDashboardMenu();
 
+  if (enteringCollection) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
   if (enteringStores) {
     storeCurrentPage = 1;
     void loadStorePage({ page: 1 });
@@ -11244,6 +11290,8 @@ function setActiveView(view, options = {}) {
         ? rewardsModule
         : activeView === "explore"
           ? exploreModule
+          : activeView === "collection"
+            ? garageDashboard
           : activeView === "profile"
             ? profileDashboard
             : document.querySelector("#workspace");
@@ -11896,9 +11944,58 @@ garageSortSelect?.addEventListener("change", () => {
   activeGarageSort = garageSortSelect.value;
   render();
 });
+garageCommandSortSelect?.addEventListener("change", () => {
+  activeGarageSort = garageCommandSortSelect.value;
+  render();
+});
 garageSearchInput?.addEventListener("input", () => {
   searchInput.value = garageSearchInput.value;
   render();
+});
+garageCommandSearchInput?.addEventListener("input", () => {
+  searchInput.value = garageCommandSearchInput.value;
+  render();
+});
+garagePackagingFilter?.addEventListener("change", () => {
+  activeGaragePackaging = garagePackagingFilter.value;
+  render();
+});
+garageConditionFilter?.addEventListener("change", () => {
+  activeGarageCondition = garageConditionFilter.value;
+  render();
+});
+garageResetFilters?.addEventListener("click", () => {
+  activeGarageFilter = "Tümü";
+  activeGaragePackaging = "Tümü";
+  activeGarageCondition = "Tümü";
+  searchInput.value = "";
+  render();
+});
+garageFilterToggle?.addEventListener("click", () => {
+  const willOpen = !document.body.classList.contains("is-garage-filter-open");
+  document.body.classList.toggle("is-garage-filter-open", willOpen);
+  garageFilterToggle.setAttribute("aria-expanded", String(willOpen));
+});
+garageFilterClose?.addEventListener("click", () => {
+  document.body.classList.remove("is-garage-filter-open");
+  garageFilterToggle?.setAttribute("aria-expanded", "false");
+});
+garageEmptyExplore?.addEventListener("click", () => navigateToView("explore", { clearSearch: true, scroll: true }));
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("is-collector-search-open")) {
+    setCollectorSearchOpen(false);
+    toggleCollectorSearchButton?.focus();
+    return;
+  }
+  if (event.key === "Escape" && document.body.classList.contains("is-garage-filter-open")) {
+    document.body.classList.remove("is-garage-filter-open");
+    garageFilterToggle?.setAttribute("aria-expanded", "false");
+    garageFilterToggle?.focus();
+    return;
+  }
+  if (activeView !== "collection" || event.key.toLowerCase() !== "k" || !event.ctrlKey) return;
+  event.preventDefault();
+  garageCommandSearchInput?.focus();
 });
 closeGarageDetailButton?.addEventListener("click", closeGarageDetail);
 garageDetailModal?.addEventListener("click", (event) => {
