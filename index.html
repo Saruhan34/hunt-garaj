@@ -7,11 +7,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=234" />
+    <link rel="stylesheet" href="./styles.css?v=235" />
     <link rel="stylesheet" href="./vehicle-components.css?v=13" />
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
+  <link rel="stylesheet" href="./community.css?v=5" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1006,77 +1007,130 @@
       <section class="community-module app-module-only" id="communityModule" aria-label="Forum ve topluluk">
         <section class="community-hub-hero">
           <div class="community-hub-hero__copy">
-            <p class="eyebrow">Topluluk Merkezi</p>
-            <h2>Topluluk Merkezi</h2>
-            <p>Video akışları, forum konuları ve topluluk sohbetleri tek merkezde.</p>
+            <p class="eyebrow">Topluluk</p>
+            <h2>Topluluk</h2>
+            <p>Araç tutkunlarıyla paylaş, keşfet ve ilham al.</p>
           </div>
-          <div class="community-hub-hero__actions">
-            <button class="button button--ghost" id="communitySuggestVideo" type="button"><span aria-hidden="true">＋</span>Video Öner</button>
-            <button class="button button--primary" id="communityJoinChat" type="button"><span aria-hidden="true">◌</span>Sohbete Katıl</button>
+          <div class="community-hub-hero__actions" aria-label="Akış araçları">
+            <label class="community-feed-search" for="communityFeedSearch">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+              <span class="sr-only">Akışta ara</span>
+              <input id="communityFeedSearch" type="search" autocomplete="off" placeholder="Toplulukta ara..." />
+            </label>
+            <button class="community-header-create" id="communityHeaderCreate" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+              <span>Gönderi oluştur</span>
+            </button>
           </div>
         </section>
 
         <nav class="community-tabs" aria-label="Topluluk bölümleri">
-          <button class="is-active" type="button" data-community-target="communityFeed"><span aria-hidden="true">⌁</span>Akış</button>
-          <button type="button" data-community-target="communityHunters"><span aria-hidden="true">♙</span>Avcı Bul</button>
-          <button type="button" data-community-target="communityForum"><span aria-hidden="true">▤</span>Forum</button>
-          <button type="button" data-community-target="communityChat"><span aria-hidden="true">◌</span>Sohbet</button>
+          <button class="is-active" type="button" data-community-target="communityOverview" aria-pressed="true">Genel Bakış</button>
+          <button type="button" data-community-target="communityFeed" aria-pressed="false">Akış</button>
+          <button type="button" data-community-target="communityForum" aria-pressed="false">Forum</button>
+          <button type="button" data-community-target="communityChat" aria-pressed="false">Sohbet</button>
+          <button type="button" data-community-target="communityHunters" aria-pressed="false">Avcılar</button>
         </nav>
 
-        <div class="community-hub-layout">
+        <div class="community-overview-anchor" id="communityOverview" aria-hidden="true"></div>
+        <div class="community-hub-layout" data-community-layout>
           <div class="community-hub-main">
-            <section class="community-surface community-featured" id="communityFeed">
-              <div class="community-section-heading">
+            <section class="community-surface community-featured" id="communityFeed" data-community-panel="feed">
+              <div class="community-feed-heading">
                 <div>
-                  <p class="eyebrow">Gündemde</p>
-                  <h3>Öne Çıkan İçerikler</h3>
+                  <p class="eyebrow">Topluluk Akışı</p>
+                  <h3>Koleksiyonerlerden yeni paylaşımlar</h3>
+                  <p>Fotoğraflar, videolar, koleksiyonlar ve mağaza deneyimleri.</p>
                 </div>
-                <span class="community-section-count">3 yeni içerik</span>
+                <label class="community-feed-sort" for="communityFeedSort">
+                  <span>Sırala</span>
+                  <select id="communityFeedSort">
+                    <option value="newest">En yeni</option>
+                    <option value="popular">En çok beğenilen</option>
+                  </select>
+                </label>
               </div>
-              <div class="community-content-grid">
-                <article class="community-content-card community-content-card--shipment">
-                  <div class="community-content-card__media">
-                    <img src="./assets/community/toyzz-sevkiyat.svg" alt="Toyzz Shop sevkiyat radar görseli" loading="lazy" />
-                    <span class="community-source community-source--youtube">YouTube</span>
-                    <span class="community-duration">08:42</span>
-                  </div>
-                  <div class="community-content-card__body">
-                    <h4>Toyzz Shop raflarında yeni sevkiyat turu</h4>
-                    <div class="community-content-card__location"><span aria-hidden="true">⌖</span>İstanbul · Akasya AVM</div>
-                    <p>Premium koliler, yeni mainline araçlar ve rafın güncel durumu tek videoda.</p>
-                    <footer><span>12,4B görüntülenme</span><span>184 yorum</span><button type="button" aria-label="İçerik seçenekleri">•••</button></footer>
-                  </div>
-                </article>
-                <article class="community-content-card community-content-card--tour">
-                  <div class="community-content-card__media">
-                    <img src="./assets/community/diecast-magaza-turu.svg" alt="Diecast mağaza turu görseli" loading="lazy" />
-                    <span class="community-source community-source--instagram">Instagram</span>
-                    <span class="community-duration">04:16</span>
-                  </div>
-                  <div class="community-content-card__body">
-                    <h4>Diecast mağaza turu: koleksiyon duvarı</h4>
-                    <div class="community-content-card__location"><span aria-hidden="true">⌖</span>Ankara · Çankaya</div>
-                    <p>JDM, Euro ve Amerikan serilerinin yer aldığı butik mağazadan kısa bir keşif.</p>
-                    <footer><span>8,7B görüntülenme</span><span>96 yorum</span><button type="button" aria-label="İçerik seçenekleri">•••</button></footer>
-                  </div>
-                </article>
-                <article class="community-content-card community-content-card--alert">
-                  <div class="community-content-card__media">
-                    <img src="./assets/community/th-premium-alert.svg" alt="TH ve premium av alarmı görseli" loading="lazy" />
-                    <span class="community-source community-source--radar">Yerel Hunt</span>
-                    <span class="community-duration">02:38</span>
-                  </div>
-                  <div class="community-content-card__body">
-                    <h4>TH ve Premium alarmı: sabah raf raporu</h4>
-                    <div class="community-content-card__location"><span aria-hidden="true">⌖</span>İzmir · Karşıyaka</div>
-                    <p>Erken saat raf kontrolünde öne çıkan TH adayları ve premium stok notları.</p>
-                    <footer><span>5,2B görüntülenme</span><span>71 yorum</span><button type="button" aria-label="İçerik seçenekleri">•••</button></footer>
-                  </div>
-                </article>
+
+              <div class="community-feed-filters" id="communityFeedFilters" aria-label="Gönderi türü filtreleri">
+                <button class="is-active" type="button" data-community-feed-filter="all" aria-pressed="true">Tümü</button>
+                <button type="button" data-community-feed-filter="photo" aria-pressed="false">Fotoğraf</button>
+                <button type="button" data-community-feed-filter="video" aria-pressed="false">Video</button>
+                <button type="button" data-community-feed-filter="collection" aria-pressed="false">Koleksiyon</button>
+                <button type="button" data-community-feed-filter="new_vehicle" aria-pressed="false">Yeni Araç</button>
+                <button type="button" data-community-feed-filter="store_experience" aria-pressed="false">Mağaza Deneyimi</button>
+              </div>
+
+              <section class="community-composer" aria-labelledby="communityComposerTitle">
+                <span class="community-composer__avatar" id="communityComposerAvatar" aria-hidden="true">HG</span>
+                <button class="community-composer__prompt" id="communityComposerOpen" type="button">
+                  <span id="communityComposerTitle">Ne paylaşmak istersin?</span>
+                </button>
+                <div class="community-composer__actions" aria-label="Paylaşım türleri">
+                  <button type="button" data-community-compose-type="photo" aria-label="Fotoğraf paylaş">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h.01M4 16l4-4 3 3 2-2 7 6"/></svg><span>Fotoğraf</span>
+                  </button>
+                  <button type="button" data-community-compose-type="video" aria-label="Video paylaş">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11v12H4zM15 10l5-3v10l-5-3z"/></svg><span>Video</span>
+                  </button>
+                  <button type="button" data-community-compose-type="collection" aria-label="Koleksiyon paylaş">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14v12H5zM8 7V4h8v3M8 12h8M8 16h5"/></svg><span>Koleksiyon</span>
+                  </button>
+                  <button type="button" data-community-compose-type="new_vehicle" aria-label="Yeni araç paylaş">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15l2-5h14l2 5M5 15v4M19 15v4M6 15h12M7 18h.01M17 18h.01"/></svg><span>Yeni Araç</span>
+                  </button>
+                  <button type="button" data-community-compose-type="store_experience" aria-label="Mağaza deneyimi paylaş">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16M6 10v10h12V10M5 4h14l1 6H4zM9 14h6"/></svg><span>Mağaza</span>
+                  </button>
+                </div>
+              </section>
+
+              <div class="community-feed-status" id="communityFeedStatus" aria-live="polite"></div>
+              <div class="community-feed-list" id="communityFeedList"></div>
+              <button class="community-feed-more is-hidden" id="communityFeedMore" type="button">Daha fazla göster</button>
+
+              <div class="community-compose-modal" id="communityComposeModal" aria-hidden="true">
+                <div class="community-compose-dialog" role="dialog" aria-modal="true" aria-labelledby="communityComposeHeading">
+                  <header>
+                    <div><p class="eyebrow">Yeni Paylaşım</p><h3 id="communityComposeHeading">Fotoğraf paylaş</h3></div>
+                    <button id="communityComposeClose" type="button" aria-label="Paylaşım penceresini kapat">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                    </button>
+                  </header>
+                  <form id="communityComposeForm">
+                    <input id="communityComposeType" type="hidden" value="photo" />
+                    <label class="community-compose-field" for="communityComposeBody">
+                      <span>Paylaşım metni</span>
+                      <textarea id="communityComposeBody" maxlength="1000" rows="5" placeholder="Koleksiyonundaki hikâyeyi anlat..."></textarea>
+                      <small><span id="communityComposeCount">0</span>/1000</small>
+                    </label>
+                    <label class="community-compose-field" id="communityComposeMediaField" for="communityComposeMedia">
+                      <span>Fotoğraflar</span>
+                      <input id="communityComposeMedia" type="file" accept="image/jpeg,image/png,image/webp" multiple />
+                      <small>En fazla 6 görsel · JPG, PNG veya WEBP</small>
+                    </label>
+                    <label class="community-compose-field is-hidden" id="communityComposeVideoField" for="communityComposeVideo">
+                      <span>YouTube bağlantısı</span>
+                      <input id="communityComposeVideo" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=..." />
+                    </label>
+                    <div class="community-compose-store is-hidden" id="communityComposeStoreFields">
+                      <label class="community-compose-field" for="communityComposeStore"><span>Mağaza adı</span><input id="communityComposeStore" maxlength="100" /></label>
+                      <label class="community-compose-field" for="communityComposeLocation"><span>Konum açıklaması</span><input id="communityComposeLocation" maxlength="120" placeholder="İlçe veya AVM adı; açık adres verme" /></label>
+                    </div>
+                    <label class="community-compose-field" for="communityComposeVisibility">
+                      <span>Kimler görebilir?</span>
+                      <select id="communityComposeVisibility"><option value="public">Herkes</option><option value="friends">Arkadaşlar</option></select>
+                    </label>
+                    <p class="community-compose-error" id="communityComposeError" role="alert"></p>
+                    <footer>
+                      <button class="community-compose-cancel" id="communityComposeCancel" type="button">Vazgeç</button>
+                      <button class="community-compose-submit" id="communityComposeSubmit" type="submit">Paylaş</button>
+                    </footer>
+                  </form>
+                </div>
               </div>
             </section>
 
-            <section class="community-surface community-hunter-search" id="communityHunters">
+            <section class="community-surface community-hunter-search" id="communityHunters" data-community-panel="hunters">
               <div class="community-section-heading">
                 <div>
                   <p class="eyebrow">Koleksiyoner Ağı</p>
@@ -1097,7 +1151,7 @@
               <div class="community-hunter-results" id="communityUserSearchResults"></div>
             </section>
 
-            <section class="community-surface community-spotlight" id="communitySpotlight">
+            <section class="community-surface community-spotlight" id="communitySpotlight" data-community-panel="hunters">
               <div class="community-section-heading">
                 <div>
                   <p class="eyebrow">Keşif Akışı</p>
@@ -1118,13 +1172,13 @@
             </section>
 
             <div class="community-discussion-grid">
-              <section class="community-surface community-forum" id="communityForum">
+              <section class="community-surface community-forum" id="communityForum" data-community-panel="forum">
                 <div class="community-section-heading">
                   <div>
                     <p class="eyebrow">Avcıların Gündemi</p>
                     <h3>Forum Konuları</h3>
                   </div>
-                  <button class="community-mini-button" id="communityCreateTopic" type="button">＋ Konu Aç</button>
+                  <button class="community-mini-button" id="communityCreateTopic" type="button">Konu Aç</button>
                 </div>
                 <div class="community-forum-list">
                   <article class="community-forum-row">
@@ -1150,13 +1204,16 @@
                 <button class="community-panel-link" type="button" data-community-action="forum-all">Tüm forum konularını görüntüle <span>→</span></button>
               </section>
 
-              <section class="community-surface community-chat" id="communityChat">
+              <section class="community-surface community-chat" id="communityChat" data-community-panel="chat">
                 <div class="community-section-heading">
                   <div>
                     <p class="eyebrow">Anlık Paylaşım</p>
                     <h3>Sohbet Odası</h3>
                   </div>
-                  <span class="community-live-status"><i></i>Canlı</span>
+                  <div class="community-section-actions">
+                    <span class="community-live-status"><i></i>Oda açık</span>
+                    <button class="community-mini-button" id="communityJoinChat" type="button">Sohbete Katıl</button>
+                  </div>
                 </div>
                 <div class="community-room-tabs" aria-label="Şehir sohbet odaları">
                   <button class="is-active" type="button" data-community-city="İstanbul">İstanbul</button>
@@ -1166,12 +1223,10 @@
                   <button type="button" data-community-city="Diğer">Diğer</button>
                 </div>
                 <div class="community-chat-feed" id="communityChatFeed">
-                  <article data-chat-city="İstanbul"><span class="community-member-avatar community-member-avatar--gold">S</span><div><header><strong>@ShelfHunter</strong><time>21:42</time><em>İstanbul</em></header><p>Akasya’da yeni koli açıldı, premium rafta birkaç model hâlâ duruyor.</p></div></article>
-                  <article data-chat-city="İstanbul"><span class="community-member-avatar community-member-avatar--teal">D</span><div><header><strong>@Diecast34</strong><time>21:39</time><em>İstanbul</em></header><p>Teşekkürler, radar notundaki fotoğraf da oldukça güncel görünüyor.</p></div></article>
-                  <article data-chat-city="Ankara"><span class="community-member-avatar community-member-avatar--violet">A</span><div><header><strong>@AnkaraAvcisi</strong><time>21:31</time><em>Ankara</em></header><p>Çankaya tarafında Boulevard arayan varsa mağaza turu başlığını kontrol etsin.</p></div></article>
-                  <article data-chat-city="İzmir"><span class="community-member-avatar community-member-avatar--orange">K</span><div><header><strong>@KarsiyakaTH</strong><time>21:27</time><em>İzmir</em></header><p>Sabah rafında TH adayı vardı, doğrulama için ikinci gözlem bekleniyor.</p></div></article>
-                  <article data-chat-city="Bursa"><span class="community-member-avatar community-member-avatar--teal">B</span><div><header><strong>@BursaGarage</strong><time>21:14</time><em>Bursa</em></header><p>Nilüfer bölgesinde yeni sevkiyat haberi alan oldu mu?</p></div></article>
-                  <article data-chat-city="Diğer"><span class="community-member-avatar community-member-avatar--gold">M</span><div><header><strong>@MainlineTR</strong><time>21:02</time><em>Diğer</em></header><p>Yeni case listesi forumda, eksik modelleri konu altında tamamlayabiliriz.</p></div></article>
+                  <div class="community-chat-empty">
+                    <strong>Bu odada henüz mesaj yok</strong>
+                    <p>İlk mesajı göndererek şehir sohbetini başlatabilirsin.</p>
+                  </div>
                 </div>
                 <form class="community-chat-compose" id="communityChatForm">
                   <input id="communityChatInput" type="text" maxlength="240" placeholder="Topluluğa bir mesaj yaz..." autocomplete="off" />
@@ -1184,23 +1239,23 @@
 
           <aside class="community-hub-sidebar">
             <section class="community-widget">
-              <div class="community-widget__heading"><span class="community-widget__icon">↗</span><h3>Popüler Konular</h3></div>
+              <div class="community-widget__heading"><span class="community-widget__icon">↗</span><h3>Trend Konular</h3></div>
               <ol class="community-popular-list">
                 <li><span>01</span><div><strong>2026 J case dağılımı</strong><small>28 yanıt</small></div></li>
                 <li><span>02</span><div><strong>İstanbul av rotası</strong><small>42 yanıt</small></div></li>
                 <li><span>03</span><div><strong>Premium fiyat dengesi</strong><small>16 yanıt</small></div></li>
                 <li><span>04</span><div><strong>TH ayırt etme rehberi</strong><small>35 yanıt</small></div></li>
               </ol>
-              <button class="community-widget__link" type="button" data-community-action="popular-all">Tüm popüler konular <span>→</span></button>
+              <button class="community-widget__link" type="button" data-community-action="popular-all">Tüm trend konular <span>→</span></button>
             </section>
 
             <section class="community-widget">
-              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal">◉</span><h3>Aktif Üyeler</h3></div>
+              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal">◉</span><h3>Aktif Koleksiyonerler</h3></div>
               <div class="community-active-members">
                 <div class="community-avatar-stack"><span class="community-member-avatar community-member-avatar--gold">S</span><span class="community-member-avatar community-member-avatar--teal">D</span><span class="community-member-avatar community-member-avatar--violet">A</span><span class="community-member-avatar community-member-avatar--orange">K</span><span>+18</span></div>
                 <p><strong>22 avcı çevrimiçi</strong><span>Topluluk şu anda aktif.</span></p>
               </div>
-              <button class="community-widget__link" type="button" data-community-action="members-all">Tüm üyeleri görüntüle <span>→</span></button>
+              <button class="community-widget__link" type="button" data-community-action="members-all">Tüm koleksiyonerler <span>→</span></button>
             </section>
 
             <section class="community-widget">
@@ -2535,7 +2590,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=219"></script>
+    <script src="./app.js?v=220"></script>
   </body>
 </html>
 

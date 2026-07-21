@@ -23725,7 +23725,9 @@ body.dashboard-shell textarea:focus-visible {
   }
 }
 
-/* Community dashboard overhaul: visible premium module treatment. */
+/* Legacy community overhaul kept for reference, intentionally disabled.
+   The active community system lives in community.css. */
+@supports (display: community-legacy-disabled) {
 body.dashboard-shell.is-community-view {
   --community-apex-red: #ff4028;
   --community-apex-orange: #ff8538;
@@ -24245,6 +24247,8 @@ body.dashboard-shell.is-community-view .community-city-list button:hover {
   body.dashboard-shell.is-community-view .community-hub-sidebar {
     grid-template-columns: 1fr;
   }
+}
+
 }
 
 /* Apex sidebar final art pass: sharper icons, centered rhythm, quieter luxury type. */

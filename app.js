@@ -557,6 +557,16 @@ let activeMarketMaxPrice = null;
 let activeGlobalSearchScope = "all";
 let activeLeaderboardPeriod = "daily";
 let activeCommunityCity = "İstanbul";
+let communityFeedPosts = [];
+let communityFeedFilter = "all";
+let communityFeedSortMode = "newest";
+let communityFeedSearchQuery = "";
+let communityFeedCursor = null;
+let communityFeedLoading = false;
+let communityFeedHasMore = false;
+let communityFeedLoaded = false;
+let communityComposeType = "photo";
+let communityComposeDirty = false;
 let storeVerificationSummaries = {};
 let radarNotePhotos = {};
 let pendingStorePhotoFiles = [];
@@ -635,6 +645,34 @@ const communityUserSearchResults = document.querySelector("#communityUserSearchR
 const communityHunterCount = document.querySelector("#communityHunterCount");
 const communitySpotlightCount = document.querySelector("#communitySpotlightCount");
 const communitySpotlightGrid = document.querySelector("#communitySpotlightGrid");
+const communityFeedList = document.querySelector("#communityFeedList");
+const communityFeedStatus = document.querySelector("#communityFeedStatus");
+const communityFeedMore = document.querySelector("#communityFeedMore");
+const communityFeedSort = document.querySelector("#communityFeedSort");
+const communityFeedFilters = document.querySelectorAll("[data-community-feed-filter]");
+const communityFeedSearch = document.querySelector("#communityFeedSearch");
+const communityHeaderCreate = document.querySelector("#communityHeaderCreate");
+const communityComposerOpen = document.querySelector("#communityComposerOpen");
+const communityComposerAvatar = document.querySelector("#communityComposerAvatar");
+const communityComposeButtons = document.querySelectorAll("[data-community-compose-type]");
+const communityComposeModal = document.querySelector("#communityComposeModal");
+const communityComposeForm = document.querySelector("#communityComposeForm");
+const communityComposeClose = document.querySelector("#communityComposeClose");
+const communityComposeCancel = document.querySelector("#communityComposeCancel");
+const communityComposeHeading = document.querySelector("#communityComposeHeading");
+const communityComposeTypeInput = document.querySelector("#communityComposeType");
+const communityComposeBody = document.querySelector("#communityComposeBody");
+const communityComposeCount = document.querySelector("#communityComposeCount");
+const communityComposeMediaField = document.querySelector("#communityComposeMediaField");
+const communityComposeMedia = document.querySelector("#communityComposeMedia");
+const communityComposeVideoField = document.querySelector("#communityComposeVideoField");
+const communityComposeVideo = document.querySelector("#communityComposeVideo");
+const communityComposeStoreFields = document.querySelector("#communityComposeStoreFields");
+const communityComposeStore = document.querySelector("#communityComposeStore");
+const communityComposeLocation = document.querySelector("#communityComposeLocation");
+const communityComposeVisibility = document.querySelector("#communityComposeVisibility");
+const communityComposeError = document.querySelector("#communityComposeError");
+const communityComposeSubmit = document.querySelector("#communityComposeSubmit");
 const rewardsModule = document.querySelector("#rewardsModule");
 const rewardModuleTitle = document.querySelector("#rewardModuleTitle");
 const rewardModuleCopy = document.querySelector("#rewardModuleCopy");
@@ -2675,10 +2713,20 @@ function syncAppShell() {
 }
 
 function selectCommunitySection(targetId, options = {}) {
-  const target = document.querySelector(`#${targetId}`);
+  const nextTargetId = targetId || "communityOverview";
+  const target = document.querySelector(`#${nextTargetId}`);
   if (!target) return;
-  communityTabs.forEach((tab) => tab.classList.toggle("is-active", tab.dataset.communityTarget === targetId));
-  if (options.scroll !== false) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (communityModule) communityModule.dataset.communityActive = nextTargetId;
+  communityTabs.forEach((tab) => {
+    const isActive = tab.dataset.communityTarget === nextTargetId;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-pressed", String(isActive));
+  });
+  if (nextTargetId === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
+  if (options.scroll !== false) {
+    const scrollTarget = nextTargetId === "communityOverview" ? communityModule : target;
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function selectCommunityCity(city, options = {}) {
@@ -2695,6 +2743,7 @@ function selectCommunityCity(city, options = {}) {
 
 function syncCommunityHub() {
   if (!communityModule) return;
+  if (!communityModule.dataset.communityActive) selectCommunitySection("communityOverview", { scroll: false });
   const isSignedIn = Boolean(currentUser);
   communityChatForm?.classList.toggle("is-hidden", !isSignedIn);
   communityChatAuth?.classList.toggle("is-hidden", isSignedIn);
@@ -2710,10 +2759,362 @@ function syncCommunityHub() {
     }, { once: true });
   });
   selectCommunityCity(activeCommunityCity, { scroll: false });
+  if (communityComposerAvatar) communityComposerAvatar.textContent = userInitials(currentUser?.username || "HG");
+  if (communityModule?.dataset.communityActive === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
+}
+
+function refreshCommunityFeedForAuthChange() {
+  communityFeedLoaded = false;
+  communityFeedPosts = [];
+  communityFeedCursor = null;
+  communityFeedHasMore = true;
+  if (communityModule?.dataset.communityActive === "communityFeed") void loadCommunityFeed({ reset: true });
+}
+
+const COMMUNITY_POST_TYPE_LABELS = {
+  photo: "Fotoğraf",
+  video: "Video",
+  collection: "Koleksiyon",
+  new_vehicle: "Yeni Araç",
+  store_experience: "Mağaza Deneyimi"
+};
+
+function communityRelativeTime(value) {
+  const timestamp = new Date(value || 0).getTime();
+  if (!timestamp) return "";
+  const seconds = Math.max(1, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return "şimdi";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} dk`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} sa`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} gün`;
+  return new Date(timestamp).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
+function youtubeVideoId(value) {
+  const input = String(value || "").trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(input)) return input;
+  try {
+    const url = new URL(input);
+    const candidate = url.hostname.includes("youtu.be")
+      ? url.pathname.split("/").filter(Boolean)[0]
+      : url.searchParams.get("v") || url.pathname.match(/\/(?:shorts|embed)\/([A-Za-z0-9_-]{11})/)?.[1];
+    return /^[A-Za-z0-9_-]{11}$/.test(candidate || "") ? candidate : "";
+  } catch {
+    return "";
+  }
+}
+
+function setCommunityFeedStatus(message, retry = false) {
+  if (!communityFeedStatus) return;
+  communityFeedStatus.innerHTML = message
+    ? `${escapeHtml(message)}${retry ? '<button type="button" data-community-feed-retry>Tekrar dene</button>' : ""}`
+    : "";
+}
+
+function renderCommunityFeedSkeleton() {
+  if (!communityFeedList) return;
+  communityFeedList.innerHTML = '<div class="community-feed-skeleton" aria-label="Gönderiler yükleniyor"></div><div class="community-feed-skeleton" aria-hidden="true"></div>';
+}
+
+async function signedCommunityMediaUrl(path) {
+  if (!supabaseClient || !path) return "";
+  const { data, error } = await supabaseClient.storage.from("community-media").createSignedUrl(path, 3600);
+  return error ? "" : data?.signedUrl || "";
+}
+
+async function loadCommunityFeed(options = {}) {
+  if (!communityFeedList || communityFeedLoading) return;
+  if (!supabaseClient) {
+    communityFeedLoaded = true;
+    communityFeedList.innerHTML = '<div class="community-feed-empty"><h4>Topluluk bağlantısı hazır değil</h4><p>Gönderileri görmek için Supabase bağlantısının etkin olması gerekiyor.</p></div>';
+    return;
+  }
+  const reset = options.reset !== false;
+  communityFeedLoading = true;
+  if (reset) {
+    communityFeedCursor = null;
+    communityFeedPosts = [];
+    renderCommunityFeedSkeleton();
+  }
+  setCommunityFeedStatus("");
+  if (communityFeedMore) communityFeedMore.disabled = true;
+
+  const communityPostSelect = currentUser
+    ? `id,author_id,post_type,body,visibility,status,store_name,location_text,external_provider,external_video_id,is_partnership,is_editor_pick,like_count,comment_count,published_at,created_at,
+      author:profiles!community_posts_author_id_fkey(id,username,avatar_id,role),
+      media:community_post_media(id,media_type,storage_path,position,alt_text),
+      likes:community_post_likes(user_id),
+      creator:community_creators(id,display_name,is_verified,platform,channel_url)`
+    : `id,author_id,post_type,body,visibility,status,store_name,location_text,external_provider,external_video_id,is_partnership,is_editor_pick,like_count,comment_count,published_at,created_at,
+      media:community_post_media(id,media_type,storage_path,position,alt_text),
+      likes:community_post_likes(user_id),
+      creator:community_creators(id,display_name,is_verified,platform,channel_url)`;
+  let query = supabaseClient
+    .from("community_posts")
+    .select(communityPostSelect)
+    .eq("status", "published")
+    .limit(10);
+  if (communityFeedFilter !== "all") query = query.eq("post_type", communityFeedFilter);
+  if (communityFeedCursor && communityFeedSortMode === "newest") query = query.lt("published_at", communityFeedCursor);
+  query = communityFeedSortMode === "popular"
+    ? query.order("like_count", { ascending: false }).order("published_at", { ascending: false })
+    : query.order("published_at", { ascending: false });
+
+  const { data, error } = await query;
+  if (error) {
+    communityFeedLoading = false;
+    communityFeedLoaded = true;
+    if (reset) communityFeedList.innerHTML = "";
+    setCommunityFeedStatus("Akış yüklenemedi. Bağlantını kontrol edip yeniden deneyebilirsin.", true);
+    return;
+  }
+
+  const posts = await Promise.all((data || []).map(async (post) => ({
+    ...post,
+    media: await Promise.all((post.media || []).sort((a, b) => a.position - b.position).map(async (item) => ({
+      ...item,
+      url: await signedCommunityMediaUrl(item.storage_path)
+    }))),
+    isLiked: Boolean(currentUser && (post.likes || []).some((like) => like.user_id === currentUser.id)),
+    isSaved: false
+  })));
+
+  if (currentUser && posts.length) {
+    const { data: saves } = await supabaseClient.from("community_post_saves").select("post_id").eq("user_id", currentUser.id).in("post_id", posts.map((post) => post.id));
+    const savedIds = new Set((saves || []).map((row) => row.post_id));
+    posts.forEach((post) => { post.isSaved = savedIds.has(post.id); });
+  }
+
+  communityFeedPosts = reset ? posts : [...communityFeedPosts, ...posts];
+  communityFeedCursor = posts.at(-1)?.published_at || communityFeedCursor;
+  communityFeedHasMore = posts.length === 10 && communityFeedSortMode === "newest";
+  communityFeedLoading = false;
+  communityFeedLoaded = true;
+  renderCommunityFeed();
+}
+
+function communityPostMediaMarkup(post) {
+  const media = (post.media || []).filter((item) => item.url);
+  if (post.post_type === "video" && post.external_video_id) {
+    const id = escapeHtml(post.external_video_id);
+    return `<button class="community-post__media community-post__video-trigger" type="button" data-community-video="${id}" aria-label="YouTube videosunu oynat">
+      <img src="https://i.ytimg.com/vi/${id}/hqdefault.jpg" alt="Video küçük resmi" loading="lazy" />
+      <span class="community-video-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7l8 5-8 5z"/></svg></span>
+    </button>`;
+  }
+  if (!media.length) return "";
+  return `<div class="community-post__media" data-count="${Math.min(media.length, 6)}">${media.map((item, index) => `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.alt_text || `Paylaşım görseli ${index + 1}`)}" loading="lazy" />`).join("")}</div>`;
+}
+
+function communityActionIcon(name) {
+  const paths = {
+    like: '<path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 00-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 000-7.8z"/>',
+    comment: '<path d="M4 5h16v12H8l-4 3z"/>',
+    save: '<path d="M6 4h12v17l-6-4-6 4z"/>'
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
+}
+
+function renderCommunityFeed() {
+  if (!communityFeedList) return;
+  const normalizedQuery = communityFeedSearchQuery.toLocaleLowerCase("tr-TR");
+  const visiblePosts = normalizedQuery
+    ? communityFeedPosts.filter((post) => [post.body, post.author?.username, post.creator?.display_name, post.store_name, post.location_text].some((value) => String(value || "").toLocaleLowerCase("tr-TR").includes(normalizedQuery)))
+    : communityFeedPosts;
+  if (!visiblePosts.length) {
+    const isSearchEmpty = Boolean(normalizedQuery && communityFeedPosts.length);
+    communityFeedList.innerHTML = `<div class="community-feed-empty"><h4>${isSearchEmpty ? "Aramanla eşleşen paylaşım yok" : "Bu akışta henüz paylaşım yok"}</h4><p>${isSearchEmpty ? "Başka bir kullanıcı, mağaza veya paylaşım metni deneyebilirsin." : communityFeedFilter === "all" ? "İlk gönderiyi oluşturarak topluluk akışını başlatabilirsin." : "Bu türde henüz bir paylaşım yapılmamış."}</p></div>`;
+  } else {
+    communityFeedList.innerHTML = visiblePosts.map((post) => {
+      const author = post.author || {};
+      const username = author.username || post.creator?.display_name || "Topluluk üyesi";
+      const profileButton = author.username ? `data-community-post-profile="${escapeHtml(author.username)}"` : "disabled";
+      const store = post.post_type === "store_experience" && (post.store_name || post.location_text)
+        ? `<div class="community-post__store"><strong>${escapeHtml(post.store_name || "Mağaza deneyimi")}</strong>${post.location_text ? ` · ${escapeHtml(post.location_text)}` : ""}</div>` : "";
+      return `<article class="community-post" data-community-post-id="${escapeHtml(post.id)}">
+        <header class="community-post__header">
+          <button class="community-post__avatar" type="button" ${profileButton} aria-label="${escapeHtml(username)} profilini aç">${escapeHtml(userInitials(username))}</button>
+          <div class="community-post__identity">
+            <button type="button" ${profileButton}>${escapeHtml(username)}</button>
+            <div class="community-post__meta"><span>${communityRelativeTime(post.published_at || post.created_at)}</span>${post.is_partnership ? "<span>İş birliği</span>" : ""}${post.is_editor_pick ? "<span>Editörün seçimi</span>" : ""}</div>
+          </div>
+          <span class="community-post__type">${escapeHtml(COMMUNITY_POST_TYPE_LABELS[post.post_type] || "Paylaşım")}</span>
+        </header>
+        ${post.body ? `<p class="community-post__body">${escapeHtml(post.body)}</p>` : ""}
+        ${store}${communityPostMediaMarkup(post)}
+        <div class="community-post__stats"><span>${Number(post.like_count || 0).toLocaleString("tr-TR")} beğeni</span><span>${Number(post.comment_count || 0).toLocaleString("tr-TR")} yorum</span></div>
+        <div class="community-post__actions">
+          <button class="community-post__action${post.isLiked ? " is-active" : ""}" type="button" data-community-post-like aria-pressed="${post.isLiked}">${communityActionIcon("like")}<span>Beğen</span></button>
+          <button class="community-post__action" type="button" data-community-post-comments aria-expanded="false">${communityActionIcon("comment")}<span>Yorum</span></button>
+          <button class="community-post__action${post.isSaved ? " is-active" : ""}" type="button" data-community-post-save aria-pressed="${post.isSaved}">${communityActionIcon("save")}<span>Kaydet</span></button>
+        </div>
+        <section class="community-post__comments" aria-label="Gönderi yorumları"><div class="community-post__comment-list"></div><form class="community-post__comment-form"><input maxlength="500" aria-label="Yorum" placeholder="Bir yorum yaz..." /><button type="submit">Gönder</button></form></section>
+      </article>`;
+    }).join("");
+  }
+  communityFeedMore?.classList.toggle("is-hidden", !communityFeedHasMore);
+  if (communityFeedMore) communityFeedMore.disabled = false;
+}
+
+function openCommunityComposer(type = "photo") {
+  if (!currentUser) {
+    openAuthModal("login", "Toplulukta paylaşım yapmak için giriş yapmalısın.");
+    return;
+  }
+  communityComposeType = COMMUNITY_POST_TYPE_LABELS[type] ? type : "photo";
+  if (communityComposeTypeInput) communityComposeTypeInput.value = communityComposeType;
+  if (communityComposeHeading) communityComposeHeading.textContent = `${COMMUNITY_POST_TYPE_LABELS[communityComposeType]} paylaş`;
+  const isVideo = communityComposeType === "video";
+  communityComposeMediaField?.classList.toggle("is-hidden", isVideo);
+  communityComposeVideoField?.classList.toggle("is-hidden", !isVideo);
+  communityComposeStoreFields?.classList.toggle("is-hidden", communityComposeType !== "store_experience");
+  communityComposeError.textContent = "";
+  communityComposeModal?.classList.add("is-visible");
+  communityComposeModal?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("is-modal-open");
+  window.setTimeout(() => communityComposeBody?.focus(), 40);
+}
+
+function closeCommunityComposer(force = false) {
+  if (!force && communityComposeDirty && !window.confirm("Kaydedilmemiş paylaşımın silinecek. Çıkmak istiyor musun?")) return;
+  communityComposeModal?.classList.remove("is-visible");
+  communityComposeModal?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("is-modal-open");
+  communityComposeForm?.reset();
+  communityComposeDirty = false;
+  if (communityComposeCount) communityComposeCount.textContent = "0";
+}
+
+async function submitCommunityPost(event) {
+  event.preventDefault();
+  if (!currentUser || !supabaseClient || communityFeedLoading) return;
+  const body = communityComposeBody?.value.trim() || "";
+  const type = communityComposeTypeInput?.value || "photo";
+  const files = [...(communityComposeMedia?.files || [])];
+  const videoId = youtubeVideoId(communityComposeVideo?.value);
+  if (!body) { communityComposeError.textContent = "Paylaşım metni gerekli."; communityComposeBody?.focus(); return; }
+  if (type === "video" && !videoId) { communityComposeError.textContent = "Geçerli bir YouTube bağlantısı gir."; communityComposeVideo?.focus(); return; }
+  if (type !== "video" && !files.length) { communityComposeError.textContent = "Bu paylaşım türü için en az bir fotoğraf seç."; communityComposeMedia?.focus(); return; }
+  if (files.length > 6 || files.some((file) => file.size > 10 * 1024 * 1024)) { communityComposeError.textContent = "En fazla 6 görsel seçebilir ve her görseli 10 MB altında tutabilirsin."; return; }
+  communityComposeSubmit.disabled = true;
+  communityComposeSubmit.textContent = "Paylaşılıyor…";
+  communityComposeError.textContent = "";
+  const payload = {
+    author_id: currentUser.id,
+    post_type: type,
+    body,
+    visibility: communityComposeVisibility?.value || "public",
+    status: "draft",
+    store_name: type === "store_experience" ? communityComposeStore?.value.trim() || null : null,
+    location_text: type === "store_experience" ? communityComposeLocation?.value.trim() || null : null,
+    external_provider: type === "video" ? "youtube" : null,
+    external_video_id: type === "video" ? videoId : null
+  };
+  const { data: post, error: postError } = await supabaseClient.from("community_posts").insert(payload).select("id").single();
+  if (postError || !post) {
+    communityComposeError.textContent = "Paylaşım oluşturulamadı. Biraz sonra yeniden dene.";
+    communityComposeSubmit.disabled = false;
+    communityComposeSubmit.textContent = "Paylaş";
+    return;
+  }
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    const mediaId = crypto.randomUUID();
+    const ext = (file.name.split(".").pop() || "webp").toLowerCase().replace(/[^a-z0-9]/g, "") || "webp";
+    const path = `${currentUser.id}/${post.id}/${mediaId}.${ext}`;
+    const { error: uploadError } = await supabaseClient.storage.from("community-media").upload(path, file, { upsert: false, contentType: file.type });
+    if (uploadError) {
+      communityComposeError.textContent = "Fotoğraflardan biri yüklenemedi. Taslak yayınlanmadı; yeniden deneyebilirsin.";
+      communityComposeSubmit.disabled = false;
+      communityComposeSubmit.textContent = "Paylaş";
+      return;
+    }
+    const { error: mediaError } = await supabaseClient.from("community_post_media").insert({ id: mediaId, post_id: post.id, owner_id: currentUser.id, media_type: "image", storage_path: path, position: index, alt_text: `${COMMUNITY_POST_TYPE_LABELS[type]} paylaşım görseli ${index + 1}` });
+    if (mediaError) {
+      communityComposeError.textContent = "Fotoğraf kaydı tamamlanamadı. Taslak yayınlanmadı.";
+      communityComposeSubmit.disabled = false;
+      communityComposeSubmit.textContent = "Paylaş";
+      return;
+    }
+  }
+  const { error: publishError } = await supabaseClient.from("community_posts").update({ status: "published" }).eq("id", post.id).eq("author_id", currentUser.id);
+  communityComposeSubmit.disabled = false;
+  communityComposeSubmit.textContent = "Paylaş";
+  if (publishError) { communityComposeError.textContent = "Paylaşım kaydedildi ancak yayınlanamadı. Yeniden deneyebilirsin."; return; }
+  closeCommunityComposer(true);
+  showToast("Paylaşımın topluluk akışına eklendi.");
+  await loadCommunityFeed({ reset: true });
+}
+
+async function toggleCommunityPostLike(post, button) {
+  if (!currentUser) { openAuthModal("login", "Gönderileri beğenmek için giriş yapmalısın."); return; }
+  if (post.author_id === currentUser.id) { showToast("Kendi gönderini beğenemezsin."); return; }
+  const wasLiked = post.isLiked;
+  post.isLiked = !wasLiked;
+  post.like_count = Math.max(0, Number(post.like_count || 0) + (wasLiked ? -1 : 1));
+  renderCommunityFeed();
+  const query = supabaseClient.from("community_post_likes");
+  const { error } = wasLiked
+    ? await query.delete().eq("post_id", post.id).eq("user_id", currentUser.id)
+    : await query.insert({ post_id: post.id, user_id: currentUser.id });
+  if (error) { post.isLiked = wasLiked; post.like_count = Math.max(0, Number(post.like_count || 0) + (wasLiked ? 1 : -1)); renderCommunityFeed(); showToast("Beğeni güncellenemedi."); }
+}
+
+async function toggleCommunityPostSave(post) {
+  if (!currentUser) { openAuthModal("login", "Gönderileri kaydetmek için giriş yapmalısın."); return; }
+  const wasSaved = post.isSaved;
+  post.isSaved = !wasSaved;
+  renderCommunityFeed();
+  const query = supabaseClient.from("community_post_saves");
+  const { error } = wasSaved
+    ? await query.delete().eq("post_id", post.id).eq("user_id", currentUser.id)
+    : await query.insert({ post_id: post.id, user_id: currentUser.id });
+  if (error) { post.isSaved = wasSaved; renderCommunityFeed(); showToast("Kaydetme işlemi tamamlanamadı."); }
+}
+
+async function openCommunityPostComments(post, article, button) {
+  const panel = article.querySelector(".community-post__comments");
+  const opening = !panel.classList.contains("is-open");
+  panel.classList.toggle("is-open", opening);
+  button.setAttribute("aria-expanded", String(opening));
+  if (!opening || panel.dataset.loaded) return;
+  const list = panel.querySelector(".community-post__comment-list");
+  list.innerHTML = '<div class="community-feed-status">Yorumlar yükleniyor…</div>';
+  const commentFields = currentUser
+    ? "id,author_id,body,is_deleted,created_at,author:profiles!community_post_comments_author_id_fkey(username)"
+    : "id,author_id,body,is_deleted,created_at";
+  const { data, error } = await supabaseClient.from("community_post_comments").select(commentFields).eq("post_id", post.id).order("created_at", { ascending: true }).limit(100);
+  panel.dataset.loaded = "true";
+  list.innerHTML = error ? '<div class="community-feed-status">Yorumlar yüklenemedi.</div>' : (data || []).map((comment) => `<article class="community-post__comment"><strong>${escapeHtml(comment.author?.username ? `@${comment.author.username}` : "Topluluk üyesi")}</strong><p>${escapeHtml(comment.is_deleted ? "Bu yorum silindi." : comment.body)}</p></article>`).join("") || '<div class="community-feed-status">Henüz yorum yok.</div>';
+}
+
+async function submitCommunityComment(event, post, article) {
+  event.preventDefault();
+  if (!currentUser) { openAuthModal("login", "Yorum yapmak için giriş yapmalısın."); return; }
+  const input = event.currentTarget.querySelector("input");
+  const text = input.value.trim();
+  if (!text) return;
+  const submit = event.currentTarget.querySelector("button");
+  submit.disabled = true;
+  const { error } = await supabaseClient.from("community_post_comments").insert({ post_id: post.id, author_id: currentUser.id, body: text });
+  submit.disabled = false;
+  if (error) { showToast("Yorum gönderilemedi."); return; }
+  input.value = "";
+  post.comment_count = Number(post.comment_count || 0) + 1;
+  const panel = article.querySelector(".community-post__comments");
+  const commentsButton = article.querySelector("[data-community-post-comments]");
+  delete panel.dataset.loaded;
+  panel.classList.remove("is-open");
+  commentsButton?.setAttribute("aria-expanded", "false");
+  await openCommunityPostComments(post, article, commentsButton);
 }
 
 function appendCommunityChatMessage(message) {
   if (!communityChatFeed || !currentUser) return;
+  communityChatFeed.querySelector(".community-chat-empty")?.remove();
   const article = document.createElement("article");
   article.dataset.chatCity = activeCommunityCity;
   const avatar = document.createElement("span");
@@ -6722,6 +7123,7 @@ async function loginUser({ email, password }) {
 
 function completeAuth(user, message) {
   saveCurrentUser(user);
+  refreshCommunityFeedForAuthChange();
   if (!supabaseClient) activateUserPrivateState(user);
   setAuthStatus(message);
   const action = pendingAuthAction;
@@ -6739,6 +7141,7 @@ async function logoutCurrentUser() {
     await supabaseClient.auth.signOut();
   }
   saveCurrentUser(null);
+  refreshCommunityFeedForAuthChange();
   activateUserPrivateState(null);
   remoteCollectionListings = [];
   clearPublicGarageContext();
@@ -7483,6 +7886,7 @@ async function initSupabaseAuth() {
     remoteCollectionListings = [];
   }
   authInitialized = true;
+  refreshCommunityFeedForAuthChange();
   render();
   updateUserButton();
   syncAdminVisibility();
@@ -7514,6 +7918,7 @@ async function initSupabaseAuth() {
     updateUserButton();
     syncAdminVisibility();
     render();
+    refreshCommunityFeedForAuthChange();
     if (publicGarageUsernameFromHash()) applyDashboardRoute({ replaceUnknown: false });
   });
 }
@@ -11870,6 +12275,73 @@ rewardOverviewLogin?.addEventListener("click", () => openAuthModal("login", "Rad
 
 communityTabs.forEach((button) => {
   button.addEventListener("click", () => selectCommunitySection(button.dataset.communityTarget));
+});
+
+communityFeedFilters.forEach((button) => {
+  button.addEventListener("click", () => {
+    communityFeedFilter = button.dataset.communityFeedFilter || "all";
+    communityFeedFilters.forEach((item) => {
+      const active = item === button;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    void loadCommunityFeed({ reset: true });
+  });
+});
+
+communityFeedSort?.addEventListener("change", () => {
+  communityFeedSortMode = communityFeedSort.value || "newest";
+  void loadCommunityFeed({ reset: true });
+});
+
+communityComposerOpen?.addEventListener("click", () => openCommunityComposer("photo"));
+communityHeaderCreate?.addEventListener("click", () => openCommunityComposer("photo"));
+communityFeedSearch?.addEventListener("input", () => {
+  communityFeedSearchQuery = communityFeedSearch.value.trim();
+  renderCommunityFeed();
+});
+communityComposeButtons.forEach((button) => button.addEventListener("click", () => openCommunityComposer(button.dataset.communityComposeType)));
+communityComposeClose?.addEventListener("click", () => closeCommunityComposer());
+communityComposeCancel?.addEventListener("click", () => closeCommunityComposer());
+communityComposeModal?.addEventListener("click", (event) => { if (event.target === communityComposeModal) closeCommunityComposer(); });
+communityComposeBody?.addEventListener("input", () => {
+  communityComposeDirty = true;
+  if (communityComposeCount) communityComposeCount.textContent = String(communityComposeBody.value.length);
+});
+communityComposeForm?.addEventListener("input", () => { communityComposeDirty = true; });
+communityComposeForm?.addEventListener("submit", submitCommunityPost);
+communityFeedMore?.addEventListener("click", () => loadCommunityFeed({ reset: false }));
+communityFeedStatus?.addEventListener("click", (event) => {
+  if (event.target.closest("[data-community-feed-retry]")) void loadCommunityFeed({ reset: true });
+});
+
+communityFeedList?.addEventListener("click", (event) => {
+  const article = event.target.closest("[data-community-post-id]");
+  if (!article) return;
+  const post = communityFeedPosts.find((item) => item.id === article.dataset.communityPostId);
+  if (!post) return;
+  const profileTarget = event.target.closest("[data-community-post-profile]");
+  if (profileTarget) { navigateToPublicProfile(profileTarget.dataset.communityPostProfile); return; }
+  const videoTarget = event.target.closest("[data-community-video]");
+  if (videoTarget) {
+    const id = videoTarget.dataset.communityVideo;
+    videoTarget.outerHTML = `<iframe class="community-post__video" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0" title="YouTube video oynatıcı" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    return;
+  }
+  const likeButton = event.target.closest("[data-community-post-like]");
+  if (likeButton) { void toggleCommunityPostLike(post, likeButton); return; }
+  const saveButton = event.target.closest("[data-community-post-save]");
+  if (saveButton) { void toggleCommunityPostSave(post); return; }
+  const commentsButton = event.target.closest("[data-community-post-comments]");
+  if (commentsButton) void openCommunityPostComments(post, article, commentsButton);
+});
+
+communityFeedList?.addEventListener("submit", (event) => {
+  const form = event.target.closest(".community-post__comment-form");
+  if (!form) return;
+  const article = form.closest("[data-community-post-id]");
+  const post = communityFeedPosts.find((item) => item.id === article?.dataset.communityPostId);
+  if (post) void submitCommunityComment(event, post, article);
 });
 
 communityRoomTabs.forEach((button) => {
