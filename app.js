@@ -654,6 +654,7 @@ const communityFeedSort = document.querySelector("#communityFeedSort");
 const communityFeedFilters = document.querySelectorAll("[data-community-feed-filter]");
 const communityFeedSearch = document.querySelector("#communityFeedSearch");
 const communityHeaderCreate = document.querySelector("#communityHeaderCreate");
+const communityWelcomeCompose = document.querySelector("#communityWelcomeCompose");
 const communityComposerOpen = document.querySelector("#communityComposerOpen");
 const communityComposerAvatar = document.querySelector("#communityComposerAvatar");
 const communityComposeButtons = document.querySelectorAll("[data-community-compose-type]");
@@ -2715,7 +2716,7 @@ function syncAppShell() {
 }
 
 function selectCommunitySection(targetId, options = {}) {
-  const nextTargetId = targetId || "communityOverview";
+  const nextTargetId = !targetId || targetId === "communityOverview" ? "communityFeed" : targetId;
   const target = document.querySelector(`#${nextTargetId}`);
   if (!target) return;
   if (communityModule) communityModule.dataset.communityActive = nextTargetId;
@@ -2726,8 +2727,7 @@ function selectCommunitySection(targetId, options = {}) {
   });
   if (nextTargetId === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
   if (options.scroll !== false) {
-    const scrollTarget = nextTargetId === "communityOverview" ? communityModule : target;
-    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 
@@ -2745,7 +2745,7 @@ function selectCommunityCity(city, options = {}) {
 
 function syncCommunityHub() {
   if (!communityModule) return;
-  if (!communityModule.dataset.communityActive) selectCommunitySection("communityOverview", { scroll: false });
+  if (!communityModule.dataset.communityActive) selectCommunitySection("communityFeed", { scroll: false });
   const isSignedIn = Boolean(currentUser);
   communityChatForm?.classList.toggle("is-hidden", !isSignedIn);
   communityChatAuth?.classList.toggle("is-hidden", isSignedIn);
@@ -2974,6 +2974,9 @@ function openCommunityComposer(type = "photo") {
   communityComposeVideoField?.classList.toggle("is-hidden", !isVideo);
   communityComposeStoreFields?.classList.toggle("is-hidden", communityComposeType !== "store_experience");
   communityComposeError.textContent = "";
+  if (communityComposeModal && communityComposeModal.parentElement !== document.body) {
+    document.body.appendChild(communityComposeModal);
+  }
   communityComposeModal?.classList.add("is-visible");
   communityComposeModal?.setAttribute("aria-hidden", "false");
   document.body.classList.add("is-modal-open");
@@ -12316,6 +12319,10 @@ communityFeedSort?.addEventListener("change", () => {
 
 communityComposerOpen?.addEventListener("click", () => openCommunityComposer("photo"));
 communityHeaderCreate?.addEventListener("click", () => openCommunityComposer("photo"));
+communityWelcomeCompose?.addEventListener("click", (event) => {
+  event.preventDefault();
+  openCommunityComposer("photo");
+});
 communityFeedSearch?.addEventListener("input", () => {
   communityFeedSearchQuery = communityFeedSearch.value.trim();
   renderCommunityFeed();

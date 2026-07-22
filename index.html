@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=24" />
+  <link rel="stylesheet" href="./community.css?v=32" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1030,14 +1030,11 @@
         </section>
 
         <nav class="community-tabs" aria-label="Topluluk bölümleri">
-          <button class="is-active" type="button" data-community-target="communityOverview" aria-pressed="true">Ana Sayfa</button>
-          <button type="button" data-community-target="communityFeed" aria-pressed="false">Akış</button>
+          <button class="is-active" type="button" data-community-target="communityFeed" aria-pressed="true">Akış</button>
           <button type="button" data-community-target="communityForum" aria-pressed="false">Forum</button>
           <button type="button" data-community-target="communityChat" aria-pressed="false">Sohbet</button>
           <button type="button" data-community-target="communityHunters" aria-pressed="false">Avcılar</button>
         </nav>
-
-        <div class="community-overview-anchor" id="communityOverview" aria-hidden="true"></div>
         <div class="community-hub-layout" data-community-layout>
           <div class="community-hub-main">
             <section class="community-surface community-featured" id="communityFeed" data-community-panel="feed">
@@ -1047,7 +1044,7 @@
                   <span>HUNT GARAJ TOPLULUĞU</span>
                   <h3 id="communityWelcomeTitle">Avcıların buluşma noktasına hoş geldin</h3>
                   <p>Yeni buluntuları paylaş, koleksiyonları keşfet ve diğer koleksiyonerlerle buluş.</p>
-                  <a href="#communityFeedList">Akışı Keşfet</a>
+                  <a href="#communityComposer" id="communityWelcomeCompose">Paylaşmaya Başla</a>
                 </div>
               </section>
 
@@ -1060,7 +1057,7 @@
                 <button type="button" data-community-feed-filter="store_experience" aria-pressed="false">Mağaza Deneyimi</button>
               </div>
 
-              <section class="community-composer" aria-labelledby="communityComposerTitle">
+              <section class="community-composer" id="communityComposer" aria-labelledby="communityComposerTitle">
                 <span class="community-composer__avatar brand-fallback-avatar" id="communityComposerAvatar" aria-hidden="true"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
                 <button class="community-composer__prompt" id="communityComposerOpen" type="button">
                   <span id="communityComposerTitle">Ne paylaşmak istersin?</span>
@@ -2591,7 +2588,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=221"></script>
+    <script src="./app.js?v=224"></script>
   </body>
 </html>
 
