@@ -18,10 +18,12 @@ const STORE_VOTE_CACHE_KEY = "hunt-radar-my-votes-v1";
 const ASSET_BUCKET = "hunt-radar-assets";
 const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
 const HOTWHEELS_IMAGE_PROXY_URL = `${SUPABASE_URL}/functions/v1/hotwheels-image-proxy`;
+const DEFAULT_PROFILE_AVATAR_PATH = "./assets/default-profile-avatar-hr-v1.png";
 const MANAGED_ASSET_PATHS = [
   "garage-hero.png",
   "hunt-radar-hero-car.webp",
   "hunt-radar-brand-portfolio.png",
+  "default-profile-avatar-hr-v1.png",
   "f40-competizione-yellow.jpg",
   "porsche-911-carrera-t.jpg",
   "barbie-dream-camper.jpg",
@@ -2759,7 +2761,7 @@ function syncCommunityHub() {
     }, { once: true });
   });
   selectCommunityCity(activeCommunityCity, { scroll: false });
-  if (communityComposerAvatar) communityComposerAvatar.textContent = userInitials(currentUser?.username || "HG");
+  setDefaultProfileAvatar(communityComposerAvatar);
   if (communityModule?.dataset.communityActive === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
 }
 
@@ -2936,7 +2938,7 @@ function renderCommunityFeed() {
         ? `<div class="community-post__store"><strong>${escapeHtml(post.store_name || "Mağaza deneyimi")}</strong>${post.location_text ? ` · ${escapeHtml(post.location_text)}` : ""}</div>` : "";
       return `<article class="community-post" data-community-post-id="${escapeHtml(post.id)}">
         <header class="community-post__header">
-          <button class="community-post__avatar" type="button" ${profileButton} aria-label="${escapeHtml(username)} profilini aç">${escapeHtml(userInitials(username))}</button>
+          <button class="community-post__avatar brand-fallback-avatar" type="button" ${profileButton} aria-label="${escapeHtml(username)} profilini aç">${defaultProfileAvatarMarkup()}</button>
           <div class="community-post__identity">
             <button type="button" ${profileButton}>${escapeHtml(username)}</button>
             <div class="community-post__meta"><span>${communityRelativeTime(post.published_at || post.created_at)}</span>${post.is_partnership ? "<span>İş birliği</span>" : ""}${post.is_editor_pick ? "<span>Editörün seçimi</span>" : ""}</div>
@@ -3118,8 +3120,8 @@ function appendCommunityChatMessage(message) {
   const article = document.createElement("article");
   article.dataset.chatCity = activeCommunityCity;
   const avatar = document.createElement("span");
-  avatar.className = "community-member-avatar community-member-avatar--gold";
-  avatar.textContent = userInitials(currentUser.username || currentUser.email || "HR");
+  avatar.className = "community-member-avatar brand-fallback-avatar";
+  avatar.innerHTML = defaultProfileAvatarMarkup();
   const body = document.createElement("div");
   const header = document.createElement("header");
   const username = document.createElement("strong");
@@ -6205,7 +6207,8 @@ function renderFollowListBody(profiles = [], kind = "followers") {
     card.className = "follow-list-card";
     const avatar = document.createElement("span");
     avatar.className = "follow-list-card__avatar reward-avatar";
-    applyAvatarElement(avatar, { type: "preset", id: profile.avatar_id || "garage-shield" }, profile);
+    if (profile.avatar_id) applyAvatarElement(avatar, { type: "preset", id: profile.avatar_id }, profile);
+    else setDefaultProfileAvatar(avatar);
     const points = Number(profile.radar_points || profile.radarPoints || profile.points || 0);
     const rank = Rewards?.rankFor(points);
     const body = document.createElement("div");
@@ -6406,7 +6409,7 @@ async function openPublicProfile(username) {
   if (Rewards) {
     applyAvatarElement(publicProfileAvatar, Rewards.getAvatar(user), user);
   } else {
-    publicProfileAvatar.textContent = userInitials(user.username);
+    setDefaultProfileAvatar(publicProfileAvatar);
   }
   publicProfileUsername.textContent = `@${user.username}`;
   const followSummary = normalizeFollowSummary(user);
@@ -6546,7 +6549,7 @@ function renderCollectorSearchResults(profiles = []) {
     row.type = "button";
     row.className = "collector-result";
     row.innerHTML = `
-      <span class="collector-result__avatar">${escapeHtml(userInitials(profile.username))}</span>
+      <span class="collector-result__avatar brand-fallback-avatar">${defaultProfileAvatarMarkup()}</span>
       <span class="collector-result__identity"><strong>@${escapeHtml(profile.username)}</strong><small>${escapeHtml(meta.visibility)}</small></span>
       <span class="collector-result__action">${escapeHtml(meta.isPrivate ? "Garaj Gizli" : "Garajı Gör")}</span>
       <span class="collector-result__follow">${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Arkadaşsınız" : "Arkadaş Ekle")}</span>
@@ -6574,7 +6577,7 @@ function renderCommunitySpotlight(profiles = lastCommunityUserProfiles) {
     const empty = document.createElement("article");
     empty.className = "community-spotlight-card is-empty";
     empty.innerHTML = `
-      <span class="community-spotlight-card__avatar">HR</span>
+      <span class="community-spotlight-card__avatar brand-fallback-avatar">${defaultProfileAvatarMarkup()}</span>
       <div>
         <strong>Koleksiyoner keşfi hazır</strong>
         <p>Kullanıcı aradığında açık profiller, takip sinyalleri ve garaj aksiyonları burada öne çıkar.</p>
@@ -6589,7 +6592,7 @@ function renderCommunitySpotlight(profiles = lastCommunityUserProfiles) {
     const card = document.createElement("article");
     card.className = "community-spotlight-card";
     card.innerHTML = `
-      <span class="community-spotlight-card__avatar">${escapeHtml(userInitials(profile.username))}</span>
+      <span class="community-spotlight-card__avatar brand-fallback-avatar">${defaultProfileAvatarMarkup()}</span>
       <div>
         <small>${escapeHtml(meta.isPrivate ? "Gizli garaj" : "Açık koleksiyon")}</small>
         <strong>@${escapeHtml(profile.username || "koleksiyoner")}</strong>
@@ -6632,7 +6635,7 @@ function renderCommunityUserResults(profiles = []) {
     card.className = "community-hunter-card";
     card.innerHTML = `
       <div class="community-hunter-card__top">
-        <span class="community-hunter-card__avatar">${escapeHtml(userInitials(profile.username))}</span>
+        <span class="community-hunter-card__avatar brand-fallback-avatar">${defaultProfileAvatarMarkup()}</span>
         <div class="community-hunter-card__body">
           <span>Koleksiyoner</span>
           <strong>@${escapeHtml(profile.username)}</strong>
@@ -7662,6 +7665,10 @@ function applyAvatarElement(element, avatar, user, options = {}) {
   const presetClass = avatarClass(avatar);
   if (presetClass) element.classList.add(presetClass);
   const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
+  if (avatar?.type !== "custom" && !preset) {
+    setDefaultProfileAvatar(element);
+    return;
+  }
   element.innerHTML = preset?.image ? imageMarkup(preset, "") : escapeHtml(avatarText(avatar, user));
 }
 
@@ -7670,14 +7677,28 @@ function resetAvatarElement(element, text) {
   element.classList.remove("avatar-visual");
   element.classList.remove(...[...element.classList].filter((name) => name.startsWith("avatar-visual--")));
   element.removeAttribute("style");
-  element.classList.toggle("brand-fallback-avatar", text === "HR");
-  element.innerHTML = text === "HR"
-    ? '<img src="./assets/hunt-radar-logo-official.png" alt="" />'
-    : escapeHtml(text);
+  element.classList.add("brand-fallback-avatar");
+  element.innerHTML = defaultProfileAvatarMarkup();
+}
+
+function defaultProfileAvatarMarkup() {
+  return `<img src="${DEFAULT_PROFILE_AVATAR_PATH}" alt="" loading="lazy" decoding="async" />`;
+}
+
+function setDefaultProfileAvatar(element) {
+  if (!element) return;
+  element.classList.remove("avatar-visual");
+  element.classList.remove(...[...element.classList].filter((name) => name.startsWith("avatar-visual--")));
+  element.removeAttribute("style");
+  element.classList.add("brand-fallback-avatar");
+  element.innerHTML = defaultProfileAvatarMarkup();
 }
 
 function avatarMarkup(avatar, user, size = "") {
   const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
+  if (avatar?.type !== "custom" && !preset) {
+    return `<span class="reward-avatar brand-fallback-avatar ${size}" aria-hidden="true">${defaultProfileAvatarMarkup()}</span>`;
+  }
   if (preset?.image) {
     return `<span class="reward-avatar avatar-visual avatar-visual--image ${size} ${avatarClass(avatar)}" aria-hidden="true">${imageMarkup(preset, "")}</span>`;
   }
@@ -8045,7 +8066,7 @@ function openProfileModal() {
     return;
   }
 
-  profileAvatar.textContent = userInitials(currentUser.username);
+  setDefaultProfileAvatar(profileAvatar);
   profileUsername.textContent = `@${currentUser.username}`;
   profileEmail.textContent = currentUser.email;
   profileListingCount.textContent = String(allMarketListings().filter((listing) => normalize(listing.sellerUsername) === normalize(currentUser.username)).length);
@@ -8927,7 +8948,7 @@ function renderStoreDetailReporter(item) {
       ? `${rankLabel} · Profili görüntüle`
       : "Profil ve mesaj seçeneklerini görüntüle";
   if (Rewards) applyAvatarElement(storeDetailReporterAvatar, Rewards.getAvatar(user), user);
-  else storeDetailReporterAvatar.textContent = userInitials(username);
+  else setDefaultProfileAvatar(storeDetailReporterAvatar);
 }
 
 function renderStoreDetailStoreCard(item) {
@@ -9262,11 +9283,11 @@ function renderPublicGarageProfile(profileName) {
     return Number.isFinite(date) ? Math.max(latest, date) : latest;
   }, 0);
 
-  applyAvatarElement(
-    publicGarageProfileAvatar,
-    { type: "preset", id: publicGarageProfile.avatar_id || "garage-shield" },
-    publicGarageProfile
-  );
+  if (publicGarageProfile.avatar_id) {
+    applyAvatarElement(publicGarageProfileAvatar, { type: "preset", id: publicGarageProfile.avatar_id }, publicGarageProfile);
+  } else {
+    setDefaultProfileAvatar(publicGarageProfileAvatar);
+  }
   const isProfileRoute = isPublicProfileRoute();
   if (publicGarageProfileEyebrow) {
     publicGarageProfileEyebrow.textContent = isProfileRoute ? "KOLEKSİYONER PROFİLİ" : "KOLEKSİYONER GARAJI";
@@ -9845,12 +9866,11 @@ function renderProfileDashboard() {
 
   if (profileDashboardAvatar) {
     if (user && Rewards) {
-      const avatar = isPublic
-        ? { type: "preset", id: user.avatar_id || user.avatarId || "garage-shield" }
-        : Rewards.getAvatar(user);
-      applyAvatarElement(profileDashboardAvatar, avatar, user);
+      const publicAvatarId = user.avatar_id || user.avatarId;
+      if (isPublic && !publicAvatarId) setDefaultProfileAvatar(profileDashboardAvatar);
+      else applyAvatarElement(profileDashboardAvatar, isPublic ? { type: "preset", id: publicAvatarId } : Rewards.getAvatar(user), user);
     } else {
-      profileDashboardAvatar.textContent = "HR";
+      setDefaultProfileAvatar(profileDashboardAvatar);
     }
   }
   if (profileDashboardVisibility) profileDashboardVisibility.textContent = user ? profileVisibilityLabel(user) : "Misafir";

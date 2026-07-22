@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=5" />
+  <link rel="stylesheet" href="./community.css?v=24" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -115,7 +115,7 @@
           </div>
           <div class="account-shell">
             <button class="user-button" id="userButton" type="button" aria-expanded="false" aria-controls="accountMenu">
-              <span class="user-button__avatar" id="userAvatar">HR</span>
+              <span class="user-button__avatar brand-fallback-avatar" id="userAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
               <span class="user-button__identity">
                 <strong id="userButtonText">Giriş Yap / Hesap Oluştur</strong>
                 <small id="userButtonMeta">Misafir hesap</small>
@@ -124,7 +124,7 @@
             </button>
             <section class="account-menu" id="accountMenu" aria-label="Hesap menüsü">
               <div class="account-menu__hero">
-                <span class="account-menu__avatar" id="accountMenuAvatar">HR</span>
+                <span class="account-menu__avatar brand-fallback-avatar" id="accountMenuAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
                 <div>
                   <p class="eyebrow">Hesap</p>
                   <h2 id="accountMenuName">Misafir</h2>
@@ -594,7 +594,7 @@
       <section class="garage-dashboard app-module-only" id="garageDashboard" aria-labelledby="garageDashboardTitle">
         <header class="garage-dashboard__hero">
           <div class="public-garage-profile is-hidden" id="publicGarageProfileHeader">
-            <div class="public-garage-profile__avatar reward-avatar" id="publicGarageProfileAvatar">HR</div>
+            <div class="public-garage-profile__avatar reward-avatar brand-fallback-avatar" id="publicGarageProfileAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></div>
             <div class="public-garage-profile__identity">
               <div class="public-garage-profile__eyebrow">
                 <span>KOLEKSİYONER GARAJI</span>
@@ -676,7 +676,7 @@
           <form class="collector-search-form" id="collectorSearchForm">
             <label for="collectorSearchInput">Kullanıcı adı</label>
             <div>
-              <span class="collector-search-prefix" aria-hidden="true">@</span>
+              <span class="collector-search-prefix brand-fallback-avatar" aria-hidden="true"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
               <input id="collectorSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="kullanıcı adı" />
               <button class="button button--primary" type="submit">Ara</button>
             </div>
@@ -872,7 +872,7 @@
         <header class="profile-dashboard__hero">
           <div class="profile-dashboard__shine" aria-hidden="true"></div>
           <div class="profile-dashboard__identity">
-            <div class="profile-dashboard__avatar reward-avatar" id="profileDashboardAvatar">HR</div>
+            <div class="profile-dashboard__avatar reward-avatar brand-fallback-avatar" id="profileDashboardAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></div>
             <div class="profile-dashboard__copy">
               <div class="profile-dashboard__title-row">
                 <h1 id="profileDashboardTitle">@kullanici</h1>
@@ -1004,28 +1004,33 @@
         </section>
       </section>
 
-      <section class="community-module app-module-only" id="communityModule" aria-label="Forum ve topluluk">
+      <section class="community-module app-module-only" id="communityModule" aria-labelledby="communityTitle">
         <section class="community-hub-hero">
-          <div class="community-hub-hero__copy">
-            <p class="eyebrow">Topluluk</p>
-            <h2>Topluluk</h2>
-            <p>Araç tutkunlarıyla paylaş, keşfet ve ilham al.</p>
+          <div class="community-hub-hero__copy module-jargon">
+            <span class="module-jargon__label">HUNT GARAJ</span>
+            <h1 class="module-jargon__title" id="communityTitle">Topluluk</h1>
           </div>
           <div class="community-hub-hero__actions" aria-label="Akış araçları">
             <label class="community-feed-search" for="communityFeedSearch">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
-              <span class="sr-only">Akışta ara</span>
-              <input id="communityFeedSearch" type="search" autocomplete="off" placeholder="Toplulukta ara..." />
+              <input id="communityFeedSearch" type="search" autocomplete="off" aria-label="Gönderilerde ara" placeholder="Gönderilerde ara..." />
+            </label>
+            <label class="community-feed-sort community-feed-sort--command" for="communityFeedSort">
+              <span>Sırala</span>
+              <select id="communityFeedSort">
+                <option value="newest">En yeni</option>
+                <option value="popular">En çok beğenilen</option>
+              </select>
             </label>
             <button class="community-header-create" id="communityHeaderCreate" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
-              <span>Gönderi oluştur</span>
+              <span>Paylaş</span>
             </button>
           </div>
         </section>
 
         <nav class="community-tabs" aria-label="Topluluk bölümleri">
-          <button class="is-active" type="button" data-community-target="communityOverview" aria-pressed="true">Genel Bakış</button>
+          <button class="is-active" type="button" data-community-target="communityOverview" aria-pressed="true">Ana Sayfa</button>
           <button type="button" data-community-target="communityFeed" aria-pressed="false">Akış</button>
           <button type="button" data-community-target="communityForum" aria-pressed="false">Forum</button>
           <button type="button" data-community-target="communityChat" aria-pressed="false">Sohbet</button>
@@ -1036,20 +1041,15 @@
         <div class="community-hub-layout" data-community-layout>
           <div class="community-hub-main">
             <section class="community-surface community-featured" id="communityFeed" data-community-panel="feed">
-              <div class="community-feed-heading">
-                <div>
-                  <p class="eyebrow">Topluluk Akışı</p>
-                  <h3>Koleksiyonerlerden yeni paylaşımlar</h3>
-                  <p>Fotoğraflar, videolar, koleksiyonlar ve mağaza deneyimleri.</p>
+              <section class="community-welcome" aria-labelledby="communityWelcomeTitle">
+                <img class="community-welcome__image" src="assets/community-welcome-hero-v2.png" alt="" width="2048" height="819" aria-hidden="true" />
+                <div class="community-welcome__content">
+                  <span>HUNT GARAJ TOPLULUĞU</span>
+                  <h3 id="communityWelcomeTitle">Avcıların buluşma noktasına hoş geldin</h3>
+                  <p>Yeni buluntuları paylaş, koleksiyonları keşfet ve diğer koleksiyonerlerle buluş.</p>
+                  <a href="#communityFeedList">Akışı Keşfet</a>
                 </div>
-                <label class="community-feed-sort" for="communityFeedSort">
-                  <span>Sırala</span>
-                  <select id="communityFeedSort">
-                    <option value="newest">En yeni</option>
-                    <option value="popular">En çok beğenilen</option>
-                  </select>
-                </label>
-              </div>
+              </section>
 
               <div class="community-feed-filters" id="communityFeedFilters" aria-label="Gönderi türü filtreleri">
                 <button class="is-active" type="button" data-community-feed-filter="all" aria-pressed="true">Tümü</button>
@@ -1061,7 +1061,7 @@
               </div>
 
               <section class="community-composer" aria-labelledby="communityComposerTitle">
-                <span class="community-composer__avatar" id="communityComposerAvatar" aria-hidden="true">HG</span>
+                <span class="community-composer__avatar brand-fallback-avatar" id="communityComposerAvatar" aria-hidden="true"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
                 <button class="community-composer__prompt" id="communityComposerOpen" type="button">
                   <span id="communityComposerTitle">Ne paylaşmak istersin?</span>
                 </button>
@@ -1131,18 +1131,19 @@
             </section>
 
             <section class="community-surface community-hunter-search" id="communityHunters" data-community-panel="hunters">
-              <div class="community-section-heading">
-                <div>
-                  <p class="eyebrow">Koleksiyoner Ağı</p>
-                  <h3>Avcı Bul</h3>
-                  <p>Açık garajlar, aktif profiller ve koleksiyon kimlikleri.</p>
+              <section class="community-hunters-cover" aria-labelledby="communityHuntersCoverTitle">
+                <img class="community-hunters-cover__image" src="assets/community-hunters-cover-v1.png" alt="" width="2048" height="819" aria-hidden="true" />
+                <div class="community-hunters-cover__content">
+                  <span>KOLEKSİYONER AĞI</span>
+                  <h3 id="communityHuntersCoverTitle">Aynı tutkuyu paylaşan avcıları bul</h3>
+                  <p>Kullanıcı adına göre topluluktaki koleksiyonerleri ve açık garajları keşfet.</p>
+                  <strong class="community-section-count" id="communityHunterCount">Kullanıcı dizini</strong>
                 </div>
-                <span class="community-section-count" id="communityHunterCount">Kullanıcı dizini</span>
-              </div>
+              </section>
               <form class="community-hunter-search__form" id="communityUserSearchForm">
                 <label for="communityUserSearchInput">Kullanıcı adı</label>
                 <div>
-                  <span aria-hidden="true">@</span>
+                  <span class="brand-fallback-avatar" aria-hidden="true"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
                   <input id="communityUserSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="ör. saruhancakmak" />
                   <button class="button button--primary" type="submit">Ara</button>
                 </div>
@@ -1162,7 +1163,7 @@
               </div>
               <div class="community-spotlight-grid" id="communitySpotlightGrid">
                 <article class="community-spotlight-card">
-                  <span class="community-spotlight-card__avatar">HR</span>
+                  <span class="community-spotlight-card__avatar brand-fallback-avatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
                   <div>
                     <strong>Profil keşfi hazır</strong>
                     <p>Arama yaptığında güçlü koleksiyonerler burada daha şık kartlarla görünecek.</p>
@@ -1239,7 +1240,7 @@
 
           <aside class="community-hub-sidebar">
             <section class="community-widget">
-              <div class="community-widget__heading"><span class="community-widget__icon">↗</span><h3>Trend Konular</h3></div>
+              <div class="community-widget__heading"><span class="community-widget__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19 19 5M10 5h9v9"/></svg></span><h3>Trend Konular</h3></div>
               <ol class="community-popular-list">
                 <li><span>01</span><div><strong>2026 J case dağılımı</strong><small>28 yanıt</small></div></li>
                 <li><span>02</span><div><strong>İstanbul av rotası</strong><small>42 yanıt</small></div></li>
@@ -1250,16 +1251,16 @@
             </section>
 
             <section class="community-widget">
-              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal">◉</span><h3>Aktif Koleksiyonerler</h3></div>
+              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 20c.5-4 2.5-6 5.5-6s5 2 5.5 6M14.5 14.5c3 .2 5 2 5.5 5.5"/></svg></span><h3>Aktif Koleksiyonerler</h3></div>
               <div class="community-active-members">
-                <div class="community-avatar-stack"><span class="community-member-avatar community-member-avatar--gold">S</span><span class="community-member-avatar community-member-avatar--teal">D</span><span class="community-member-avatar community-member-avatar--violet">A</span><span class="community-member-avatar community-member-avatar--orange">K</span><span>+18</span></div>
+                <div class="community-avatar-stack"><span class="community-member-avatar brand-fallback-avatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span><span class="community-member-avatar brand-fallback-avatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span><span class="community-member-avatar brand-fallback-avatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span><span class="community-member-avatar brand-fallback-avatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span><span>+18</span></div>
                 <p><strong>22 avcı çevrimiçi</strong><span>Topluluk şu anda aktif.</span></p>
               </div>
               <button class="community-widget__link" type="button" data-community-action="members-all">Tüm koleksiyonerler <span>→</span></button>
             </section>
 
             <section class="community-widget">
-              <div class="community-widget__heading"><span class="community-widget__icon">⌖</span><h3>Şehre Göre Sohbet</h3></div>
+              <div class="community-widget__heading"><span class="community-widget__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s6-5.6 6-11a6 6 0 1 0-12 0c0 5.4 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/></svg></span><h3>Şehre Göre Sohbet</h3></div>
               <div class="community-city-list">
                 <button type="button" data-community-city-link="İstanbul"><span>İstanbul Odası</span><b>48</b></button>
                 <button type="button" data-community-city-link="Ankara"><span>Ankara Odası</span><b>26</b></button>
@@ -1271,7 +1272,7 @@
             </section>
 
             <section class="community-widget community-rules-widget">
-              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal">◇</span><h3>Topluluk Kuralları</h3></div>
+              <div class="community-widget__heading"><span class="community-widget__icon community-widget__icon--teal" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 7 3.2v5.9c0 4.7-2.9 8-7 9.9-4.1-1.9-7-5.2-7-9.9V6.2L12 3Z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>Topluluk Kuralları</h3></div>
               <ul><li>Saygılı ve yardımsever olun</li><li>Reklam ve spam paylaşmayın</li><li>Yanıltıcı bilgi paylaşmayın</li><li>Topluluk güvenini koruyun</li></ul>
               <button class="community-widget__link" type="button" data-community-action="rules-all">Tüm kuralları görüntüle <span>→</span></button>
             </section>
@@ -1291,7 +1292,7 @@
           <div class="reward-user-overview__main">
             <div class="reward-user-overview__rank-visual" id="rewardOverviewRankVisual" aria-hidden="true"></div>
             <div class="reward-user-overview__identity">
-              <span class="reward-user-overview__avatar" id="rewardOverviewAvatar">HR</span>
+              <span class="reward-user-overview__avatar brand-fallback-avatar" id="rewardOverviewAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
               <div>
                 <p class="eyebrow">Senin radar durumun</p>
                 <h3 id="rewardOverviewUsername">Giriş yaparak puanlarını takip et</h3>
@@ -2149,7 +2150,7 @@
           <button class="delete-button" id="closeProfileModal" type="button" aria-label="Pencereyi kapat">×</button>
         </div>
         <div class="profile-card">
-          <span class="account-menu__avatar reward-avatar" id="profileAvatar">HR</span>
+          <span class="account-menu__avatar reward-avatar brand-fallback-avatar" id="profileAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
           <div>
             <h3 id="profileUsername">@kullanici</h3>
             <p id="profileEmail">mail@example.com</p>
@@ -2229,7 +2230,7 @@
 
             <section class="profile-studio-card" data-profile-studio-section="avatar">
               <div class="profile-studio-card__heading"><span>02</span><div><p class="eyebrow">AVATAR</p><h3>Koleksiyoncu imzanı seç</h3><p>Radar notlarında, pazarda ve profilinde seni temsil eder.</p></div></div>
-              <div class="profile-studio-avatar"><div class="profile-studio-avatar__preview"><span class="reward-avatar" id="profileEditorAvatar">HR</span><small>CANLI ÖNİZLEME</small></div><div><div class="profile-avatar-presets"><div class="profile-avatar-presets__head"><div><b>Hazır Armalar</b><small>Bir arma seç veya kendi logonu yükle.</small></div><span><button id="profileAvatarPrev" type="button" aria-label="Önceki armalar">←</button><button id="profileAvatarNext" type="button" aria-label="Sonraki armalar">→</button></span></div><div class="avatar-options" id="avatarOptions"></div></div><label class="profile-logo-drop" for="profileAvatarUpload"><input class="file-input" id="profileAvatarUpload" type="file" accept="image/png,image/jpeg,image/webp" /><i aria-hidden="true">＋</i><span><b>Kendi logonu yükle</b><small id="profileAvatarUploadName">PNG, JPG veya WEBP · En fazla 2 MB</small></span><em>Dosya Seç</em></label></div></div>
+              <div class="profile-studio-avatar"><div class="profile-studio-avatar__preview"><span class="reward-avatar brand-fallback-avatar" id="profileEditorAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span><small>CANLI ÖNİZLEME</small></div><div><div class="profile-avatar-presets"><div class="profile-avatar-presets__head"><div><b>Hazır Armalar</b><small>Bir arma seç veya kendi logonu yükle.</small></div><span><button id="profileAvatarPrev" type="button" aria-label="Önceki armalar">←</button><button id="profileAvatarNext" type="button" aria-label="Sonraki armalar">→</button></span></div><div class="avatar-options" id="avatarOptions"></div></div><label class="profile-logo-drop" for="profileAvatarUpload"><input class="file-input" id="profileAvatarUpload" type="file" accept="image/png,image/jpeg,image/webp" /><i aria-hidden="true">＋</i><span><b>Kendi logonu yükle</b><small id="profileAvatarUploadName">PNG, JPG veya WEBP · En fazla 2 MB</small></span><em>Dosya Seç</em></label></div></div>
               <div class="profile-studio-upload"><div class="profile-avatar-save-copy"><p><span aria-hidden="true">◆</span> Kare ve şeffaf arka planlı logolar en iyi sonucu verir.</p><strong class="profile-avatar-save-status" id="profileAvatarSaveStatus" role="status" aria-live="polite"></strong></div><button class="button button--primary avatar-save-button" id="saveProfileAvatar" type="button">Logoyu Kaydet</button></div>
             </section>
 
@@ -2272,7 +2273,7 @@
           <button class="delete-button" id="closePublicProfileModal" type="button" aria-label="Pencereyi kapat">×</button>
         </div>
         <div class="profile-card">
-          <span class="account-menu__avatar" id="publicProfileAvatar">KU</span>
+          <span class="account-menu__avatar brand-fallback-avatar" id="publicProfileAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
           <div>
             <h3 id="publicProfileUsername">@kullanici</h3>
             <p id="publicProfileSummary">0 ilan · 0 garaj kaydı</p>
@@ -2460,7 +2461,7 @@
           </section>
           <div class="store-detail__body">
             <button class="store-detail__reporter" id="storeDetailReporter" type="button">
-              <span class="store-detail__reporter-avatar" id="storeDetailReporterAvatar">HR</span>
+              <span class="store-detail__reporter-avatar brand-fallback-avatar" id="storeDetailReporterAvatar"><img src="./assets/default-profile-avatar-hr-v1.png" alt="" /></span>
               <span>
                 <small>Bildiren koleksiyoncu</small>
                 <strong id="storeDetailReporterName">@kullanici</strong>
@@ -2588,9 +2589,9 @@
     <script src="./vehicle-components.js?v=14"></script>
     <script src="./explore-service.js?v=6"></script>
     <script src="./explore-page.js?v=10"></script>
-    <script src="./reward-service.js?v=10"></script>
+    <script src="./reward-service.js?v=11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=220"></script>
+    <script src="./app.js?v=221"></script>
   </body>
 </html>
 

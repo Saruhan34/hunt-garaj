@@ -50,6 +50,7 @@
   ];
 
   const DEFAULT_AVATARS = [
+    { id: "hr-default", label: "Hunt Radar", image: "./assets/default-profile-avatar-hr-v1.png", storagePath: "default-profile-avatar-hr-v1.png" },
     { id: "flame-wheel", label: "Alevli jant", image: "./assets/avatars/flame-wheel.png", storagePath: "avatars/flame-wheel.png" },
     { id: "neon-front", label: "Neon avcı", image: "./assets/avatars/neon-front.png", storagePath: "avatars/neon-front.png" },
     { id: "carbon-wing", label: "Karbon kanat", image: "./assets/avatars/carbon-wing.png", storagePath: "avatars/carbon-wing.png" },
@@ -216,7 +217,7 @@
   function getAvatar(user) {
     const profiles = readState().profiles || {};
     const profile = userKeys(user).map((key) => profiles[key]).find(Boolean) || {};
-    return profile.avatar || { type: "preset", id: "garage-shield" };
+    return profile.avatar || { type: "preset", id: "hr-default" };
   }
 
   function statsFor(user, appState = {}) {
