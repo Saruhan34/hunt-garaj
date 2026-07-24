@@ -525,6 +525,21 @@ grant select, insert, update, delete on public.community_creators, public.commun
   public.community_post_saves, public.user_blocks, public.community_reports
 to authenticated;
 
+-- Akis, sayfa yenilenmeden yeni gonderi ve sayac degisikliklerini alir.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'community_posts'
+  ) then
+    alter publication supabase_realtime add table public.community_posts;
+  end if;
+end
+$$;
+
 -- Private bucket: dosya yolu {user_id}/{post_id}/{media_id}.webp bicimindedir.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

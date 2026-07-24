@@ -568,6 +568,11 @@ let communityFeedCursor = null;
 let communityFeedLoading = false;
 let communityFeedHasMore = false;
 let communityFeedLoaded = false;
+let communityForumTopicsLoaded = false;
+let communityForumTopics = [];
+let activeCommunityForumCategory = "all";
+let communityRealtimeChannel = null;
+let communityRealtimeRefreshTimer = 0;
 let activeCommunityDetailPost = null;
 let communityComposeType = "photo";
 let communityComposeDirty = false;
@@ -638,6 +643,21 @@ const communityTabs = document.querySelectorAll("[data-community-target]");
 const communitySuggestVideo = document.querySelector("#communitySuggestVideo");
 const communityJoinChat = document.querySelector("#communityJoinChat");
 const communityCreateTopic = document.querySelector("#communityCreateTopic");
+const communityCreateFirstTopic = document.querySelector("#communityCreateFirstTopic");
+const communityForumCategories = document.querySelectorAll("[data-forum-category]");
+const communityHeaderSort = document.querySelector("#communityHeaderSort");
+const communityHeaderCreateLabel = document.querySelector("#communityHeaderCreateLabel");
+const communityForumTopicsList = document.querySelector("#communityForumTopics");
+const communityTopicModal = document.querySelector("#communityTopicModal");
+const communityTopicForm = document.querySelector("#communityTopicForm");
+const communityTopicClose = document.querySelector("#communityTopicClose");
+const communityTopicCancel = document.querySelector("#communityTopicCancel");
+const communityTopicTitle = document.querySelector("#communityTopicTitle");
+const communityTopicBody = document.querySelector("#communityTopicBody");
+const communityTopicTitleCount = document.querySelector("#communityTopicTitleCount");
+const communityTopicBodyCount = document.querySelector("#communityTopicBodyCount");
+const communityTopicError = document.querySelector("#communityTopicError");
+const communityTopicSubmit = document.querySelector("#communityTopicSubmit");
 const communityChat = document.querySelector("#communityChat");
 const communityChatFeed = document.querySelector("#communityChatFeed");
 const communityChatForm = document.querySelector("#communityChatForm");
@@ -2736,6 +2756,14 @@ function selectCommunitySection(targetId, options = {}) {
   if (leavingSavedArchive) communityFeedSavedOnly = false;
   if (leavingSavedArchive || nextTargetId !== "communityFeed") communityModule?.classList.remove("is-saved-archive");
   if (communityModule) communityModule.dataset.communityActive = nextTargetId;
+  const isForum = nextTargetId === "communityForum";
+  if (communityFeedSearch) {
+    communityFeedSearch.placeholder = isForum ? "Forumda ara..." : "Gönderilerde ara...";
+    communityFeedSearch.setAttribute("aria-label", isForum ? "Forumda ara" : "Gönderilerde ara");
+    communityFeedSearch.value = isForum ? "" : communityFeedSearchQuery;
+  }
+  communityHeaderSort?.classList.toggle("is-hidden", isForum);
+  if (communityHeaderCreateLabel) communityHeaderCreateLabel.textContent = isForum ? "Yeni Konu" : "Paylaş";
   communityTabs.forEach((tab) => {
     const isActive = tab.dataset.communityTarget === nextTargetId;
     tab.classList.toggle("is-active", isActive);
@@ -2749,6 +2777,7 @@ function selectCommunitySection(targetId, options = {}) {
   communitySavedTab?.classList.remove("is-active");
   communitySavedTab?.setAttribute("aria-pressed", "false");
   if (nextTargetId === "communityFeed" && (leavingSavedArchive || !communityFeedLoaded)) void loadCommunityFeed({ reset: true });
+  if (nextTargetId === "communityForum" && !communityForumTopicsLoaded) void loadCommunityForumTopics();
   if (options.scroll !== false) {
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -2796,12 +2825,70 @@ function refreshCommunityFeedForAuthChange() {
   if (communityModule?.dataset.communityActive === "communityFeed") void loadCommunityFeed({ reset: true });
 }
 
+function scheduleCommunityRealtimeRefresh() {
+  window.clearTimeout(communityRealtimeRefreshTimer);
+  communityRealtimeRefreshTimer = window.setTimeout(() => {
+    const feedIsVisible = activeView === "community"
+      && communityModule?.dataset.communityActive === "communityFeed";
+    if (feedIsVisible && !communityFeedLoading) void loadCommunityFeed({ reset: true });
+    else communityFeedLoaded = false;
+  }, 350);
+}
+
+function scheduleCommunityForumRealtimeRefresh() {
+  communityForumTopicsLoaded = false;
+  if (activeView === "community" && communityModule?.dataset.communityActive === "communityForum") {
+    void loadCommunityForumTopics();
+  }
+}
+
+function subscribeCommunityRealtime() {
+  if (!supabaseClient || communityRealtimeChannel) return;
+  communityRealtimeChannel = supabaseClient
+    .channel("hunt-garaj-community-feed")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "community_posts"
+      },
+      scheduleCommunityRealtimeRefresh
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "community_forum_topics"
+      },
+      scheduleCommunityForumRealtimeRefresh
+    )
+    .subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        communityFeedLoaded = false;
+        console.warn("Topluluk gerçek zamanlı bağlantısı geçici olarak kullanılamıyor.");
+      }
+    });
+}
+
 const COMMUNITY_POST_TYPE_LABELS = {
   photo: "Fotoğraf",
   video: "Video",
   collection: "Koleksiyon",
   new_vehicle: "Yeni Araç",
   store_experience: "Mağaza Deneyimi"
+};
+
+const COMMUNITY_FORUM_CATEGORY_LABELS = {
+  general: "Genel Otomobil Sohbeti",
+  diecast: "Hot Wheels ve Diecast",
+  showcase: "Koleksiyon Sergileme",
+  hunts: "Yeni Araçlar ve Hunt",
+  stores: "Mağaza ve Fiyat Bilgileri",
+  trade: "Takas ve Alım Rehberleri",
+  events: "Etkinlikler ve Buluşmalar",
+  support: "Teknik Yardım ve Öneriler"
 };
 
 function communityRelativeTime(value) {
@@ -2816,6 +2903,95 @@ function communityRelativeTime(value) {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} gün`;
   return new Date(timestamp).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
+function renderCommunityForumTopics() {
+  if (!communityForumTopicsList) return;
+  const query = communityModule?.dataset.communityActive === "communityForum"
+    ? communityFeedSearch?.value.trim().toLocaleLowerCase("tr-TR") || ""
+    : "";
+  const visibleTopics = communityForumTopics.filter((topic) => {
+    const categoryMatches = activeCommunityForumCategory === "all" || topic.category === activeCommunityForumCategory;
+    const searchMatches = !query || `${topic.title} ${topic.body || ""} ${COMMUNITY_FORUM_CATEGORY_LABELS[topic.category] || ""}`
+      .toLocaleLowerCase("tr-TR")
+      .includes(query);
+    return categoryMatches && searchMatches;
+  });
+  if (!visibleTopics.length) {
+    const hasFilter = Boolean(query || activeCommunityForumCategory !== "all");
+    communityForumTopicsList.innerHTML = `
+      <div class="community-forum-empty" id="communityForumEmpty">
+        <span class="community-forum-empty__mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 8h20v15H13l-6 5v-5H6V8Z"></path><path d="M11 13h10M11 18h7"></path></svg></span>
+        <div><strong>${hasFilter ? "Eşleşen konu bulunamadı" : "Henüz forum konusu yok"}</strong><p>${hasFilter ? "Arama ifadesini veya seçili kategoriyi değiştirerek tekrar deneyebilirsin." : "Topluluğun ilk konusunu açarak sohbeti başlatabilirsin."}</p></div>
+        ${hasFilter ? "" : '<button type="button" data-forum-first-topic>İlk konuyu aç</button>'}
+      </div>`;
+    return;
+  }
+  communityForumTopicsList.innerHTML = visibleTopics.map((topic) => {
+    const username = topic.author?.username || "Topluluk üyesi";
+    const avatar = topic.author?.avatar_id
+      ? avatarMarkup({ type: "preset", id: topic.author.avatar_id }, { username })
+      : `<span class="reward-avatar brand-fallback-avatar" aria-hidden="true">${defaultProfileAvatarMarkup()}</span>`;
+    return `
+      <article class="community-forum-topic" data-forum-topic="${escapeHtml(topic.id)}" tabindex="0">
+        <span class="community-forum-topic__avatar">${avatar}</span>
+        <div class="community-forum-topic__body">
+          <strong>${escapeHtml(topic.title)}</strong>
+          <div class="community-forum-topic__meta">
+            <span class="community-forum-topic__category">${escapeHtml(COMMUNITY_FORUM_CATEGORY_LABELS[topic.category] || "Forum")}</span>
+            <span>@${escapeHtml(username)}</span>
+            <time>${escapeHtml(communityRelativeTime(topic.published_at || topic.created_at))}</time>
+          </div>
+        </div>
+        <div class="community-forum-topic__activity"><span>${Number(topic.reply_count || 0)} yanıt</span><span>${Number(topic.view_count || 0)} görüntüleme</span></div>
+      </article>`;
+  }).join("");
+}
+
+async function loadCommunityForumTopics() {
+  if (!communityForumTopicsList) return;
+  if (!supabaseClient) {
+    communityForumTopicsLoaded = true;
+    renderCommunityForumTopics();
+    return;
+  }
+  communityForumTopicsList.innerHTML = `<div class="community-forum-empty"><div><strong>Forum konuları yükleniyor</strong><p>Güncel başlıklar hazırlanıyor.</p></div></div>`;
+  const fields = "id,author_id,category,title,body,reply_count,view_count,published_at,created_at,author:profiles!community_forum_topics_author_id_fkey(username,avatar_id)";
+  const { data, error } = await supabaseClient
+    .from("community_forum_topics")
+    .select(fields)
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+    .limit(30);
+  if (error) {
+    communityForumTopicsLoaded = false;
+    communityForumTopicsList.innerHTML = `<div class="community-forum-empty"><div><strong>Forum henüz bağlanmadı</strong><p>Forum veritabanı kurulumu tamamlandığında konular burada görünecek.</p></div></div>`;
+    return;
+  }
+  communityForumTopics = Array.isArray(data) ? data : [];
+  communityForumTopicsLoaded = true;
+  renderCommunityForumTopics();
+}
+
+function closeCommunityTopicModal() {
+  communityTopicModal?.classList.remove("is-open");
+  communityTopicModal?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("is-community-topic-open");
+}
+
+function openCommunityTopicModal(category = "general") {
+  if (!currentUser) {
+    openAuthModal("login", "Forum konusu açmak için giriş yapmalısın.");
+    return;
+  }
+  const safeCategory = COMMUNITY_FORUM_CATEGORY_LABELS[category] ? category : "general";
+  const categoryInput = communityTopicForm?.querySelector(`input[name="forumCategory"][value="${safeCategory}"]`);
+  if (categoryInput) categoryInput.checked = true;
+  if (communityTopicError) communityTopicError.textContent = "";
+  communityTopicModal?.classList.add("is-open");
+  communityTopicModal?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("is-community-topic-open");
+  requestAnimationFrame(() => communityTopicTitle?.focus());
 }
 
 function youtubeVideoId(value) {
@@ -2835,13 +3011,21 @@ function youtubeVideoId(value) {
 function setCommunityFeedStatus(message, retry = false) {
   if (!communityFeedStatus) return;
   communityFeedStatus.innerHTML = message
-    ? `${escapeHtml(message)}${retry ? '<button type="button" data-community-feed-retry>Tekrar dene</button>' : ""}`
+    ? `<span class="community-feed-status__icon" aria-hidden="true">${communityActionIcon("alert")}</span>
+       <span class="community-feed-status__copy">${escapeHtml(message)}</span>
+       ${retry ? '<button type="button" data-community-feed-retry>Tekrar dene</button>' : ""}`
     : "";
 }
 
 function renderCommunityFeedSkeleton() {
   if (!communityFeedList) return;
-  communityFeedList.innerHTML = '<div class="community-feed-skeleton" aria-label="Gönderiler yükleniyor"></div><div class="community-feed-skeleton" aria-hidden="true"></div>';
+  const card = (label = "") => `<div class="community-feed-skeleton" ${label ? `aria-label="${label}"` : 'aria-hidden="true"'}>
+    <div class="community-feed-skeleton__header"><i></i><span><b></b><small></small></span><em></em></div>
+    <div class="community-feed-skeleton__copy"><b></b><b></b></div>
+    <div class="community-feed-skeleton__media"></div>
+    <div class="community-feed-skeleton__actions"><i></i><i></i><i></i></div>
+  </div>`;
+  communityFeedList.innerHTML = card("Gönderiler yükleniyor") + card();
 }
 
 async function signedCommunityMediaUrl(path) {
@@ -2854,7 +3038,11 @@ async function loadCommunityFeed(options = {}) {
   if (!communityFeedList || communityFeedLoading) return;
   if (!supabaseClient) {
     communityFeedLoaded = true;
-    communityFeedList.innerHTML = '<div class="community-feed-empty"><h4>Topluluk bağlantısı hazır değil</h4><p>Gönderileri görmek için Supabase bağlantısının etkin olması gerekiyor.</p></div>';
+    communityFeedList.innerHTML = communityFeedEmptyMarkup({
+      icon: "alert",
+      title: "Topluluk bağlantısı hazır değil",
+      text: "Gönderileri görmek için Supabase bağlantısının etkin olması gerekiyor."
+    });
     return;
   }
   const reset = options.reset !== false;
@@ -2975,9 +3163,22 @@ function communityActionIcon(name) {
   const paths = {
     like: '<path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 00-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 000-7.8z"/>',
     comment: '<path d="M4 5h16v12H8l-4 3z"/>',
-    save: '<path d="M6 4h12v17l-6-4-6 4z"/>'
+    save: '<path d="M6 4h12v17l-6-4-6 4z"/>',
+    alert: '<path d="M12 3l9 17H3L12 3z"/><path d="M12 9v5M12 17h.01"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+    filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+    feed: '<path d="M5 5h14v14H5z"/><path d="M8 9h8M8 13h8M8 17h5"/>'
   };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.feed}</svg>`;
+}
+
+function communityFeedEmptyMarkup({ icon = "feed", title, text, action = "", actionLabel = "" }) {
+  return `<div class="community-feed-empty">
+    <span class="community-feed-empty__icon" aria-hidden="true">${communityActionIcon(icon)}</span>
+    <h4>${escapeHtml(title)}</h4>
+    <p>${escapeHtml(text)}</p>
+    ${action && actionLabel ? `<button type="button" ${action}>${escapeHtml(actionLabel)}</button>` : ""}
+  </div>`;
 }
 
 function communityDetailMediaMarkup(post) {
@@ -3111,7 +3312,29 @@ function renderCommunityFeed() {
     if (communityFeedSavedOnly && !isSearchEmpty) {
       communityFeedList.innerHTML = `<div class="community-feed-empty community-feed-empty--saved"><span class="community-feed-empty__icon" aria-hidden="true">${communityActionIcon("save")}</span><h4>Henüz kaydettiğin bir gönderi yok</h4><p>Sonra yeniden görmek istediğin fotoğraf, video ve koleksiyonları Kaydet düğmesiyle burada biriktirebilirsin.</p><button type="button" data-community-saved-explore>Akışa dön</button></div>`;
     } else {
-      communityFeedList.innerHTML = `<div class="community-feed-empty"><h4>${isSearchEmpty ? "Aramanla eşleşen paylaşım yok" : "Bu akışta henüz paylaşım yok"}</h4><p>${isSearchEmpty ? "Başka bir kullanıcı, mağaza veya paylaşım metni deneyebilirsin." : communityFeedFilter === "all" ? "İlk gönderiyi oluşturarak topluluk akışını başlatabilirsin." : "Bu türde henüz bir paylaşım yapılmamış."}</p></div>`;
+      communityFeedList.innerHTML = isSearchEmpty
+        ? communityFeedEmptyMarkup({
+            icon: "search",
+            title: "Aramanla eşleşen paylaşım yok",
+            text: "Başka bir kullanıcı, mağaza veya paylaşım metni deneyebilirsin.",
+            action: "data-community-search-clear",
+            actionLabel: "Aramayı temizle"
+          })
+        : communityFeedFilter === "all"
+          ? communityFeedEmptyMarkup({
+              icon: "feed",
+              title: "Bu akışta henüz paylaşım yok",
+              text: "İlk gönderiyi oluşturarak topluluk akışını başlatabilirsin.",
+              action: "data-community-empty-create",
+              actionLabel: "İlk paylaşımı oluştur"
+            })
+          : communityFeedEmptyMarkup({
+              icon: "filter",
+              title: "Bu kategoride henüz paylaşım yok",
+              text: "Farklı bir kategori seçebilir veya bu kategoride ilk paylaşımı sen oluşturabilirsin.",
+              action: "data-community-empty-create",
+              actionLabel: "Paylaşım oluştur"
+            });
     }
   } else {
     communityFeedList.innerHTML = visiblePosts.map((post) => {
@@ -8191,6 +8414,7 @@ async function initSupabaseAuth() {
     syncAdminVisibility();
     return;
   }
+  subscribeCommunityRealtime();
 
   if (window.location.hash.includes("reset-password")) {
     openAuthModal("update-password", "Yeni şifreni belirleyebilirsin.");
@@ -12652,12 +12876,22 @@ communityFeedSort?.addEventListener("change", () => {
 });
 
 communityComposerOpen?.addEventListener("click", () => openCommunityComposer("photo"));
-communityHeaderCreate?.addEventListener("click", () => openCommunityComposer("photo"));
+communityHeaderCreate?.addEventListener("click", () => {
+  if (communityModule?.dataset.communityActive === "communityForum") {
+    requestCommunityTopicCreate();
+    return;
+  }
+  openCommunityComposer("photo");
+});
 communityWelcomeCompose?.addEventListener("click", (event) => {
   event.preventDefault();
   openCommunityComposer("photo");
 });
 communityFeedSearch?.addEventListener("input", () => {
+  if (communityModule?.dataset.communityActive === "communityForum") {
+    renderCommunityForumTopics();
+    return;
+  }
   communityFeedSearchQuery = communityFeedSearch.value.trim();
   renderCommunityFeed();
 });
@@ -12806,6 +13040,17 @@ communityFeedStatus?.addEventListener("click", (event) => {
 });
 
 communityFeedList?.addEventListener("click", (event) => {
+  if (event.target.closest("[data-community-search-clear]")) {
+    communityFeedSearchQuery = "";
+    if (communityFeedSearch) communityFeedSearch.value = "";
+    renderCommunityFeed();
+    communityFeedSearch?.focus();
+    return;
+  }
+  if (event.target.closest("[data-community-empty-create]")) {
+    openCommunityComposer(communityFeedFilter === "all" ? "photo" : communityFeedFilter);
+    return;
+  }
   if (event.target.closest("[data-community-saved-login]")) {
     openAuthModal("login", "Kaydettiğin gönderileri görmek için giriş yapmalısın.");
     return;
@@ -12885,12 +13130,108 @@ communitySuggestVideo?.addEventListener("click", () => {
   showToast("Video öneri alanı yakında topluluk üyelerine açılacak.");
 });
 
-communityCreateTopic?.addEventListener("click", () => {
+const requestCommunityTopicCreate = () => {
+  openCommunityTopicModal(activeCommunityForumCategory);
+};
+
+communityCreateTopic?.addEventListener("click", requestCommunityTopicCreate);
+communityCreateFirstTopic?.addEventListener("click", requestCommunityTopicCreate);
+
+communityForumCategories.forEach((card) => {
+  card.addEventListener("click", () => {
+    const nextCategory = card.dataset.forumCategory || "general";
+    const clearSelection = activeCommunityForumCategory === nextCategory && card.classList.contains("is-selected");
+    activeCommunityForumCategory = clearSelection ? "all" : nextCategory;
+    communityForumCategories.forEach((item) => {
+      const selected = !clearSelection && item === card;
+      item.classList.toggle("is-selected", selected);
+      item.setAttribute("aria-pressed", String(selected));
+    });
+    renderCommunityForumTopics();
+    document.querySelector(".community-forum-section-title--topics")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
+
+communityForumTopicsList?.addEventListener("click", (event) => {
+  if (event.target.closest("[data-forum-first-topic]")) requestCommunityTopicCreate();
+});
+
+communityTopicClose?.addEventListener("click", closeCommunityTopicModal);
+communityTopicCancel?.addEventListener("click", closeCommunityTopicModal);
+communityTopicModal?.addEventListener("click", (event) => {
+  if (event.target === communityTopicModal) closeCommunityTopicModal();
+});
+communityTopicTitle?.addEventListener("input", () => {
+  if (communityTopicTitleCount) communityTopicTitleCount.textContent = String(communityTopicTitle.value.length);
+});
+communityTopicBody?.addEventListener("input", () => {
+  if (communityTopicBodyCount) communityTopicBodyCount.textContent = String(communityTopicBody.value.length);
+});
+communityTopicForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
   if (!currentUser) {
+    closeCommunityTopicModal();
     openAuthModal("login", "Forum konusu açmak için giriş yapmalısın.");
     return;
   }
-  showToast("Yeni konu oluşturma alanı yakında açılacak.");
+  const category = communityTopicForm.querySelector('input[name="forumCategory"]:checked')?.value || "general";
+  const title = communityTopicTitle?.value.trim() || "";
+  const body = communityTopicBody?.value.trim() || "";
+  if (title.length < 8) {
+    communityTopicError.textContent = "Konu başlığı en az 8 karakter olmalı.";
+    communityTopicTitle?.focus();
+    return;
+  }
+  if (body.length < 20) {
+    communityTopicError.textContent = "Açıklama en az 20 karakter olmalı.";
+    communityTopicBody?.focus();
+    return;
+  }
+  if (!supabaseClient) {
+    communityTopicError.textContent = "Forum veritabanı bağlantısı bulunamadı.";
+    return;
+  }
+  communityTopicError.textContent = "";
+  communityTopicSubmit.disabled = true;
+  communityTopicSubmit.textContent = "Yayımlanıyor...";
+  const { data, error } = await supabaseClient
+    .from("community_forum_topics")
+    .insert({ author_id: currentUser.id, category, title, body, status: "published" })
+    .select("id,author_id,category,title,body,reply_count,view_count,published_at,created_at")
+    .single();
+  communityTopicSubmit.disabled = false;
+  communityTopicSubmit.textContent = "Konuyu yayımla";
+  if (error) {
+    communityTopicError.textContent = error.code === "42P01"
+      ? "Forum veritabanı henüz kurulmadı."
+      : "Konu yayımlanamadı. Bilgileri kontrol edip tekrar dene.";
+    return;
+  }
+  communityForumTopics.unshift({
+    ...data,
+    author: {
+      username: currentUser.username || "Topluluk üyesi",
+      avatar_id: currentUser.avatar_id || currentUser.avatarId || null
+    }
+  });
+  communityForumTopicsLoaded = true;
+  renderCommunityForumTopics();
+  communityTopicForm.reset();
+  if (communityTopicTitleCount) communityTopicTitleCount.textContent = "0";
+  if (communityTopicBodyCount) communityTopicBodyCount.textContent = "0";
+  closeCommunityTopicModal();
+  showToast("Forum konusu yayımlandı.");
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && communityTopicModal?.classList.contains("is-open")) {
+    closeCommunityTopicModal();
+    return;
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k" && communityModule?.dataset.communityActive === "communityForum") {
+    event.preventDefault();
+    communityFeedSearch?.focus();
+  }
 });
 
 communityChatAuth?.addEventListener("click", () => openAuthModal("login", "Topluluk sohbetine katılmak için giriş yapmalısın."));
