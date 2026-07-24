@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=32" />
+  <link rel="stylesheet" href="./community.css?v=45" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1055,6 +1055,11 @@
                 <button type="button" data-community-feed-filter="collection" aria-pressed="false">Koleksiyon</button>
                 <button type="button" data-community-feed-filter="new_vehicle" aria-pressed="false">Yeni Araç</button>
                 <button type="button" data-community-feed-filter="store_experience" aria-pressed="false">Mağaza Deneyimi</button>
+                <button class="community-tabs__saved" id="communitySavedTab" type="button" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg>
+                  <span>Kaydedilenler</span>
+                  <strong id="communitySavedCount" aria-label="Kaydedilen gönderi sayısı">0</strong>
+                </button>
               </div>
 
               <section class="community-composer" id="communityComposer" aria-labelledby="communityComposerTitle">
@@ -1073,7 +1078,7 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14v12H5zM8 7V4h8v3M8 12h8M8 16h5"/></svg><span>Koleksiyon</span>
                   </button>
                   <button type="button" data-community-compose-type="new_vehicle" aria-label="Yeni araç paylaş">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15l2-5h14l2 5M5 15v4M19 15v4M6 15h12M7 18h.01M17 18h.01"/></svg><span>Yeni Araç</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14M3 12l2.4-6h13.2L21 12v5h-2M5 17H3v-5h18M7 12h10"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg><span>Yeni Araç</span>
                   </button>
                   <button type="button" data-community-compose-type="store_experience" aria-label="Mağaza deneyimi paylaş">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16M6 10v10h12V10M5 4h14l1 6H4zM9 14h6"/></svg><span>Mağaza</span>
@@ -1105,6 +1110,10 @@
                       <input id="communityComposeMedia" type="file" accept="image/jpeg,image/png,image/webp" multiple />
                       <small>En fazla 6 görsel · JPG, PNG veya WEBP</small>
                     </label>
+                    <section class="community-compose-preview is-hidden" id="communityComposePreview" aria-label="Seçilen fotoğraflar">
+                      <header><div><strong>Fotoğraf önizleme</strong><span id="communityComposePreviewCount">0 / 6</span></div><small>Sürükleyerek veya oklarla sırala</small></header>
+                      <div class="community-compose-preview__grid" id="communityComposePreviewGrid"></div>
+                    </section>
                     <label class="community-compose-field is-hidden" id="communityComposeVideoField" for="communityComposeVideo">
                       <span>YouTube bağlantısı</span>
                       <input id="communityComposeVideo" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=..." />
@@ -1124,6 +1133,15 @@
                     </footer>
                   </form>
                 </div>
+              </div>
+
+              <div class="community-detail-modal" id="communityDetailModal" aria-hidden="true">
+                <section class="community-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="communityDetailTitle">
+                  <button class="community-detail-close" id="communityDetailClose" type="button" aria-label="Gönderi detayını kapat">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                  </button>
+                  <div class="community-detail-content" id="communityDetailContent"></div>
+                </section>
               </div>
             </section>
 
@@ -2588,7 +2606,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js?v=224"></script>
+  <script src="./app.js?v=235"></script>
   </body>
 </html>
 

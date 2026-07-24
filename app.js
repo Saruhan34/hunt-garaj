@@ -563,12 +563,17 @@ let communityFeedPosts = [];
 let communityFeedFilter = "all";
 let communityFeedSortMode = "newest";
 let communityFeedSearchQuery = "";
+let communityFeedSavedOnly = false;
 let communityFeedCursor = null;
 let communityFeedLoading = false;
 let communityFeedHasMore = false;
 let communityFeedLoaded = false;
+let activeCommunityDetailPost = null;
 let communityComposeType = "photo";
 let communityComposeDirty = false;
+let communityComposeSelectedFiles = [];
+let communityComposePreviewUrls = [];
+let communityComposeDragIndex = null;
 let storeVerificationSummaries = {};
 let radarNotePhotos = {};
 let pendingStorePhotoFiles = [];
@@ -653,6 +658,8 @@ const communityFeedMore = document.querySelector("#communityFeedMore");
 const communityFeedSort = document.querySelector("#communityFeedSort");
 const communityFeedFilters = document.querySelectorAll("[data-community-feed-filter]");
 const communityFeedSearch = document.querySelector("#communityFeedSearch");
+const communitySavedTab = document.querySelector("#communitySavedTab");
+const communitySavedCount = document.querySelector("#communitySavedCount");
 const communityHeaderCreate = document.querySelector("#communityHeaderCreate");
 const communityWelcomeCompose = document.querySelector("#communityWelcomeCompose");
 const communityComposerOpen = document.querySelector("#communityComposerOpen");
@@ -668,6 +675,9 @@ const communityComposeBody = document.querySelector("#communityComposeBody");
 const communityComposeCount = document.querySelector("#communityComposeCount");
 const communityComposeMediaField = document.querySelector("#communityComposeMediaField");
 const communityComposeMedia = document.querySelector("#communityComposeMedia");
+const communityComposePreview = document.querySelector("#communityComposePreview");
+const communityComposePreviewGrid = document.querySelector("#communityComposePreviewGrid");
+const communityComposePreviewCount = document.querySelector("#communityComposePreviewCount");
 const communityComposeVideoField = document.querySelector("#communityComposeVideoField");
 const communityComposeVideo = document.querySelector("#communityComposeVideo");
 const communityComposeStoreFields = document.querySelector("#communityComposeStoreFields");
@@ -676,6 +686,9 @@ const communityComposeLocation = document.querySelector("#communityComposeLocati
 const communityComposeVisibility = document.querySelector("#communityComposeVisibility");
 const communityComposeError = document.querySelector("#communityComposeError");
 const communityComposeSubmit = document.querySelector("#communityComposeSubmit");
+const communityDetailModal = document.querySelector("#communityDetailModal");
+const communityDetailClose = document.querySelector("#communityDetailClose");
+const communityDetailContent = document.querySelector("#communityDetailContent");
 const rewardsModule = document.querySelector("#rewardsModule");
 const rewardModuleTitle = document.querySelector("#rewardModuleTitle");
 const rewardModuleCopy = document.querySelector("#rewardModuleCopy");
@@ -2719,13 +2732,23 @@ function selectCommunitySection(targetId, options = {}) {
   const nextTargetId = !targetId || targetId === "communityOverview" ? "communityFeed" : targetId;
   const target = document.querySelector(`#${nextTargetId}`);
   if (!target) return;
+  const leavingSavedArchive = nextTargetId === "communityFeed" && communityFeedSavedOnly;
+  if (leavingSavedArchive) communityFeedSavedOnly = false;
+  if (leavingSavedArchive || nextTargetId !== "communityFeed") communityModule?.classList.remove("is-saved-archive");
   if (communityModule) communityModule.dataset.communityActive = nextTargetId;
   communityTabs.forEach((tab) => {
     const isActive = tab.dataset.communityTarget === nextTargetId;
     tab.classList.toggle("is-active", isActive);
     tab.setAttribute("aria-pressed", String(isActive));
   });
-  if (nextTargetId === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
+  if (nextTargetId !== "communityFeed") {
+    communityFeedSavedOnly = false;
+    communitySavedTab?.classList.remove("is-active");
+    communitySavedTab?.setAttribute("aria-pressed", "false");
+  }
+  communitySavedTab?.classList.remove("is-active");
+  communitySavedTab?.setAttribute("aria-pressed", "false");
+  if (nextTargetId === "communityFeed" && (leavingSavedArchive || !communityFeedLoaded)) void loadCommunityFeed({ reset: true });
   if (options.scroll !== false) {
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -2841,6 +2864,19 @@ async function loadCommunityFeed(options = {}) {
     communityFeedPosts = [];
     renderCommunityFeedSkeleton();
   }
+  if (communityFeedSavedOnly && !currentUser) {
+    communityFeedLoading = false;
+    communityFeedLoaded = true;
+    communityFeedList.innerHTML = '<div class="community-feed-empty community-feed-empty--saved"><span class="community-feed-empty__icon" aria-hidden="true">' + communityActionIcon("save") + '</span><h4>Kaydedilen gönderilerin burada görünecek</h4><p>Gönderileri kaydetmek ve daha sonra yeniden görüntülemek için giriş yapmalısın.</p><button type="button" data-community-saved-login>Giriş yap</button></div>';
+    return;
+  }
+  if (reset && currentUser && !communityFeedSavedOnly) {
+    const { count } = await supabaseClient
+      .from("community_post_saves")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", currentUser.id);
+    if (communitySavedCount) communitySavedCount.textContent = String(count || 0);
+  }
   setCommunityFeedStatus("");
   if (communityFeedMore) communityFeedMore.disabled = true;
 
@@ -2859,6 +2895,30 @@ async function loadCommunityFeed(options = {}) {
     .select(communityPostSelect)
     .eq("status", "published")
     .limit(10);
+  if (communityFeedSavedOnly) {
+    const { data: savedRows, error: savedError } = await supabaseClient
+      .from("community_post_saves")
+      .select("post_id")
+      .eq("user_id", currentUser.id);
+    if (savedError) {
+      communityFeedLoading = false;
+      communityFeedLoaded = true;
+      communityFeedList.innerHTML = "";
+      setCommunityFeedStatus("Kaydedilen gönderiler yüklenemedi. Yeniden deneyebilirsin.", true);
+      return;
+    }
+    const savedPostIds = (savedRows || []).map((row) => row.post_id);
+    if (communitySavedCount) communitySavedCount.textContent = String(savedPostIds.length);
+    if (!savedPostIds.length) {
+      communityFeedPosts = [];
+      communityFeedLoading = false;
+      communityFeedLoaded = true;
+      communityFeedHasMore = false;
+      renderCommunityFeed();
+      return;
+    }
+    query = query.in("id", savedPostIds);
+  }
   if (communityFeedFilter !== "all") query = query.eq("post_type", communityFeedFilter);
   if (communityFeedCursor && communityFeedSortMode === "newest") query = query.lt("published_at", communityFeedCursor);
   query = communityFeedSortMode === "popular"
@@ -2892,7 +2952,7 @@ async function loadCommunityFeed(options = {}) {
 
   communityFeedPosts = reset ? posts : [...communityFeedPosts, ...posts];
   communityFeedCursor = posts.at(-1)?.published_at || communityFeedCursor;
-  communityFeedHasMore = posts.length === 10 && communityFeedSortMode === "newest";
+  communityFeedHasMore = !communityFeedSavedOnly && posts.length === 10 && communityFeedSortMode === "newest";
   communityFeedLoading = false;
   communityFeedLoaded = true;
   renderCommunityFeed();
@@ -2920,15 +2980,139 @@ function communityActionIcon(name) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
 }
 
+function communityDetailMediaMarkup(post) {
+  const media = (post.media || []).filter((item) => item.url);
+  if (post.post_type === "video" && post.external_video_id) {
+    const id = escapeHtml(post.external_video_id);
+    return `<div class="community-detail-media community-detail-media--video"><iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0" title="YouTube video oynatıcı" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>`;
+  }
+  if (!media.length) {
+    return `<div class="community-detail-media community-detail-media--empty"><span>${communityActionIcon("save")}</span><p>Bu gönderide medya bulunmuyor.</p></div>`;
+  }
+  return `<div class="community-detail-media" data-count="${Math.min(media.length, 6)}">
+    <img class="community-detail-media__primary" src="${escapeHtml(media[0].url)}" alt="${escapeHtml(media[0].alt_text || "Gönderi görseli")}" />
+    ${media.length > 1 ? `<div class="community-detail-media__thumbs">${media.map((item, index) => `<button type="button" data-community-detail-media="${index}" class="${index === 0 ? "is-active" : ""}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.alt_text || `Gönderi görseli ${index + 1}`)}" /></button>`).join("")}</div>` : ""}
+  </div>`;
+}
+
+function renderCommunityDetail(post) {
+  if (!communityDetailContent || !post) return;
+  const author = post.author || {};
+  const username = author.username || post.creator?.display_name || "Topluluk üyesi";
+  activeCommunityDetailPost = post;
+  communityDetailContent.innerHTML = `
+    <div class="community-detail-visual">${communityDetailMediaMarkup(post)}</div>
+    <aside class="community-detail-panel">
+      <header class="community-detail-author">
+        <button class="community-detail-author__avatar brand-fallback-avatar" type="button" ${author.username ? `data-community-detail-profile="${escapeHtml(author.username)}"` : "disabled"}>${defaultProfileAvatarMarkup()}</button>
+        <div><button type="button" ${author.username ? `data-community-detail-profile="${escapeHtml(author.username)}"` : "disabled"}>${escapeHtml(username)}</button><span>${communityRelativeTime(post.published_at || post.created_at)} · ${escapeHtml(COMMUNITY_POST_TYPE_LABELS[post.post_type] || "Paylaşım")}</span></div>
+      </header>
+      <div class="community-detail-copy">
+        <h2 id="communityDetailTitle">${post.body ? escapeHtml(post.body) : "Topluluk gönderisi"}</h2>
+        ${post.post_type === "store_experience" && (post.store_name || post.location_text) ? `<p class="community-detail-store"><strong>${escapeHtml(post.store_name || "Mağaza deneyimi")}</strong>${post.location_text ? `<span>${escapeHtml(post.location_text)}</span>` : ""}</p>` : ""}
+      </div>
+      <div class="community-detail-stats"><span>${Number(post.like_count || 0).toLocaleString("tr-TR")} beğeni</span><span>${Number(post.comment_count || 0).toLocaleString("tr-TR")} yorum</span></div>
+      <div class="community-detail-actions">
+        <button type="button" data-community-detail-like class="${post.isLiked ? "is-active" : ""}" aria-pressed="${post.isLiked}">${communityActionIcon("like")}<span>Beğen</span></button>
+        <button type="button" data-community-detail-save class="${post.isSaved ? "is-active" : ""}" aria-pressed="${post.isSaved}">${communityActionIcon("save")}<span>${post.isSaved ? "Kaydedildi" : "Kaydet"}</span></button>
+        ${currentUser?.id === post.author_id ? `<button class="is-danger" type="button" data-community-detail-delete><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg><span>Gönderiyi sil</span></button>` : ""}
+      </div>
+      <section class="community-detail-comments" aria-label="Yorumlar">
+        <div class="community-detail-comments__heading"><h3>Yorumlar</h3><span>${Number(post.comment_count || 0).toLocaleString("tr-TR")}</span></div>
+        <div class="community-detail-comments__list" id="communityDetailComments"><p class="community-detail-comments__status">Yorumlar yükleniyor…</p></div>
+      </section>
+      <form class="community-detail-comment-form" id="communityDetailCommentForm">
+        <div class="community-detail-reply-context" id="communityDetailReplyContext" hidden><span></span><button type="button" data-community-reply-cancel aria-label="Yanıtlamayı iptal et">İptal</button></div>
+        <input type="text" maxlength="500" aria-label="Yorum" placeholder="${currentUser ? "Bir yorum yaz..." : "Yorum yapmak için giriş yap"}" ${currentUser ? "" : "disabled"} />
+        <button type="submit" ${currentUser ? "" : "disabled"}>Gönder</button>
+      </form>
+    </aside>`;
+}
+
+async function loadCommunityDetailComments(post) {
+  const list = communityDetailContent?.querySelector("#communityDetailComments");
+  if (!list || !supabaseClient || activeCommunityDetailPost?.id !== post.id) return;
+  const fields = currentUser
+    ? "id,author_id,parent_id,body,is_deleted,created_at,author:profiles!community_post_comments_author_id_fkey(username)"
+    : "id,author_id,parent_id,body,is_deleted,created_at";
+  const { data, error } = await supabaseClient.from("community_post_comments").select(fields).eq("post_id", post.id).order("created_at", { ascending: true }).limit(100);
+  if (activeCommunityDetailPost?.id !== post.id) return;
+  const comments = data || [];
+  const repliesByParent = new Map();
+  comments.filter((comment) => comment.parent_id).forEach((reply) => {
+    const replies = repliesByParent.get(reply.parent_id) || [];
+    replies.push(reply);
+    repliesByParent.set(reply.parent_id, replies);
+  });
+  const commentMarkup = (comment, isReply = false) => {
+    const username = comment.author?.username ? `@${comment.author.username}` : "Topluluk üyesi";
+    return `<article class="community-detail-comment${isReply ? " is-reply" : ""}" data-community-comment-id="${escapeHtml(comment.id)}">
+      <span class="brand-fallback-avatar">${defaultProfileAvatarMarkup()}</span>
+      <div><strong>${escapeHtml(username)}</strong><div class="community-detail-comment__body"><p>${escapeHtml(comment.is_deleted ? "Bu yorum silindi." : comment.body)}</p><small>${communityRelativeTime(comment.created_at)}</small></div>
+      ${!comment.is_deleted && !isReply ? `<footer><button type="button" data-community-comment-reply="${escapeHtml(comment.id)}" data-community-reply-user="${escapeHtml(username)}">Yanıtla</button></footer>` : ""}</div>
+    </article>`;
+  };
+  list.innerHTML = error
+    ? '<p class="community-detail-comments__status">Yorumlar yüklenemedi.</p>'
+    : comments.filter((comment) => !comment.parent_id).map((comment) => `${commentMarkup(comment)}${(repliesByParent.get(comment.id) || []).map((reply) => commentMarkup(reply, true)).join("")}`).join("") || '<p class="community-detail-comments__status">Henüz yorum yok. İlk yorumu sen yazabilirsin.</p>';
+}
+
+function openCommunityDetail(post) {
+  if (!post || !communityDetailModal) return;
+  renderCommunityDetail(post);
+  if (communityDetailModal.parentElement !== document.body) document.body.appendChild(communityDetailModal);
+  communityDetailModal.classList.add("is-visible");
+  communityDetailModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("is-modal-open");
+  void loadCommunityDetailComments(post);
+  window.setTimeout(() => communityDetailClose?.focus(), 30);
+}
+
+function closeCommunityDetail() {
+  communityDetailModal?.classList.remove("is-visible");
+  communityDetailModal?.setAttribute("aria-hidden", "true");
+  activeCommunityDetailPost = null;
+  if (!communityComposeModal?.classList.contains("is-visible")) document.body.classList.remove("is-modal-open");
+}
+
+async function submitCommunityDetailComment(event) {
+  event.preventDefault();
+  const post = activeCommunityDetailPost;
+  const form = event.target.closest("#communityDetailCommentForm");
+  const input = form?.querySelector("input");
+  const button = form?.querySelector('button[type="submit"]');
+  const body = input?.value.trim() || "";
+  const parentId = form?.dataset.parentId || null;
+  if (!currentUser) { openAuthModal("login", "Yorum yapmak için giriş yapmalısın."); return; }
+  if (!post || !body || !supabaseClient) return;
+  input.disabled = true;
+  button.disabled = true;
+  const { error } = await supabaseClient.from("community_post_comments").insert({ post_id: post.id, author_id: currentUser.id, parent_id: parentId, body });
+  input.disabled = false;
+  button.disabled = false;
+  if (error) { showToast("Yorum gönderilemedi."); return; }
+  input.value = "";
+  delete form.dataset.parentId;
+  post.comment_count = Number(post.comment_count || 0) + 1;
+  renderCommunityFeed();
+  renderCommunityDetail(post);
+  await loadCommunityDetailComments(post);
+}
+
 function renderCommunityFeed() {
   if (!communityFeedList) return;
   const normalizedQuery = communityFeedSearchQuery.toLocaleLowerCase("tr-TR");
+  const modePosts = communityFeedSavedOnly ? communityFeedPosts.filter((post) => post.isSaved) : communityFeedPosts;
   const visiblePosts = normalizedQuery
-    ? communityFeedPosts.filter((post) => [post.body, post.author?.username, post.creator?.display_name, post.store_name, post.location_text].some((value) => String(value || "").toLocaleLowerCase("tr-TR").includes(normalizedQuery)))
-    : communityFeedPosts;
+    ? modePosts.filter((post) => [post.body, post.author?.username, post.creator?.display_name, post.store_name, post.location_text].some((value) => String(value || "").toLocaleLowerCase("tr-TR").includes(normalizedQuery)))
+    : modePosts;
   if (!visiblePosts.length) {
-    const isSearchEmpty = Boolean(normalizedQuery && communityFeedPosts.length);
-    communityFeedList.innerHTML = `<div class="community-feed-empty"><h4>${isSearchEmpty ? "Aramanla eşleşen paylaşım yok" : "Bu akışta henüz paylaşım yok"}</h4><p>${isSearchEmpty ? "Başka bir kullanıcı, mağaza veya paylaşım metni deneyebilirsin." : communityFeedFilter === "all" ? "İlk gönderiyi oluşturarak topluluk akışını başlatabilirsin." : "Bu türde henüz bir paylaşım yapılmamış."}</p></div>`;
+    const isSearchEmpty = Boolean(normalizedQuery && modePosts.length);
+    if (communityFeedSavedOnly && !isSearchEmpty) {
+      communityFeedList.innerHTML = `<div class="community-feed-empty community-feed-empty--saved"><span class="community-feed-empty__icon" aria-hidden="true">${communityActionIcon("save")}</span><h4>Henüz kaydettiğin bir gönderi yok</h4><p>Sonra yeniden görmek istediğin fotoğraf, video ve koleksiyonları Kaydet düğmesiyle burada biriktirebilirsin.</p><button type="button" data-community-saved-explore>Akışa dön</button></div>`;
+    } else {
+      communityFeedList.innerHTML = `<div class="community-feed-empty"><h4>${isSearchEmpty ? "Aramanla eşleşen paylaşım yok" : "Bu akışta henüz paylaşım yok"}</h4><p>${isSearchEmpty ? "Başka bir kullanıcı, mağaza veya paylaşım metni deneyebilirsin." : communityFeedFilter === "all" ? "İlk gönderiyi oluşturarak topluluk akışını başlatabilirsin." : "Bu türde henüz bir paylaşım yapılmamış."}</p></div>`;
+    }
   } else {
     communityFeedList.innerHTML = visiblePosts.map((post) => {
       const author = post.author || {};
@@ -2936,7 +3120,7 @@ function renderCommunityFeed() {
       const profileButton = author.username ? `data-community-post-profile="${escapeHtml(author.username)}"` : "disabled";
       const store = post.post_type === "store_experience" && (post.store_name || post.location_text)
         ? `<div class="community-post__store"><strong>${escapeHtml(post.store_name || "Mağaza deneyimi")}</strong>${post.location_text ? ` · ${escapeHtml(post.location_text)}` : ""}</div>` : "";
-      return `<article class="community-post" data-community-post-id="${escapeHtml(post.id)}">
+      return `<article class="community-post" data-community-post-id="${escapeHtml(post.id)}" tabindex="0" aria-label="Gönderi detayını aç">
         <header class="community-post__header">
           <button class="community-post__avatar brand-fallback-avatar" type="button" ${profileButton} aria-label="${escapeHtml(username)} profilini aç">${defaultProfileAvatarMarkup()}</button>
           <div class="community-post__identity">
@@ -2961,6 +3145,66 @@ function renderCommunityFeed() {
   if (communityFeedMore) communityFeedMore.disabled = false;
 }
 
+function releaseCommunityComposePreviewUrls() {
+  communityComposePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+  communityComposePreviewUrls = [];
+}
+
+function renderCommunityComposePreview() {
+  if (!communityComposePreview || !communityComposePreviewGrid) return;
+  releaseCommunityComposePreviewUrls();
+  const hasFiles = communityComposeSelectedFiles.length > 0 && communityComposeType !== "video";
+  communityComposePreview.classList.toggle("is-hidden", !hasFiles);
+  if (communityComposePreviewCount) communityComposePreviewCount.textContent = `${communityComposeSelectedFiles.length} / 6`;
+  if (!hasFiles) {
+    communityComposePreviewGrid.innerHTML = "";
+    return;
+  }
+  communityComposePreviewUrls = communityComposeSelectedFiles.map((file) => URL.createObjectURL(file));
+  communityComposePreviewGrid.innerHTML = communityComposeSelectedFiles.map((file, index) => `
+    <article class="community-compose-preview__item" draggable="true" data-community-preview-index="${index}">
+      <div class="community-compose-preview__image">
+        <img src="${escapeHtml(communityComposePreviewUrls[index])}" alt="${escapeHtml(file.name)} önizlemesi" />
+        ${index === 0 ? '<span>Kapak</span>' : `<span>${index + 1}</span>`}
+      </div>
+      <div class="community-compose-preview__meta"><strong title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</strong><small>${(file.size / (1024 * 1024)).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} MB</small></div>
+      <div class="community-compose-preview__actions">
+        <button type="button" data-community-preview-move="-1" ${index === 0 ? "disabled" : ""} aria-label="${escapeHtml(file.name)} fotoğrafını sola taşı"><svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg></button>
+        <button type="button" data-community-preview-move="1" ${index === communityComposeSelectedFiles.length - 1 ? "disabled" : ""} aria-label="${escapeHtml(file.name)} fotoğrafını sağa taşı"><svg viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></svg></button>
+        <button class="is-remove" type="button" data-community-preview-remove aria-label="${escapeHtml(file.name)} fotoğrafını kaldır"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+    </article>`).join("");
+}
+
+function clearCommunityComposeFiles() {
+  communityComposeSelectedFiles = [];
+  communityComposeDragIndex = null;
+  if (communityComposeMedia) communityComposeMedia.value = "";
+  renderCommunityComposePreview();
+}
+
+function selectCommunityComposeFiles(fileList) {
+  const incoming = [...(fileList || [])];
+  const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  const valid = incoming.filter((file) => acceptedTypes.has(file.type) && file.size <= 10 * 1024 * 1024);
+  const existingKeys = new Set(communityComposeSelectedFiles.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
+  const uniqueNewFiles = valid.filter((file) => {
+    const key = `${file.name}:${file.size}:${file.lastModified}`;
+    if (existingKeys.has(key)) return false;
+    existingKeys.add(key);
+    return true;
+  });
+  const availableSlots = Math.max(0, 6 - communityComposeSelectedFiles.length);
+  communityComposeSelectedFiles.push(...uniqueNewFiles.slice(0, availableSlots));
+  if (communityComposeMedia) communityComposeMedia.value = "";
+  if (incoming.length !== valid.length) communityComposeError.textContent = "Yalnızca 10 MB altındaki JPG, PNG veya WEBP görseller eklendi.";
+  else if (uniqueNewFiles.length > availableSlots || (!availableSlots && incoming.length)) communityComposeError.textContent = "En fazla 6 fotoğraf ekleyebilirsin.";
+  else if (uniqueNewFiles.length !== valid.length) communityComposeError.textContent = "Aynı fotoğraf zaten önizlemede bulunuyor.";
+  else communityComposeError.textContent = "";
+  communityComposeDirty = communityComposeDirty || communityComposeSelectedFiles.length > 0;
+  renderCommunityComposePreview();
+}
+
 function openCommunityComposer(type = "photo") {
   if (!currentUser) {
     openAuthModal("login", "Toplulukta paylaşım yapmak için giriş yapmalısın.");
@@ -2971,6 +3215,7 @@ function openCommunityComposer(type = "photo") {
   if (communityComposeHeading) communityComposeHeading.textContent = `${COMMUNITY_POST_TYPE_LABELS[communityComposeType]} paylaş`;
   const isVideo = communityComposeType === "video";
   communityComposeMediaField?.classList.toggle("is-hidden", isVideo);
+  communityComposePreview?.classList.toggle("is-hidden", isVideo || !communityComposeSelectedFiles.length);
   communityComposeVideoField?.classList.toggle("is-hidden", !isVideo);
   communityComposeStoreFields?.classList.toggle("is-hidden", communityComposeType !== "store_experience");
   communityComposeError.textContent = "";
@@ -2989,6 +3234,7 @@ function closeCommunityComposer(force = false) {
   communityComposeModal?.setAttribute("aria-hidden", "true");
   document.body.classList.remove("is-modal-open");
   communityComposeForm?.reset();
+  clearCommunityComposeFiles();
   communityComposeDirty = false;
   if (communityComposeCount) communityComposeCount.textContent = "0";
 }
@@ -2998,7 +3244,7 @@ async function submitCommunityPost(event) {
   if (!currentUser || !supabaseClient || communityFeedLoading) return;
   const body = communityComposeBody?.value.trim() || "";
   const type = communityComposeTypeInput?.value || "photo";
-  const files = [...(communityComposeMedia?.files || [])];
+  const files = [...communityComposeSelectedFiles];
   const videoId = youtubeVideoId(communityComposeVideo?.value);
   if (!body) { communityComposeError.textContent = "Paylaşım metni gerekli."; communityComposeBody?.focus(); return; }
   if (type === "video" && !videoId) { communityComposeError.textContent = "Geçerli bir YouTube bağlantısı gir."; communityComposeVideo?.focus(); return; }
@@ -3072,12 +3318,46 @@ async function toggleCommunityPostSave(post) {
   if (!currentUser) { openAuthModal("login", "Gönderileri kaydetmek için giriş yapmalısın."); return; }
   const wasSaved = post.isSaved;
   post.isSaved = !wasSaved;
+  if (communitySavedCount) {
+    const nextCount = Math.max(0, Number(communitySavedCount.textContent || 0) + (wasSaved ? -1 : 1));
+    communitySavedCount.textContent = String(nextCount);
+  }
   renderCommunityFeed();
   const query = supabaseClient.from("community_post_saves");
   const { error } = wasSaved
     ? await query.delete().eq("post_id", post.id).eq("user_id", currentUser.id)
     : await query.insert({ post_id: post.id, user_id: currentUser.id });
-  if (error) { post.isSaved = wasSaved; renderCommunityFeed(); showToast("Kaydetme işlemi tamamlanamadı."); }
+  if (error) {
+    post.isSaved = wasSaved;
+    if (communitySavedCount) communitySavedCount.textContent = String(Math.max(0, Number(communitySavedCount.textContent || 0) + (wasSaved ? 1 : -1)));
+    renderCommunityFeed();
+    showToast("Kaydetme işlemi tamamlanamadı.");
+    return;
+  }
+  showToast(wasSaved ? "Gönderi Kaydedilenler'den kaldırıldı." : "Gönderi Kaydedilenler'e eklendi.");
+}
+
+async function deleteOwnCommunityPost(post) {
+  if (!currentUser || !supabaseClient || post?.author_id !== currentUser.id) return;
+  if (!window.confirm("Bu gönderiyi silmek istediğine emin misin? Gönderi akıştan kaldırılacak.")) return;
+  const { data, error } = await supabaseClient
+    .from("community_posts")
+    .update({ status: "deleted" })
+    .eq("id", post.id)
+    .eq("author_id", currentUser.id)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    showToast("Gönderi silinemedi. Biraz sonra yeniden dene.");
+    return;
+  }
+  communityFeedPosts = communityFeedPosts.filter((item) => item.id !== post.id);
+  if (post.isSaved && communitySavedCount) {
+    communitySavedCount.textContent = String(Math.max(0, Number(communitySavedCount.textContent || 0) - 1));
+  }
+  closeCommunityDetail();
+  renderCommunityFeed();
+  showToast("Gönderin silindi.");
 }
 
 async function openCommunityPostComments(post, article, button) {
@@ -12300,6 +12580,28 @@ communityTabs.forEach((button) => {
   button.addEventListener("click", () => selectCommunitySection(button.dataset.communityTarget));
 });
 
+communitySavedTab?.addEventListener("click", () => {
+  if (communityFeedSavedOnly) {
+    selectCommunitySection("communityFeed");
+    return;
+  }
+  if (!currentUser) {
+    openAuthModal("login", "Kaydettiğin gönderileri görmek için giriş yapmalısın.");
+    return;
+  }
+  communityFeedSavedOnly = true;
+  communityModule.classList.add("is-saved-archive");
+  communityModule.dataset.communityActive = "communityFeed";
+  communityTabs.forEach((tab) => {
+    tab.classList.remove("is-active");
+    tab.setAttribute("aria-pressed", "false");
+  });
+  communitySavedTab.classList.add("is-active");
+  communitySavedTab.setAttribute("aria-pressed", "true");
+  void loadCommunityFeed({ reset: true });
+  document.querySelector("#communityFeed")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
 communityFeedFilters.forEach((button) => {
   button.addEventListener("click", () => {
     communityFeedFilter = button.dataset.communityFeedFilter || "all";
@@ -12331,11 +12633,140 @@ communityComposeButtons.forEach((button) => button.addEventListener("click", () 
 communityComposeClose?.addEventListener("click", () => closeCommunityComposer());
 communityComposeCancel?.addEventListener("click", () => closeCommunityComposer());
 communityComposeModal?.addEventListener("click", (event) => { if (event.target === communityComposeModal) closeCommunityComposer(); });
+communityDetailClose?.addEventListener("click", closeCommunityDetail);
+communityDetailModal?.addEventListener("click", (event) => { if (event.target === communityDetailModal) closeCommunityDetail(); });
+communityDetailContent?.addEventListener("click", (event) => {
+  const post = activeCommunityDetailPost;
+  if (!post) return;
+  const replyButton = event.target.closest("[data-community-comment-reply]");
+  if (replyButton) {
+    if (!currentUser) {
+      openAuthModal("login", "Yorumlara yanıt vermek için giriş yapmalısın.");
+      return;
+    }
+    const form = communityDetailContent.querySelector("#communityDetailCommentForm");
+    const context = communityDetailContent.querySelector("#communityDetailReplyContext");
+    const input = form?.querySelector("input");
+    if (!form || !context || !input) return;
+    form.dataset.parentId = replyButton.dataset.communityCommentReply;
+    context.hidden = false;
+    context.querySelector("span").textContent = `${replyButton.dataset.communityReplyUser} kullanıcısına yanıt veriyorsun`;
+    input.placeholder = "Yanıtını yaz...";
+    input.focus();
+    return;
+  }
+  if (event.target.closest("[data-community-reply-cancel]")) {
+    const form = communityDetailContent.querySelector("#communityDetailCommentForm");
+    const context = communityDetailContent.querySelector("#communityDetailReplyContext");
+    if (form) delete form.dataset.parentId;
+    if (context) context.hidden = true;
+    const input = form?.querySelector("input");
+    if (input) {
+      input.placeholder = "Bir yorum yaz...";
+      input.focus();
+    }
+    return;
+  }
+  const profile = event.target.closest("[data-community-detail-profile]");
+  if (profile) {
+    closeCommunityDetail();
+    navigateToPublicProfile(profile.dataset.communityDetailProfile);
+    return;
+  }
+  const mediaButton = event.target.closest("[data-community-detail-media]");
+  if (mediaButton) {
+    const media = (post.media || []).filter((item) => item.url);
+    const selected = media[Number(mediaButton.dataset.communityDetailMedia || 0)];
+    const primary = communityDetailContent.querySelector(".community-detail-media__primary");
+    if (selected && primary) {
+      primary.src = selected.url;
+      primary.alt = selected.alt_text || "Gönderi görseli";
+      communityDetailContent.querySelectorAll("[data-community-detail-media]").forEach((button) => button.classList.toggle("is-active", button === mediaButton));
+    }
+    return;
+  }
+  if (event.target.closest("[data-community-detail-like]")) {
+    void toggleCommunityPostLike(post).then(() => {
+      if (activeCommunityDetailPost?.id === post.id) {
+        renderCommunityDetail(post);
+        void loadCommunityDetailComments(post);
+      }
+    });
+    return;
+  }
+  if (event.target.closest("[data-community-detail-save]")) {
+    void toggleCommunityPostSave(post).then(() => {
+      if (activeCommunityDetailPost?.id === post.id) {
+        renderCommunityDetail(post);
+        void loadCommunityDetailComments(post);
+      }
+    });
+    return;
+  }
+  if (event.target.closest("[data-community-detail-delete]")) void deleteOwnCommunityPost(post);
+});
+communityDetailContent?.addEventListener("submit", (event) => {
+  if (event.target.matches("#communityDetailCommentForm")) void submitCommunityDetailComment(event);
+});
 communityComposeBody?.addEventListener("input", () => {
   communityComposeDirty = true;
   if (communityComposeCount) communityComposeCount.textContent = String(communityComposeBody.value.length);
 });
 communityComposeForm?.addEventListener("input", () => { communityComposeDirty = true; });
+communityComposeMedia?.addEventListener("change", () => selectCommunityComposeFiles(communityComposeMedia.files));
+communityComposePreviewGrid?.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-community-preview-index]");
+  if (!item) return;
+  const index = Number(item.dataset.communityPreviewIndex);
+  if (event.target.closest("[data-community-preview-remove]")) {
+    communityComposeSelectedFiles.splice(index, 1);
+    communityComposeDirty = true;
+    renderCommunityComposePreview();
+    return;
+  }
+  const moveButton = event.target.closest("[data-community-preview-move]");
+  if (!moveButton) return;
+  const nextIndex = index + Number(moveButton.dataset.communityPreviewMove);
+  if (nextIndex < 0 || nextIndex >= communityComposeSelectedFiles.length) return;
+  [communityComposeSelectedFiles[index], communityComposeSelectedFiles[nextIndex]] = [communityComposeSelectedFiles[nextIndex], communityComposeSelectedFiles[index]];
+  communityComposeDirty = true;
+  renderCommunityComposePreview();
+  communityComposePreviewGrid.querySelector(`[data-community-preview-index="${nextIndex}"] [data-community-preview-move="${moveButton.dataset.communityPreviewMove}"]`)?.focus();
+});
+communityComposePreviewGrid?.addEventListener("dragstart", (event) => {
+  const item = event.target.closest("[data-community-preview-index]");
+  if (!item) return;
+  communityComposeDragIndex = Number(item.dataset.communityPreviewIndex);
+  item.classList.add("is-dragging");
+  event.dataTransfer.effectAllowed = "move";
+});
+communityComposePreviewGrid?.addEventListener("dragover", (event) => {
+  if (communityComposeDragIndex === null) return;
+  event.preventDefault();
+  const item = event.target.closest("[data-community-preview-index]");
+  communityComposePreviewGrid.querySelectorAll(".is-drop-target").forEach((target) => target.classList.remove("is-drop-target"));
+  item?.classList.add("is-drop-target");
+  event.dataTransfer.dropEffect = "move";
+});
+communityComposePreviewGrid?.addEventListener("drop", (event) => {
+  event.preventDefault();
+  const item = event.target.closest("[data-community-preview-index]");
+  const targetIndex = Number(item?.dataset.communityPreviewIndex);
+  if (communityComposeDragIndex === null || !Number.isInteger(targetIndex) || targetIndex === communityComposeDragIndex) {
+    communityComposeDragIndex = null;
+    renderCommunityComposePreview();
+    return;
+  }
+  const [movedFile] = communityComposeSelectedFiles.splice(communityComposeDragIndex, 1);
+  communityComposeSelectedFiles.splice(targetIndex, 0, movedFile);
+  communityComposeDragIndex = null;
+  communityComposeDirty = true;
+  renderCommunityComposePreview();
+});
+communityComposePreviewGrid?.addEventListener("dragend", () => {
+  communityComposeDragIndex = null;
+  communityComposePreviewGrid.querySelectorAll(".is-dragging, .is-drop-target").forEach((item) => item.classList.remove("is-dragging", "is-drop-target"));
+});
 communityComposeForm?.addEventListener("submit", submitCommunityPost);
 communityFeedMore?.addEventListener("click", () => loadCommunityFeed({ reset: false }));
 communityFeedStatus?.addEventListener("click", (event) => {
@@ -12343,6 +12774,21 @@ communityFeedStatus?.addEventListener("click", (event) => {
 });
 
 communityFeedList?.addEventListener("click", (event) => {
+  if (event.target.closest("[data-community-saved-login]")) {
+    openAuthModal("login", "Kaydettiğin gönderileri görmek için giriş yapmalısın.");
+    return;
+  }
+  if (event.target.closest("[data-community-saved-explore]")) {
+    communityFeedSavedOnly = false;
+    communityModule?.classList.remove("is-saved-archive");
+    communitySavedTab?.classList.remove("is-active");
+    communitySavedTab?.setAttribute("aria-pressed", "false");
+    const feedTab = document.querySelector('[data-community-target="communityFeed"]');
+    feedTab?.classList.add("is-active");
+    feedTab?.setAttribute("aria-pressed", "true");
+    void loadCommunityFeed({ reset: true });
+    return;
+  }
   const article = event.target.closest("[data-community-post-id]");
   if (!article) return;
   const post = communityFeedPosts.find((item) => item.id === article.dataset.communityPostId);
@@ -12360,7 +12806,18 @@ communityFeedList?.addEventListener("click", (event) => {
   const saveButton = event.target.closest("[data-community-post-save]");
   if (saveButton) { void toggleCommunityPostSave(post); return; }
   const commentsButton = event.target.closest("[data-community-post-comments]");
-  if (commentsButton) void openCommunityPostComments(post, article, commentsButton);
+  if (commentsButton) { void openCommunityPostComments(post, article, commentsButton); return; }
+  if (!event.target.closest("button, input, form, a")) openCommunityDetail(post);
+});
+
+communityFeedList?.addEventListener("keydown", (event) => {
+  if (!["Enter", " "].includes(event.key)) return;
+  const article = event.target.closest("[data-community-post-id]");
+  if (!article || event.target !== article) return;
+  const post = communityFeedPosts.find((item) => item.id === article.dataset.communityPostId);
+  if (!post) return;
+  event.preventDefault();
+  openCommunityDetail(post);
 });
 
 communityFeedList?.addEventListener("submit", (event) => {
@@ -13211,6 +13668,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && garageDetailModal?.classList.contains("is-visible")) closeGarageDetail();
   if (event.key === "Escape" && savedRadarModal?.classList.contains("is-visible")) closeSavedRadarModal();
   if (event.key === "Escape" && storeDetailModal?.classList.contains("is-visible")) closeStoreDetail();
+  if (event.key === "Escape" && communityDetailModal?.classList.contains("is-visible")) closeCommunityDetail();
   if (event.key === "Escape" && radarNoteModalBackdrop.classList.contains("is-visible")) {
     closeRadarNoteModal();
   }
