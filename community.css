@@ -2900,3 +2900,145 @@ body > .community-compose-modal {
     margin-left: 22px;
   }
 }
+
+/* Refined community composer */
+body > .community-compose-modal .community-compose-field.is-hidden,
+body > .community-compose-modal .community-compose-store.is-hidden,
+body > .community-compose-modal .community-compose-preview.is-hidden {
+  display: none !important;
+}
+
+body > .community-compose-modal .community-compose-dialog {
+  width: min(720px, calc(100vw - 48px));
+  max-height: min(780px, calc(100dvh - 48px));
+  overflow-x: hidden;
+  border-color: #2a323b;
+  background: #0d1218;
+}
+
+body > .community-compose-modal .community-compose-dialog > header {
+  padding: 16px 18px;
+  background: rgba(13, 18, 24, .98);
+}
+
+body > .community-compose-modal .community-compose-dialog header .eyebrow {
+  margin-bottom: 6px;
+  color: #f2a51f;
+  font-size: .58rem;
+}
+
+body > .community-compose-modal .community-compose-dialog header h3 {
+  font-size: 1.05rem;
+}
+
+body > .community-compose-modal .community-compose-dialog header button {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+body > .community-compose-modal .community-compose-dialog header button:hover {
+  border-color: rgba(255, 101, 52, .58);
+  background: rgba(255, 101, 52, .08);
+  color: #fff;
+}
+
+body > .community-compose-modal .community-compose-dialog form {
+  gap: 13px;
+  padding: 16px 18px 18px;
+}
+
+body > .community-compose-modal .community-compose-field {
+  gap: 7px;
+}
+
+body > .community-compose-modal .community-compose-field > span {
+  color: #c8d0d8;
+  font-size: .68rem;
+}
+
+body > .community-compose-modal .community-compose-field textarea {
+  min-height: 112px;
+  max-height: 230px;
+  padding: 13px 14px 28px;
+  background: #111820;
+}
+
+body > .community-compose-modal .community-compose-field input,
+body > .community-compose-modal .community-compose-field select {
+  min-height: 44px;
+  background: #111820;
+}
+
+body > .community-compose-modal #communityComposeMedia {
+  min-height: 58px;
+  padding: 9px;
+  border-style: dashed;
+  border-color: #36414c;
+  color: #8e9aa6;
+  cursor: pointer;
+}
+
+body > .community-compose-modal #communityComposeMedia:hover {
+  border-color: rgba(255, 101, 52, .62);
+  background: #141b23;
+}
+
+body > .community-compose-modal #communityComposeMedia::file-selector-button {
+  min-height: 36px;
+  margin-right: 12px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 101, 52, .42);
+  border-radius: 6px;
+  background: rgba(255, 101, 52, .09);
+  color: #ff8753;
+  font: 700 .68rem/1 var(--community-font);
+  cursor: pointer;
+}
+
+body > .community-compose-modal .community-compose-store:not(.is-hidden) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+body > .community-compose-modal .community-compose-error:empty {
+  display: none;
+}
+
+body > .community-compose-modal .community-compose-dialog form > footer {
+  position: sticky;
+  bottom: -18px;
+  z-index: 2;
+  margin: 2px -18px -18px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--community-border);
+  background: rgba(13, 18, 24, .98);
+}
+
+body > .community-compose-modal .community-compose-cancel,
+body > .community-compose-modal .community-compose-submit {
+  min-width: 92px;
+  min-height: 42px;
+}
+
+@media (max-width: 560px) {
+  body > .community-compose-modal .community-compose-dialog {
+    width: 100%;
+    max-height: 94dvh;
+  }
+
+  body > .community-compose-modal .community-compose-store:not(.is-hidden) {
+    grid-template-columns: 1fr;
+  }
+
+  body > .community-compose-modal .community-compose-dialog form {
+    padding-inline: 14px;
+  }
+
+  body > .community-compose-modal .community-compose-dialog form > footer {
+    margin-inline: -14px;
+    padding-inline: 14px;
+  }
+}

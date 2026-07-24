@@ -24790,6 +24790,27 @@ body.dashboard-shell.is-profile-view .dashboard-sidebar__brand:focus-visible {
   outline-offset: 2px;
 }
 
+/* Calm site-wide focus treatment: no yellow glow around clicked controls. */
+body.dashboard-shell {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.dashboard-shell button:focus-visible,
+body.dashboard-shell a:focus-visible,
+body.dashboard-shell [tabindex]:focus-visible {
+  outline: 1px solid rgba(148, 163, 178, .72) !important;
+  outline-offset: 2px !important;
+}
+
+body.dashboard-shell input:focus,
+body.dashboard-shell input:focus-visible,
+body.dashboard-shell select:focus,
+body.dashboard-shell select:focus-visible,
+body.dashboard-shell textarea:focus,
+body.dashboard-shell textarea:focus-visible {
+  outline: 0 !important;
+}
+
 body.dashboard-shell .dashboard-sidebar__nav button i,
 body.dashboard-shell .dashboard-sidebar__account button i,
 body.dashboard-shell.is-profile-view .dashboard-sidebar__nav button i,

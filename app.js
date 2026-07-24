@@ -3239,6 +3239,30 @@ function closeCommunityComposer(force = false) {
   if (communityComposeCount) communityComposeCount.textContent = "0";
 }
 
+async function rollbackCommunityDraft(postId, storagePaths = []) {
+  if (!supabaseClient || !currentUser || !postId) return;
+  const paths = [...new Set(storagePaths.filter(Boolean))];
+  if (paths.length) {
+    const { error: storageCleanupError } = await supabaseClient.storage
+      .from("community-media")
+      .remove(paths);
+    if (storageCleanupError) console.warn("Topluluk medya temizliği tamamlanamadı.", storageCleanupError);
+  }
+  const { error: mediaCleanupError } = await supabaseClient
+    .from("community_post_media")
+    .delete()
+    .eq("post_id", postId)
+    .eq("owner_id", currentUser.id);
+  if (mediaCleanupError) console.warn("Topluluk medya kayıtları temizlenemedi.", mediaCleanupError);
+  const { error: draftCleanupError } = await supabaseClient
+    .from("community_posts")
+    .update({ status: "deleted" })
+    .eq("id", postId)
+    .eq("author_id", currentUser.id)
+    .eq("status", "draft");
+  if (draftCleanupError) console.warn("Topluluk taslağı kapatılamadı.", draftCleanupError);
+}
+
 async function submitCommunityPost(event) {
   event.preventDefault();
   if (!currentUser || !supabaseClient || communityFeedLoading) return;
@@ -3271,6 +3295,7 @@ async function submitCommunityPost(event) {
     communityComposeSubmit.textContent = "Paylaş";
     return;
   }
+  const uploadedPaths = [];
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
     const mediaId = crypto.randomUUID();
@@ -3278,14 +3303,17 @@ async function submitCommunityPost(event) {
     const path = `${currentUser.id}/${post.id}/${mediaId}.${ext}`;
     const { error: uploadError } = await supabaseClient.storage.from("community-media").upload(path, file, { upsert: false, contentType: file.type });
     if (uploadError) {
-      communityComposeError.textContent = "Fotoğraflardan biri yüklenemedi. Taslak yayınlanmadı; yeniden deneyebilirsin.";
+      await rollbackCommunityDraft(post.id, uploadedPaths);
+      communityComposeError.textContent = "Fotoğraflardan biri yüklenemedi. Yarım kalan kayıt temizlendi; yeniden deneyebilirsin.";
       communityComposeSubmit.disabled = false;
       communityComposeSubmit.textContent = "Paylaş";
       return;
     }
+    uploadedPaths.push(path);
     const { error: mediaError } = await supabaseClient.from("community_post_media").insert({ id: mediaId, post_id: post.id, owner_id: currentUser.id, media_type: "image", storage_path: path, position: index, alt_text: `${COMMUNITY_POST_TYPE_LABELS[type]} paylaşım görseli ${index + 1}` });
     if (mediaError) {
-      communityComposeError.textContent = "Fotoğraf kaydı tamamlanamadı. Taslak yayınlanmadı.";
+      await rollbackCommunityDraft(post.id, uploadedPaths);
+      communityComposeError.textContent = "Fotoğraf kaydı tamamlanamadı. Yarım kalan kayıt temizlendi.";
       communityComposeSubmit.disabled = false;
       communityComposeSubmit.textContent = "Paylaş";
       return;
@@ -3294,7 +3322,11 @@ async function submitCommunityPost(event) {
   const { error: publishError } = await supabaseClient.from("community_posts").update({ status: "published" }).eq("id", post.id).eq("author_id", currentUser.id);
   communityComposeSubmit.disabled = false;
   communityComposeSubmit.textContent = "Paylaş";
-  if (publishError) { communityComposeError.textContent = "Paylaşım kaydedildi ancak yayınlanamadı. Yeniden deneyebilirsin."; return; }
+  if (publishError) {
+    await rollbackCommunityDraft(post.id, uploadedPaths);
+    communityComposeError.textContent = "Paylaşım yayınlanamadı. Yarım kalan kayıt temizlendi; yeniden deneyebilirsin.";
+    return;
+  }
   closeCommunityComposer(true);
   showToast("Paylaşımın topluluk akışına eklendi.");
   await loadCommunityFeed({ reset: true });
