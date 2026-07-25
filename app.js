@@ -2888,18 +2888,30 @@ function syncCommunityHub() {
   });
   selectCommunityCity(activeCommunityCity, { scroll: false });
   subscribeCommunityChatRealtime();
-  setDefaultProfileAvatar(communityComposerAvatar);
-  setDefaultProfileAvatar(communityChatComposerAvatar);
+  syncCommunityAvatarElements();
   if (communityModule?.dataset.communityActive === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
   if (!communityForumTopicsLoaded) void loadCommunityForumTopics();
 }
 
 function refreshCommunityFeedForAuthChange() {
+  syncCommunityAvatarElements();
   communityFeedLoaded = false;
   communityFeedPosts = [];
   communityFeedCursor = null;
   communityFeedHasMore = true;
   if (communityModule?.dataset.communityActive === "communityFeed") void loadCommunityFeed({ reset: true });
+}
+
+function syncCommunityAvatarElements() {
+  const avatar = currentUser && Rewards
+    ? currentUser.avatar_url
+      ? { type: "custom", dataUrl: currentUser.avatar_url }
+      : Rewards.getAvatar(currentUser)
+    : null;
+  [communityComposerAvatar, communityChatComposerAvatar].forEach((element) => {
+    if (avatar) applyAvatarElement(element, avatar, currentUser);
+    else setDefaultProfileAvatar(element);
+  });
 }
 
 function scheduleCommunityRealtimeRefresh() {
@@ -8844,8 +8856,27 @@ function avatarClass(avatar) {
   return preset ? `avatar-visual--${escapeHtml(preset.id)}` : "";
 }
 
+function customAvatarImageMarkup(source) {
+  const safeSource = String(source || "").trim();
+  if (!safeSource) return defaultProfileAvatarMarkup();
+  return `<img src="${escapeHtml(safeSource)}" alt="" loading="lazy" decoding="async" />`;
+}
+
 function applyAvatarElement(element, avatar, user, options = {}) {
   if (!element) return;
+  if (avatar?.type === "custom") {
+    if (!avatar.dataUrl) {
+      setDefaultProfileAvatar(element);
+      return;
+    }
+    element.classList.remove("brand-fallback-avatar");
+    element.classList.remove(...[...element.classList].filter((name) => name.startsWith("avatar-visual--")));
+    element.classList.add("reward-avatar");
+    element.classList.toggle("avatar-visual", options.visual !== false);
+    element.removeAttribute("style");
+    element.innerHTML = customAvatarImageMarkup(avatar.dataUrl);
+    return;
+  }
   const requestedPreset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
   if (avatar?.type !== "custom" && requestedPreset?.id !== "hr-default") {
     setDefaultProfileAvatar(element);
@@ -8889,6 +8920,9 @@ function setDefaultProfileAvatar(element) {
 }
 
 function avatarMarkup(avatar, user, size = "") {
+  if (avatar?.type === "custom") {
+    return `<span class="reward-avatar avatar-visual avatar-visual--image ${size}" aria-hidden="true">${customAvatarImageMarkup(avatar.dataUrl)}</span>`;
+  }
   const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
   if (avatar?.type !== "custom" && preset?.id !== "hr-default") {
     return `<span class="reward-avatar brand-fallback-avatar ${size}" aria-hidden="true">${defaultProfileAvatarMarkup()}</span>`;
@@ -9167,6 +9201,7 @@ function updateUserButton() {
     resetAvatarElement(userAvatar, initials);
     resetAvatarElement(accountMenuAvatar, initials);
   }
+  syncCommunityAvatarElements();
   accountMenuName.textContent = currentUser ? `@${currentUser.username}` : isAuthPending ? "Oturum yükleniyor" : "Misafir";
   accountMenuEmail.textContent = currentUser ? currentUser.email : isAuthPending ? "Hesap bilgileri kontrol ediliyor." : "Pazar ilanı için giriş yap.";
   if (accountMenuRank) {

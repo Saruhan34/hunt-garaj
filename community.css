@@ -4915,6 +4915,8 @@ body > .community-compose-modal .community-compose-submit {
 .community-forum-topic__avatar > .reward-avatar,
 .community-forum-detail__avatar > .reward-avatar,
 .community-forum-reply__avatar > .reward-avatar,
+.community-post__avatar > .reward-avatar,
+.community-detail-author__avatar > .reward-avatar,
 .community-post__avatar.reward-avatar,
 .community-detail-author__avatar.reward-avatar,
 .community-composer__avatar.reward-avatar,
