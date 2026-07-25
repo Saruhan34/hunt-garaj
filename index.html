@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=78" />
+  <link rel="stylesheet" href="./community.css?v=93" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1460,6 +1460,10 @@
                         <p>İlk mesajı göndererek şehir sohbetini başlatabilirsin.</p>
                       </div>
                     </div>
+                    <button class="community-chat-new-messages is-hidden" id="communityChatNewMessages" type="button">
+                      <span><b id="communityChatNewMessageCount">0</b> yeni mesaj</span>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </button>
                     <div class="community-chat-compose-context is-hidden" id="communityChatComposeContext">
                       <div><strong></strong><span></span></div>
                       <button type="button" id="communityChatComposeCancel" aria-label="Mesaj işlemini iptal et">
@@ -2833,7 +2837,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=12"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./app.js?v=259"></script>
+  <script src="./app.js?v=267"></script>
   </body>
 </html>
 
