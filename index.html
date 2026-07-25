@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=77" />
+  <link rel="stylesheet" href="./community.css?v=78" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1439,6 +1439,7 @@
                 </header>
                 <div class="community-chat-shell">
                   <nav class="community-room-tabs" aria-label="Şehir sohbet odaları">
+                    <div class="community-room-tabs__head"><span>Şehir odaları</span><small>5 oda</small></div>
                     <button class="is-active" type="button" data-community-city="İstanbul"><span>İstanbul</span><small id="communityChatCountIstanbul">0</small></button>
                     <button type="button" data-community-city="Ankara"><span>Ankara</span><small id="communityChatCountAnkara">0</small></button>
                     <button type="button" data-community-city="İzmir"><span>İzmir</span><small id="communityChatCountIzmir">0</small></button>
@@ -1447,7 +1448,10 @@
                   </nav>
                   <section class="community-chat-stage">
                     <header>
-                      <div><strong id="communityChatStageTitle">İstanbul odası</strong><small>Topluluk mesajları gerçek zamanlı yenilenir.</small></div>
+                      <div class="community-chat-stage__identity">
+                        <span class="community-chat-stage__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6.5h14v9H9l-4 3v-12Z"/><path d="M9 10h6M9 13h4"/></svg></span>
+                        <div><strong id="communityChatStageTitle">İstanbul odası</strong><small>Mesajlar gerçek zamanlı yenilenir.</small></div>
+                      </div>
                       <button class="community-mini-button" id="communityJoinChat" type="button">Sohbete Katıl</button>
                     </header>
                     <div class="community-chat-feed" id="communityChatFeed" aria-live="polite">
@@ -1467,6 +1471,7 @@
                       <label class="community-chat-compose__field" for="communityChatInput">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6.5h14v9H9l-4 3v-12Z"/><path d="M9 10h6M9 13h4"/></svg>
                         <input id="communityChatInput" type="text" maxlength="500" aria-label="Mesaj" placeholder="Topluluğa bir mesaj yaz..." autocomplete="off" />
+                        <span class="community-chat-compose__count" aria-hidden="true"><b id="communityChatInputCount">0</b>/500</span>
                       </label>
                       <button type="submit"><span>Gönder</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 14-7-4 14-3-5-7-2Z"/><path d="m12 14 7-9"/></svg></button>
                     </form>
@@ -2828,7 +2833,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=12"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./app.js?v=258"></script>
+  <script src="./app.js?v=259"></script>
   </body>
 </html>
 

@@ -716,6 +716,7 @@ const communityChat = document.querySelector("#communityChat");
 const communityChatFeed = document.querySelector("#communityChatFeed");
 const communityChatForm = document.querySelector("#communityChatForm");
 const communityChatInput = document.querySelector("#communityChatInput");
+const communityChatInputCount = document.querySelector("#communityChatInputCount");
 const communityChatAuth = document.querySelector("#communityChatAuth");
 const communityChatStatus = document.querySelector("#communityChatStatus");
 const communityChatRoomTitle = document.querySelector("#communityChatRoomTitle");
@@ -4259,13 +4260,20 @@ function renderCommunityChatMessages(options = {}) {
     communityChatFeed.innerHTML = `<div class="community-chat-empty"><strong>Bu odada henüz mesaj yok</strong><p>İlk mesajı göndererek ${escapeHtml(activeCommunityCity)} sohbetini başlatabilirsin.</p></div>`;
     return;
   }
+  let previousDateKey = "";
   communityChatFeed.innerHTML = messages.map((message) => {
     const author = message.author || {};
     const username = author.username || "Topluluk üyesi";
     const own = Boolean(currentUser && message.author_id === currentUser.id);
     const parent = message.parent_id ? communityChatMessages.find((item) => item.id === message.parent_id) : null;
     const parentUsername = parent?.author?.username || "Topluluk üyesi";
-    return `<article class="${own ? "is-own" : ""}" data-chat-message="${escapeHtml(message.id)}">
+    const messageDate = new Date(message.created_at);
+    const dateKey = Number.isNaN(messageDate.getTime()) ? "" : messageDate.toLocaleDateString("en-CA");
+    const dateSeparator = dateKey && dateKey !== previousDateKey
+      ? `<div class="community-chat-date-separator"><span>${escapeHtml(communityChatDateLabel(messageDate))}</span></div>`
+      : "";
+    previousDateKey = dateKey || previousDateKey;
+    return `${dateSeparator}<article class="${own ? "is-own" : ""}" data-chat-message="${escapeHtml(message.id)}">
       <span class="community-chat-message__avatar">${communityForumAuthorAvatar(author, username)}</span>
       <div class="community-chat-message__body">
         <header><strong>@${escapeHtml(username)}</strong><span><time>${escapeHtml(communityRelativeTime(message.created_at))}</time>${communityForumWasEdited(message) ? "<small>düzenlendi</small>" : ""}</span></header>
@@ -4281,10 +4289,25 @@ function renderCommunityChatMessages(options = {}) {
   if (options.scroll) communityChatFeed.scrollTo({ top: communityChatFeed.scrollHeight, behavior: "smooth" });
 }
 
+function communityChatDateLabel(date) {
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDifference = Math.round((startOfToday - startOfDate) / 86400000);
+  if (dayDifference === 0) return "Bugün";
+  if (dayDifference === 1) return "Dün";
+  return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function syncCommunityChatInputCount() {
+  if (communityChatInputCount) communityChatInputCount.textContent = String(communityChatInput?.value.length || 0);
+}
+
 function resetCommunityChatComposer() {
   activeCommunityChatReplyParent = null;
   editingCommunityChatMessageId = null;
   if (communityChatInput) communityChatInput.value = "";
+  syncCommunityChatInputCount();
   communityChatComposeContext?.classList.add("is-hidden");
   const submit = communityChatForm?.querySelector('button[type="submit"]');
   setCommunityChatSubmitLabel(submit, "Gönder");
@@ -14360,6 +14383,7 @@ document.addEventListener("keydown", (event) => {
 
 communityChatAuth?.addEventListener("click", () => openAuthModal("login", "Topluluk sohbetine katılmak için giriş yapmalısın."));
 communityChatComposeCancel?.addEventListener("click", resetCommunityChatComposer);
+communityChatInput?.addEventListener("input", syncCommunityChatInputCount);
 communityChatFeed?.addEventListener("click", async (event) => {
   const article = event.target.closest("[data-chat-message]");
   if (!article) return;
@@ -14393,6 +14417,7 @@ communityChatFeed?.addEventListener("click", async (event) => {
     activeCommunityChatReplyParent = null;
     editingCommunityChatMessageId = message.id;
     if (communityChatInput) communityChatInput.value = message.body;
+    syncCommunityChatInputCount();
     showCommunityChatComposeContext("Mesajını düzenliyorsun", message.body);
     const submit = communityChatForm?.querySelector('button[type="submit"]');
     setCommunityChatSubmitLabel(submit, "Kaydet");
@@ -14437,6 +14462,7 @@ communityChatForm?.addEventListener("submit", async (event) => {
   if (!supabaseClient) {
     appendCommunityChatMessage(message);
     communityChatInput.value = "";
+    syncCommunityChatInputCount();
     submit.disabled = false;
     setCommunityChatSubmitLabel(submit, "Gönder");
     return;
