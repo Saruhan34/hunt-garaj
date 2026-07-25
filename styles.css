@@ -19852,6 +19852,41 @@ body.is-profile-view > main::before {
 .auth-brand-crop { width: 118px; height: 118px; margin: -6px auto 6px; border: 1px solid rgba(255,177,59,.42); border-radius: 50%; background: #020202; box-shadow: 0 0 34px rgba(255,72,28,.13); }
 .auth-brand-crop img { position: static; width: 100%; height: 100%; max-width: 100%; object-fit: cover; mix-blend-mode: normal; filter: contrast(1.04) saturate(1.08); }
 
+/* Profile pictures are full-bleed circles; achievement artwork stays in badges. */
+.user-button__avatar,
+.account-menu__avatar,
+.profile-dashboard__avatar,
+.public-garage-profile__avatar,
+.reward-user-overview__avatar,
+.store-detail__reporter-avatar,
+.collector-search-prefix,
+.community-member-avatar,
+.profile-studio-avatar__preview .reward-avatar {
+  overflow: hidden;
+  border-radius: 50% !important;
+  background-color: #0a0d11 !important;
+}
+
+.user-button__avatar img,
+.account-menu__avatar img,
+.profile-dashboard__avatar img,
+.public-garage-profile__avatar img,
+.reward-user-overview__avatar img,
+.store-detail__reporter-avatar img,
+.collector-search-prefix img,
+.community-member-avatar img,
+.profile-studio-avatar__preview .reward-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.profile-studio-avatar__preview .reward-avatar {
+  border: 1px solid rgba(255, 112, 65, .42);
+  box-shadow: 0 0 0 4px rgba(255, 86, 44, .055);
+}
+
 /* Avatar studio containment and upload repair */
 .profile-studio__content { overflow-x: hidden; }
 .profile-studio-avatar { min-width: 0; }

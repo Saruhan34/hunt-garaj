@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Hunt Radar varsayılan profil fotoğrafı</title>
+  <defs>
+    <linearGradient id="surface" x1="34" y1="20" x2="218" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20262d"/>
+      <stop offset=".52" stop-color="#101419"/>
+      <stop offset="1" stop-color="#07090c"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="66" y1="74" x2="194" y2="186" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff4d2d"/>
+      <stop offset=".5" stop-color="#ff7a2f"/>
+      <stop offset="1" stop-color="#e8b83f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(68 56) rotate(47) scale(188)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff6738" stop-opacity=".17"/>
+      <stop offset=".66" stop-color="#ff6738" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" fill="url(#surface)"/>
+  <rect width="256" height="256" fill="url(#glow)"/>
+  <path d="M42 53h18v59h50V53h18v132h-18v-55H60v55H42V53Z" fill="url(#mark)"/>
+  <path d="M135 53h40c27 0 43 15 43 38 0 18-10 31-27 36l31 58h-22l-28-54h-19v54h-18V53Zm18 18v43h22c16 0 25-8 25-22 0-13-9-21-25-21h-22Z" fill="url(#mark)"/>
+  <circle cx="211" cy="52" r="5" fill="#ff6535"/>
+</svg>

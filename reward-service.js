@@ -50,7 +50,7 @@
   ];
 
   const DEFAULT_AVATARS = [
-    { id: "hr-default", label: "Hunt Radar", image: "./assets/default-profile-avatar-hr-v1.png", storagePath: "default-profile-avatar-hr-v1.png" },
+    { id: "hr-default", label: "Hunt Radar", image: "./assets/default-profile-avatar-hr-v2.svg", storagePath: "default-profile-avatar-hr-v2.svg" },
     { id: "flame-wheel", label: "Alevli jant", image: "./assets/avatars/flame-wheel.png", storagePath: "avatars/flame-wheel.png" },
     { id: "neon-front", label: "Neon avcı", image: "./assets/avatars/neon-front.png", storagePath: "avatars/neon-front.png" },
     { id: "carbon-wing", label: "Karbon kanat", image: "./assets/avatars/carbon-wing.png", storagePath: "avatars/carbon-wing.png" },
@@ -208,9 +208,8 @@
   function setAvatar(user, avatar) {
     if (!user) return;
     const state = readState();
-    userKeys(user).forEach((key) => {
-      state.profiles[key] = { ...(state.profiles[key] || {}), avatar };
-    });
+    const key = userKey(user);
+    state.profiles[key] = { ...(state.profiles[key] || {}), avatar };
     writeState(state);
   }
 

@@ -16,14 +16,16 @@ const MAX_STORE_PHOTOS = 8;
 const STORE_PAGE_SIZE = 12;
 const STORE_VOTE_CACHE_KEY = "hunt-radar-my-votes-v1";
 const ASSET_BUCKET = "hunt-radar-assets";
+const PROFILE_AVATAR_BUCKET = "profile-avatars";
 const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
 const HOTWHEELS_IMAGE_PROXY_URL = `${SUPABASE_URL}/functions/v1/hotwheels-image-proxy`;
-const DEFAULT_PROFILE_AVATAR_PATH = "./assets/default-profile-avatar-hr-v1.png";
+const DEFAULT_PROFILE_AVATAR_PATH = "./assets/default-profile-avatar-hr-v2.svg";
 const MANAGED_ASSET_PATHS = [
   "garage-hero.png",
   "hunt-radar-hero-car.webp",
   "hunt-radar-brand-portfolio.png",
   "default-profile-avatar-hr-v1.png",
+  "default-profile-avatar-hr-v2.svg",
   "f40-competizione-yellow.jpg",
   "porsche-911-carrera-t.jpg",
   "barbie-dream-camper.jpg",
@@ -559,6 +561,12 @@ let activeMarketMaxPrice = null;
 let activeGlobalSearchScope = "all";
 let activeLeaderboardPeriod = "daily";
 let activeCommunityCity = "İstanbul";
+let communityChatMessages = [];
+let communityChatLoaded = false;
+let communityChatLoading = false;
+let communityChatRealtimeChannel = null;
+let activeCommunityChatReplyParent = null;
+let editingCommunityChatMessageId = null;
 let communityFeedPosts = [];
 let communityFeedFilter = "all";
 let communityFeedSortMode = "newest";
@@ -571,6 +579,20 @@ let communityFeedLoaded = false;
 let communityForumTopicsLoaded = false;
 let communityForumTopics = [];
 let activeCommunityForumCategory = "all";
+let activeCommunityForumSort = "new";
+let communityForumPendingUpdates = 0;
+let activeCommunityForumTopic = null;
+let activeCommunityForumReplies = [];
+let activeCommunityForumReplyParent = null;
+let editingCommunityForumTopicId = null;
+let editingCommunityForumReplyId = null;
+let activeCommunityForumReportTarget = null;
+const viewedCommunityForumTopics = new Set();
+let communityForumViewSessionLoaded = false;
+let communityTopicMediaFiles = [];
+let communityTopicMediaPreviewUrls = [];
+let communityReplyMediaFiles = [];
+let communityReplyMediaPreviewUrls = [];
 let communityRealtimeChannel = null;
 let communityRealtimeRefreshTimer = 0;
 let activeCommunityDetailPost = null;
@@ -645,11 +667,16 @@ const communityJoinChat = document.querySelector("#communityJoinChat");
 const communityCreateTopic = document.querySelector("#communityCreateTopic");
 const communityCreateFirstTopic = document.querySelector("#communityCreateFirstTopic");
 const communityForumCategories = document.querySelectorAll("[data-forum-category]");
+const communityForumSortButtons = document.querySelectorAll("[data-forum-sort]");
+const communityForumLiveNotice = document.querySelector("#communityForumLiveNotice");
+const communityForumLiveCount = document.querySelector("#communityForumLiveCount");
 const communityHeaderSort = document.querySelector("#communityHeaderSort");
 const communityHeaderCreateLabel = document.querySelector("#communityHeaderCreateLabel");
 const communityForumTopicsList = document.querySelector("#communityForumTopics");
+const communityPopularTopics = document.querySelector("#communityPopularTopics");
 const communityTopicModal = document.querySelector("#communityTopicModal");
 const communityTopicForm = document.querySelector("#communityTopicForm");
+const communityTopicEyebrow = document.querySelector("#communityTopicEyebrow");
 const communityTopicClose = document.querySelector("#communityTopicClose");
 const communityTopicCancel = document.querySelector("#communityTopicCancel");
 const communityTopicTitle = document.querySelector("#communityTopicTitle");
@@ -658,11 +685,50 @@ const communityTopicTitleCount = document.querySelector("#communityTopicTitleCou
 const communityTopicBodyCount = document.querySelector("#communityTopicBodyCount");
 const communityTopicError = document.querySelector("#communityTopicError");
 const communityTopicSubmit = document.querySelector("#communityTopicSubmit");
+const communityTopicMedia = document.querySelector("#communityTopicMedia");
+const communityTopicMediaPreview = document.querySelector("#communityTopicMediaPreview");
+const communityForumDetailModal = document.querySelector("#communityForumDetailModal");
+const communityForumDetailClose = document.querySelector("#communityForumDetailClose");
+const communityForumDetailCloseIcon = document.querySelector("#communityForumDetailCloseIcon");
+const communityForumDetailCategory = document.querySelector("#communityForumDetailCategory");
+const communityForumDetailTopic = document.querySelector("#communityForumDetailTopic");
+const communityForumRepliesList = document.querySelector("#communityForumRepliesList");
+const communityForumReplyCount = document.querySelector("#communityForumReplyCount");
+const communityForumReplyForm = document.querySelector("#communityForumReplyForm");
+const communityForumReplyBody = document.querySelector("#communityForumReplyBody");
+const communityForumReplySubmit = document.querySelector("#communityForumReplySubmit");
+const communityForumReplyStatus = document.querySelector("#communityForumReplyStatus");
+const communityForumReplyContext = document.querySelector("#communityForumReplyContext");
+const communityForumReplyCancel = document.querySelector("#communityForumReplyCancel");
+const communityForumReplyMedia = document.querySelector("#communityForumReplyMedia");
+const communityForumReplyMediaPreview = document.querySelector("#communityForumReplyMediaPreview");
+const communityForumReportModal = document.querySelector("#communityForumReportModal");
+const communityForumReportForm = document.querySelector("#communityForumReportForm");
+const communityForumReportClose = document.querySelector("#communityForumReportClose");
+const communityForumReportCancel = document.querySelector("#communityForumReportCancel");
+const communityForumReportDetails = document.querySelector("#communityForumReportDetails");
+const communityForumReportStatus = document.querySelector("#communityForumReportStatus");
+const communityForumReportSubmit = document.querySelector("#communityForumReportSubmit");
+const communityForumMediaLightbox = document.querySelector("#communityForumMediaLightbox");
+const communityForumMediaLightboxImage = document.querySelector("#communityForumMediaLightboxImage");
+const communityForumMediaLightboxClose = document.querySelector("#communityForumMediaLightboxClose");
 const communityChat = document.querySelector("#communityChat");
 const communityChatFeed = document.querySelector("#communityChatFeed");
 const communityChatForm = document.querySelector("#communityChatForm");
 const communityChatInput = document.querySelector("#communityChatInput");
 const communityChatAuth = document.querySelector("#communityChatAuth");
+const communityChatStatus = document.querySelector("#communityChatStatus");
+const communityChatRoomTitle = document.querySelector("#communityChatRoomTitle");
+const communityChatStageTitle = document.querySelector("#communityChatStageTitle");
+const communityChatMessageCount = document.querySelector("#communityChatMessageCount");
+const communityChatCountIstanbul = document.querySelector("#communityChatCountIstanbul");
+const communityChatCountAnkara = document.querySelector("#communityChatCountAnkara");
+const communityChatCountIzmir = document.querySelector("#communityChatCountIzmir");
+const communityChatCountBursa = document.querySelector("#communityChatCountBursa");
+const communityChatCountDiger = document.querySelector("#communityChatCountDiger");
+const communityChatComposerAvatar = document.querySelector(".community-chat-compose__avatar");
+const communityChatComposeContext = document.querySelector("#communityChatComposeContext");
+const communityChatComposeCancel = document.querySelector("#communityChatComposeCancel");
 const communityRoomTabs = document.querySelectorAll("[data-community-city]");
 const communityCityLinks = document.querySelectorAll("[data-community-city-link]");
 const communityUserSearchForm = document.querySelector("#communityUserSearchForm");
@@ -2784,11 +2850,19 @@ function selectCommunitySection(targetId, options = {}) {
 }
 
 function selectCommunityCity(city, options = {}) {
+  const roomChanged = activeCommunityCity !== (city || "İstanbul");
   activeCommunityCity = city || "İstanbul";
-  communityRoomTabs.forEach((button) => button.classList.toggle("is-active", button.dataset.communityCity === activeCommunityCity));
-  communityChatFeed?.querySelectorAll("[data-chat-city]").forEach((message) => {
-    message.hidden = message.dataset.chatCity !== activeCommunityCity;
+  if (roomChanged) resetCommunityChatComposer();
+  communityRoomTabs.forEach((button) => {
+    const active = button.dataset.communityCity === activeCommunityCity;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
+  if (communityChatRoomTitle) communityChatRoomTitle.textContent = activeCommunityCity;
+  if (communityChatStageTitle) communityChatStageTitle.textContent = `${activeCommunityCity} odası`;
+  if (communityChatInput) communityChatInput.placeholder = currentUser ? `${activeCommunityCity} odasına bir mesaj yaz...` : "Mesaj göndermek için giriş yap";
+  renderCommunityChatMessages();
+  if (supabaseClient) void loadCommunityChatMessages();
   if (options.scroll && communityChat) {
     selectCommunitySection("communityChat", { scroll: false });
     communityChat.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2813,8 +2887,11 @@ function syncCommunityHub() {
     }, { once: true });
   });
   selectCommunityCity(activeCommunityCity, { scroll: false });
+  subscribeCommunityChatRealtime();
   setDefaultProfileAvatar(communityComposerAvatar);
+  setDefaultProfileAvatar(communityChatComposerAvatar);
   if (communityModule?.dataset.communityActive === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
+  if (!communityForumTopicsLoaded) void loadCommunityForumTopics();
 }
 
 function refreshCommunityFeedForAuthChange() {
@@ -2835,10 +2912,25 @@ function scheduleCommunityRealtimeRefresh() {
   }, 350);
 }
 
-function scheduleCommunityForumRealtimeRefresh() {
+function renderCommunityForumLiveNotice() {
+  if (!communityForumLiveNotice || !communityForumLiveCount) return;
+  communityForumLiveCount.textContent = String(communityForumPendingUpdates);
+  communityForumLiveNotice.classList.toggle("is-hidden", communityForumPendingUpdates < 1);
+}
+
+function scheduleCommunityForumRealtimeRefresh(payload) {
   communityForumTopicsLoaded = false;
+  if (currentUser && payload?.new?.author_id === currentUser.id) return;
   if (activeView === "community" && communityModule?.dataset.communityActive === "communityForum") {
-    void loadCommunityForumTopics();
+    communityForumPendingUpdates += 1;
+    renderCommunityForumLiveNotice();
+  }
+}
+
+function scheduleCommunityForumReplyRealtimeRefresh(payload) {
+  const topicId = payload?.new?.topic_id || payload?.old?.topic_id;
+  if (activeCommunityForumTopic?.id === topicId && communityForumDetailModal?.classList.contains("is-open")) {
+    void loadCommunityForumReplies(topicId);
   }
 }
 
@@ -2858,11 +2950,29 @@ function subscribeCommunityRealtime() {
     .on(
       "postgres_changes",
       {
-        event: "*",
+        event: "INSERT",
         schema: "public",
         table: "community_forum_topics"
       },
       scheduleCommunityForumRealtimeRefresh
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "community_forum_replies"
+      },
+      scheduleCommunityForumRealtimeRefresh
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "community_forum_replies"
+      },
+      scheduleCommunityForumReplyRealtimeRefresh
     )
     .subscribe((status) => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -2905,20 +3015,240 @@ function communityRelativeTime(value) {
   return new Date(timestamp).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
 }
 
+function communityForumWasEdited(item = {}) {
+  const created = new Date(item.created_at || 0).getTime();
+  const updated = new Date(item.updated_at || 0).getTime();
+  return Number.isFinite(created) && Number.isFinite(updated) && updated - created > 2000;
+}
+
+function releaseForumPreviewUrls(type) {
+  const urls = type === "topic" ? communityTopicMediaPreviewUrls : communityReplyMediaPreviewUrls;
+  urls.forEach((url) => URL.revokeObjectURL(url));
+  if (type === "topic") communityTopicMediaPreviewUrls = [];
+  else communityReplyMediaPreviewUrls = [];
+}
+
+function renderForumMediaPreview(type) {
+  const files = type === "topic" ? communityTopicMediaFiles : communityReplyMediaFiles;
+  const preview = type === "topic" ? communityTopicMediaPreview : communityForumReplyMediaPreview;
+  if (!preview) return;
+  releaseForumPreviewUrls(type);
+  preview.classList.toggle("is-hidden", !files.length);
+  if (!files.length) {
+    preview.innerHTML = "";
+    return;
+  }
+  const urls = files.map((file) => URL.createObjectURL(file));
+  if (type === "topic") communityTopicMediaPreviewUrls = urls;
+  else communityReplyMediaPreviewUrls = urls;
+  preview.innerHTML = files.map((file, index) => `
+    <article data-forum-media-preview="${index}">
+      <img src="${escapeHtml(urls[index])}" alt="${escapeHtml(file.name)} önizlemesi" />
+      <button type="button" data-forum-media-remove aria-label="${escapeHtml(file.name)} görselini kaldır">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <small>${index + 1}</small>
+    </article>`).join("");
+}
+
+function selectForumMediaFiles(type, fileList) {
+  const limit = type === "topic" ? 6 : 3;
+  const target = type === "topic" ? communityTopicMediaFiles : communityReplyMediaFiles;
+  const incoming = [...(fileList || [])];
+  const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  const valid = incoming.filter((file) => acceptedTypes.has(file.type) && file.size <= 10 * 1024 * 1024);
+  const keys = new Set(target.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
+  const additions = valid.filter((file) => {
+    const key = `${file.name}:${file.size}:${file.lastModified}`;
+    if (keys.has(key)) return false;
+    keys.add(key);
+    return true;
+  }).slice(0, Math.max(0, limit - target.length));
+  target.push(...additions);
+  const input = type === "topic" ? communityTopicMedia : communityForumReplyMedia;
+  if (input) input.value = "";
+  const status = type === "topic" ? communityTopicError : communityForumReplyStatus;
+  if (status) {
+    if (incoming.length !== valid.length) status.textContent = "Yalnızca 10 MB altındaki JPG, PNG veya WEBP görseller eklendi.";
+    else if (target.length >= limit && additions.length < incoming.length) status.textContent = `En fazla ${limit} görsel ekleyebilirsin.`;
+    else status.textContent = "";
+  }
+  renderForumMediaPreview(type);
+}
+
+function clearForumMediaFiles(type) {
+  if (type === "topic") communityTopicMediaFiles = [];
+  else communityReplyMediaFiles = [];
+  const input = type === "topic" ? communityTopicMedia : communityForumReplyMedia;
+  if (input) input.value = "";
+  renderForumMediaPreview(type);
+}
+
+async function hydrateForumMedia(items = []) {
+  if (!supabaseClient || !items.length) return;
+  const paths = [...new Set(items.flatMap((item) => (item.media || []).map((media) => media.storage_path).filter(Boolean)))];
+  if (!paths.length) return;
+  const { data, error } = await supabaseClient.storage.from("community-media").createSignedUrls(paths, 3600);
+  if (error) return;
+  const urlByPath = new Map((data || []).map((item) => [item.path, item.signedUrl]));
+  items.forEach((item) => {
+    item.media = (item.media || [])
+      .map((media) => ({ ...media, signedUrl: urlByPath.get(media.storage_path) || "" }))
+      .filter((media) => media.signedUrl)
+      .sort((a, b) => Number(a.position) - Number(b.position));
+  });
+}
+
+function communityForumMediaMarkup(media = [], label = "Forum görseli") {
+  if (!media.length) return "";
+  const visible = media.slice(0, 4);
+  return `<div class="community-forum-media-gallery community-forum-media-gallery--${Math.min(media.length, 4)}">
+    ${visible.map((item, index) => `
+      <button type="button" data-forum-media-url="${escapeHtml(item.signedUrl)}" aria-label="${escapeHtml(label)} ${index + 1} görüntüle">
+        <img src="${escapeHtml(item.signedUrl)}" alt="${escapeHtml(item.alt_text || `${label} ${index + 1}`)}" />
+        ${index === 3 && media.length > 4 ? `<span>+${media.length - 4}</span>` : ""}
+      </button>`).join("")}
+  </div>`;
+}
+
+async function uploadForumMedia({ files, topicId = null, replyId = null }) {
+  const uploadedPaths = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    const mediaId = crypto.randomUUID();
+    const ext = (file.name.split(".").pop() || "webp").toLowerCase().replace(/[^a-z0-9]/g, "") || "webp";
+    const parentId = topicId || replyId;
+    const path = `${currentUser.id}/forum/${parentId}/${mediaId}.${ext}`;
+    const { error: uploadError } = await supabaseClient.storage.from("community-media").upload(path, file, {
+      upsert: false,
+      contentType: file.type,
+      cacheControl: "3600"
+    });
+    if (uploadError) return { error: uploadError, uploadedPaths };
+    uploadedPaths.push(path);
+    const { error: mediaError } = await supabaseClient.from("community_forum_media").insert({
+      id: mediaId,
+      topic_id: topicId,
+      reply_id: replyId,
+      owner_id: currentUser.id,
+      storage_path: path,
+      position: index,
+      alt_text: topicId ? `Forum konusu görseli ${index + 1}` : `Forum yanıtı görseli ${index + 1}`
+    });
+    if (mediaError) return { error: mediaError, uploadedPaths };
+  }
+  return { error: null, uploadedPaths };
+}
+
+async function cleanupForumMedia(paths = [], filters = {}) {
+  if (paths.length) await supabaseClient.storage.from("community-media").remove(paths);
+  let query = supabaseClient.from("community_forum_media").delete().eq("owner_id", currentUser.id);
+  if (filters.topicId) query = query.eq("topic_id", filters.topicId);
+  if (filters.replyId) query = query.eq("reply_id", filters.replyId);
+  await query;
+}
+
+function renderCommunityForumCategoryStats() {
+  communityForumCategories.forEach((card) => {
+    const category = card.dataset.forumCategory;
+    const categoryTopics = communityForumTopics.filter((topic) => topic.category === category);
+    const topicCount = categoryTopics.length;
+    const replyCount = categoryTopics.reduce((total, topic) => total + Number(topic.reply_count || 0), 0);
+    const latestActivity = categoryTopics.reduce((latest, topic) => {
+      const value = new Date(topic.last_reply_at || topic.published_at || topic.created_at || 0).getTime();
+      return Math.max(latest, Number.isFinite(value) ? value : 0);
+    }, 0);
+    let stats = card.querySelector(".community-forum-card__stats");
+    if (!stats) {
+      stats = document.createElement("span");
+      stats.className = "community-forum-card__stats";
+      card.append(stats);
+    }
+    stats.innerHTML = `
+      <span><strong>${topicCount.toLocaleString("tr-TR")}</strong><small>Konu</small></span>
+      <span><strong>${replyCount.toLocaleString("tr-TR")}</strong><small>Yanıt</small></span>
+      <span><strong>${latestActivity ? escapeHtml(communityRelativeTime(latestActivity)) : "—"}</strong><small>Son hareket</small></span>`;
+  });
+}
+
+function renderCommunityPopularTopics() {
+  if (!communityPopularTopics) return;
+  const popularTopics = [...communityForumTopics]
+    .sort((a, b) => {
+      if (Boolean(a.is_pinned) !== Boolean(b.is_pinned)) return a.is_pinned ? -1 : 1;
+      const replyDifference = Number(b.reply_count || 0) - Number(a.reply_count || 0);
+      if (replyDifference) return replyDifference;
+      const viewDifference = Number(b.view_count || 0) - Number(a.view_count || 0);
+      if (viewDifference) return viewDifference;
+      return new Date(b.last_reply_at || b.published_at || 0).getTime()
+        - new Date(a.last_reply_at || a.published_at || 0).getTime();
+    })
+    .slice(0, 4);
+
+  if (!popularTopics.length) {
+    communityPopularTopics.innerHTML = `<li class="community-popular-list__empty"><div><strong>Henüz trend konu yok</strong><small>İlk forum hareketleri burada görünecek.</small></div></li>`;
+    return;
+  }
+
+  communityPopularTopics.innerHTML = popularTopics.map((topic, index) => {
+    const category = COMMUNITY_FORUM_CATEGORY_LABELS[topic.category] || "Forum";
+    const replyCount = Number(topic.reply_count || 0);
+    return `
+      <li>
+        <span>${String(index + 1).padStart(2, "0")}</span>
+        <button type="button" data-popular-forum-topic="${escapeHtml(topic.id)}">
+          <strong>${escapeHtml(topic.title)}</strong>
+          <small class="community-popular-list__meta">
+            <span>${escapeHtml(category)}</span>
+            <span>${replyCount} yanıt</span>
+          </small>
+        </button>
+      </li>`;
+  }).join("");
+}
+
+function communityForumTopicBadges(topic) {
+  const badges = [];
+  if (topic.is_pinned) {
+    badges.push(`<span class="community-forum-topic__state is-pinned"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 3 6 0-.8 5 2.3 2.3v1.2h-9v-1.2L7.8 8 7 3Zm3 8.5V17"/></svg>Sabit</span>`);
+  }
+  if (topic.status === "locked") {
+    badges.push(`<span class="community-forum-topic__state is-locked"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4.5" y="8.5" width="11" height="8" rx="2"/><path d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/></svg>Kilitli</span>`);
+  }
+  if (topic.is_solved) {
+    badges.push(`<span class="community-forum-topic__state is-solved"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m7 10 2 2 4-4"/></svg>Çözüldü</span>`);
+  }
+  return badges.length ? `<div class="community-forum-topic__states">${badges.join("")}</div>` : "";
+}
+
 function renderCommunityForumTopics() {
   if (!communityForumTopicsList) return;
+  renderCommunityForumCategoryStats();
+  renderCommunityPopularTopics();
   const query = communityModule?.dataset.communityActive === "communityForum"
     ? communityFeedSearch?.value.trim().toLocaleLowerCase("tr-TR") || ""
     : "";
-  const visibleTopics = communityForumTopics.filter((topic) => {
+  let visibleTopics = communityForumTopics.filter((topic) => {
     const categoryMatches = activeCommunityForumCategory === "all" || topic.category === activeCommunityForumCategory;
     const searchMatches = !query || `${topic.title} ${topic.body || ""} ${COMMUNITY_FORUM_CATEGORY_LABELS[topic.category] || ""}`
       .toLocaleLowerCase("tr-TR")
       .includes(query);
-    return categoryMatches && searchMatches;
+    const sortMatches = activeCommunityForumSort !== "unanswered" || Number(topic.reply_count || 0) === 0;
+    return categoryMatches && searchMatches && sortMatches;
+  });
+  visibleTopics = [...visibleTopics].sort((a, b) => {
+    if (Boolean(a.is_pinned) !== Boolean(b.is_pinned)) return a.is_pinned ? -1 : 1;
+    if (activeCommunityForumSort === "popular") {
+      const replyDifference = Number(b.reply_count || 0) - Number(a.reply_count || 0);
+      if (replyDifference) return replyDifference;
+      const viewDifference = Number(b.view_count || 0) - Number(a.view_count || 0);
+      if (viewDifference) return viewDifference;
+    }
+    return new Date(b.last_reply_at || b.published_at || b.created_at || 0).getTime()
+      - new Date(a.last_reply_at || a.published_at || a.created_at || 0).getTime();
   });
   if (!visibleTopics.length) {
-    const hasFilter = Boolean(query || activeCommunityForumCategory !== "all");
+    const hasFilter = Boolean(query || activeCommunityForumCategory !== "all" || activeCommunityForumSort === "unanswered");
     communityForumTopicsList.innerHTML = `
       <div class="community-forum-empty" id="communityForumEmpty">
         <span class="community-forum-empty__mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 8h20v15H13l-6 5v-5H6V8Z"></path><path d="M11 13h10M11 18h7"></path></svg></span>
@@ -2929,47 +3259,59 @@ function renderCommunityForumTopics() {
   }
   communityForumTopicsList.innerHTML = visibleTopics.map((topic) => {
     const username = topic.author?.username || "Topluluk üyesi";
-    const avatar = topic.author?.avatar_id
-      ? avatarMarkup({ type: "preset", id: topic.author.avatar_id }, { username })
-      : `<span class="reward-avatar brand-fallback-avatar" aria-hidden="true">${defaultProfileAvatarMarkup()}</span>`;
+    const categoryLabel = COMMUNITY_FORUM_CATEGORY_LABELS[topic.category] || "Forum";
+    const activityAt = topic.last_reply_at || topic.published_at || topic.created_at;
+    const avatar = communityForumAuthorAvatar(topic.author, username);
     return `
-      <article class="community-forum-topic" data-forum-topic="${escapeHtml(topic.id)}" tabindex="0">
-        <span class="community-forum-topic__avatar">${avatar}</span>
-        <div class="community-forum-topic__body">
-          <strong>${escapeHtml(topic.title)}</strong>
-          <div class="community-forum-topic__meta">
-            <span class="community-forum-topic__category">${escapeHtml(COMMUNITY_FORUM_CATEGORY_LABELS[topic.category] || "Forum")}</span>
-            <span>@${escapeHtml(username)}</span>
-            <time>${escapeHtml(communityRelativeTime(topic.published_at || topic.created_at))}</time>
+      <article class="community-forum-topic community-forum-topic--${escapeHtml(topic.category)} ${topic.is_pinned ? "is-pinned" : ""} ${topic.status === "locked" ? "is-locked" : ""} ${topic.is_solved ? "is-solved" : ""}" data-forum-topic="${escapeHtml(topic.id)}" tabindex="0" role="button" aria-label="${escapeHtml(topic.title)} konusunu aç">
+        <div class="community-forum-topic__main">
+          <span class="community-forum-topic__avatar">${avatar}</span>
+          <div class="community-forum-topic__body">
+            ${communityForumTopicBadges(topic)}
+            <strong>${escapeHtml(topic.title)}</strong>
+            <div class="community-forum-topic__meta">
+              <span>@${escapeHtml(username)}</span>
+              <time>${escapeHtml(communityRelativeTime(topic.published_at || topic.created_at))}</time>
+            </div>
           </div>
         </div>
-        <div class="community-forum-topic__activity"><span>${Number(topic.reply_count || 0)} yanıt</span><span>${Number(topic.view_count || 0)} görüntüleme</span></div>
+        <span class="community-forum-topic__category">${escapeHtml(categoryLabel)}</span>
+        <span class="community-forum-topic__metric community-forum-topic__metric--replies"><strong>${Number(topic.reply_count || 0)}</strong><small>yanıt</small></span>
+        <span class="community-forum-topic__metric community-forum-topic__metric--views"><strong>${Number(topic.view_count || 0).toLocaleString("tr-TR")}</strong><small>görüntüleme</small></span>
+        <span class="community-forum-topic__activity"><time>${escapeHtml(communityRelativeTime(activityAt))}</time><small>${topic.last_reply_at ? "son yanıt" : "açıldı"}</small></span>
       </article>`;
   }).join("");
 }
 
 async function loadCommunityForumTopics() {
   if (!communityForumTopicsList) return;
+  renderCommunityForumCategoryStats();
   if (!supabaseClient) {
     communityForumTopicsLoaded = true;
     renderCommunityForumTopics();
     return;
   }
   communityForumTopicsList.innerHTML = `<div class="community-forum-empty"><div><strong>Forum konuları yükleniyor</strong><p>Güncel başlıklar hazırlanıyor.</p></div></div>`;
-  const fields = "id,author_id,category,title,body,reply_count,view_count,published_at,created_at,author:profiles!community_forum_topics_author_id_fkey(username,avatar_id)";
+  const fields = "id,author_id,category,title,body,status,is_pinned,is_solved,reply_count,view_count,last_reply_at,published_at,created_at,updated_at,author:profiles!community_forum_topics_author_id_fkey(username,avatar_id,avatar_url),media:community_forum_media(id,storage_path,position,alt_text)";
   const { data, error } = await supabaseClient
     .from("community_forum_topics")
     .select(fields)
-    .eq("status", "published")
+    .in("status", ["published", "locked"])
     .order("published_at", { ascending: false })
     .limit(30);
   if (error) {
     communityForumTopicsLoaded = false;
     communityForumTopicsList.innerHTML = `<div class="community-forum-empty"><div><strong>Forum henüz bağlanmadı</strong><p>Forum veritabanı kurulumu tamamlandığında konular burada görünecek.</p></div></div>`;
+    if (communityPopularTopics) {
+      communityPopularTopics.innerHTML = `<li class="community-popular-list__empty"><div><strong>Trend konular yüklenemedi</strong><small>Forum bağlantısını yeniden deneyebilirsin.</small></div></li>`;
+    }
     return;
   }
   communityForumTopics = Array.isArray(data) ? data : [];
+  await hydrateForumMedia(communityForumTopics);
   communityForumTopicsLoaded = true;
+  communityForumPendingUpdates = 0;
+  renderCommunityForumLiveNotice();
   renderCommunityForumTopics();
 }
 
@@ -2977,21 +3319,231 @@ function closeCommunityTopicModal() {
   communityTopicModal?.classList.remove("is-open");
   communityTopicModal?.setAttribute("aria-hidden", "true");
   document.body.classList.remove("is-community-topic-open");
+  editingCommunityForumTopicId = null;
+  clearForumMediaFiles("topic");
 }
 
-function openCommunityTopicModal(category = "general") {
+function openCommunityTopicModal(category = "general", topic = null) {
   if (!currentUser) {
     openAuthModal("login", "Forum konusu açmak için giriş yapmalısın.");
     return;
   }
+  editingCommunityForumTopicId = topic?.id || null;
   const safeCategory = COMMUNITY_FORUM_CATEGORY_LABELS[category] ? category : "general";
   const categoryInput = communityTopicForm?.querySelector(`input[name="forumCategory"][value="${safeCategory}"]`);
   if (categoryInput) categoryInput.checked = true;
+  if (communityTopicTitle) communityTopicTitle.value = topic?.title || "";
+  if (communityTopicBody) communityTopicBody.value = topic?.body || "";
+  if (communityTopicTitleCount) communityTopicTitleCount.textContent = String(communityTopicTitle?.value.length || 0);
+  if (communityTopicBodyCount) communityTopicBodyCount.textContent = String(communityTopicBody?.value.length || 0);
+  if (communityTopicEyebrow) communityTopicEyebrow.textContent = topic ? "Konuyu düzenle" : "Yeni konu";
+  const heading = document.querySelector("#communityTopicHeading");
+  if (heading) heading.textContent = topic ? "Konu bilgilerini güncelle" : "Topluluğa bir konu aç";
+  if (communityTopicSubmit) communityTopicSubmit.textContent = topic ? "Değişiklikleri kaydet" : "Konuyu yayımla";
+  document.querySelector("#communityTopicAttachments")?.classList.toggle("is-hidden", Boolean(topic));
   if (communityTopicError) communityTopicError.textContent = "";
   communityTopicModal?.classList.add("is-open");
   communityTopicModal?.setAttribute("aria-hidden", "false");
   document.body.classList.add("is-community-topic-open");
   requestAnimationFrame(() => communityTopicTitle?.focus());
+}
+
+function communityForumAuthorAvatar(author = {}, username = "Topluluk üyesi") {
+  if (author.avatar_url) {
+    return avatarMarkup({ type: "custom", dataUrl: author.avatar_url }, { username });
+  }
+  return author.avatar_id
+    ? avatarMarkup({ type: "preset", id: author.avatar_id }, { username })
+    : `<span class="reward-avatar brand-fallback-avatar" aria-hidden="true">${defaultProfileAvatarMarkup()}</span>`;
+}
+
+function renderCommunityForumDetailTopic(topic) {
+  if (!communityForumDetailTopic || !topic) return;
+  const author = topic.author || {};
+  const username = author.username || "Topluluk üyesi";
+  const ownsTopic = Boolean(currentUser && topic.author_id === currentUser.id);
+  const canManageTopic = ownsTopic || isAdminUser();
+  const actionButtons = [
+    canManageTopic && (topic.status !== "locked" || isAdminUser())
+      ? `<button type="button" data-forum-topic-action="edit">Düzenle</button>`
+      : "",
+    canManageTopic && (topic.status !== "locked" || isAdminUser())
+      ? `<button type="button" data-forum-topic-action="solve">${topic.is_solved ? "Çözümü kaldır" : "Çözüldü olarak işaretle"}</button>`
+      : "",
+    isAdminUser()
+      ? `<button type="button" data-forum-topic-action="pin">${topic.is_pinned ? "Sabitlemeyi kaldır" : "Konuyu sabitle"}</button>`
+      : "",
+    isAdminUser()
+      ? `<button type="button" data-forum-topic-action="lock">${topic.status === "locked" ? "Kilidi aç" : "Konuyu kilitle"}</button>`
+      : "",
+    currentUser && !ownsTopic
+      ? `<button type="button" data-forum-topic-action="report">Bildir</button>`
+      : "",
+    canManageTopic
+      ? `<button class="is-danger" type="button" data-forum-topic-action="delete">Konuyu sil</button>`
+      : ""
+  ].filter(Boolean).join("");
+  if (communityForumDetailCategory) {
+    communityForumDetailCategory.textContent = COMMUNITY_FORUM_CATEGORY_LABELS[topic.category] || "Forum";
+  }
+  communityForumDetailTopic.innerHTML = `
+    <span class="community-forum-detail__avatar">${communityForumAuthorAvatar(author, username)}</span>
+    <div class="community-forum-detail__topic-content">
+      <div class="community-forum-detail__author">
+        <strong>@${escapeHtml(username)}</strong>
+        <time>${escapeHtml(communityRelativeTime(topic.published_at || topic.created_at))}</time>
+        ${communityForumWasEdited(topic) ? "<small>düzenlendi</small>" : ""}
+      </div>
+      ${communityForumTopicBadges(topic)}
+      <h2 id="communityForumDetailTitle">${escapeHtml(topic.title)}</h2>
+      <p class="community-forum-detail__topic-copy">${escapeHtml(topic.body || "")}</p>
+      ${communityForumMediaMarkup(topic.media || [], "Konu görseli")}
+      <footer class="community-forum-detail__topic-footer">
+        <span><strong>${activeCommunityForumReplies.filter((reply) => reply.status === "published").length}</strong> yanıt</span>
+        <span><strong>${Number(topic.view_count || 0).toLocaleString("tr-TR")}</strong> görüntüleme</span>
+        <span><strong>${escapeHtml(communityRelativeTime(topic.last_reply_at || topic.published_at || topic.created_at))}</strong> son hareket</span>
+      </footer>
+      ${actionButtons ? `<div class="community-forum-detail__actions">${actionButtons}</div>` : ""}
+    </div>`;
+}
+
+function renderCommunityForumReplies() {
+  if (!communityForumRepliesList) return;
+  const publishedReplyCount = activeCommunityForumReplies.filter((reply) => reply.status === "published").length;
+  if (communityForumReplyCount) communityForumReplyCount.textContent = String(publishedReplyCount);
+  if (!activeCommunityForumReplies.length) {
+    communityForumRepliesList.innerHTML = `<p class="community-forum-replies__empty">Henüz yanıt yok. İlk yanıtı sen yazabilirsin.</p>`;
+    return;
+  }
+  communityForumRepliesList.innerHTML = activeCommunityForumReplies.map((reply) => {
+    const author = reply.author || {};
+    const username = author.username || "Topluluk üyesi";
+    const deleted = reply.status === "deleted";
+    const ownsReply = Boolean(currentUser && reply.author_id === currentUser.id);
+    const canManageReply = !deleted && Boolean(currentUser && (ownsReply || isAdminUser()));
+    return `
+      <article class="community-forum-reply ${reply.parent_id ? "is-child" : ""}" data-forum-reply="${escapeHtml(reply.id)}">
+        <span class="community-forum-reply__avatar">${communityForumAuthorAvatar(author, username)}</span>
+        <div class="community-forum-reply__body">
+          <header class="community-forum-reply__head"><strong>@${escapeHtml(username)}</strong><span><time>${escapeHtml(communityRelativeTime(reply.created_at))}</time>${communityForumWasEdited(reply) ? "<small>düzenlendi</small>" : ""}</span></header>
+          <p>${deleted ? "Bu yanıt silindi." : escapeHtml(reply.body)}</p>
+          ${deleted ? "" : communityForumMediaMarkup(reply.media || [], "Yanıt görseli")}
+          ${deleted ? "" : `<div class="community-forum-reply__actions"><button type="button" data-forum-reply-to="${escapeHtml(reply.id)}" data-forum-reply-user="${escapeHtml(username)}">Yanıtla</button>${canManageReply ? `<button type="button" data-forum-reply-edit="${escapeHtml(reply.id)}">Düzenle</button><button class="is-danger" type="button" data-forum-reply-delete="${escapeHtml(reply.id)}">Sil</button>` : ""}${currentUser && !ownsReply ? `<button type="button" data-forum-reply-report="${escapeHtml(reply.id)}">Bildir</button>` : ""}</div>`}
+        </div>
+      </article>`;
+  }).join("");
+}
+
+async function loadCommunityForumReplies(topicId) {
+  if (!communityForumRepliesList || !supabaseClient) return;
+  communityForumRepliesList.innerHTML = `<p class="community-forum-replies__empty">Yanıtlar yükleniyor...</p>`;
+  const fields = "id,topic_id,author_id,parent_id,body,status,created_at,updated_at,author:profiles!community_forum_replies_author_id_fkey(username,avatar_id,avatar_url),media:community_forum_media(id,storage_path,position,alt_text)";
+  const { data, error } = await supabaseClient
+    .from("community_forum_replies")
+    .select(fields)
+    .eq("topic_id", topicId)
+    .order("created_at", { ascending: true })
+    .limit(200);
+  if (error) {
+    communityForumRepliesList.innerHTML = `<p class="community-forum-replies__empty">Yanıtlar yüklenemedi.</p>`;
+    return;
+  }
+  activeCommunityForumReplies = Array.isArray(data) ? data : [];
+  await hydrateForumMedia(activeCommunityForumReplies);
+  renderCommunityForumDetailTopic(activeCommunityForumTopic);
+  renderCommunityForumReplies();
+}
+
+function closeCommunityForumDetail() {
+  communityForumDetailModal?.classList.remove("is-open");
+  communityForumDetailModal?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("is-community-forum-detail-open");
+  activeCommunityForumReplyParent = null;
+  communityForumReplyContext?.classList.add("is-hidden");
+  clearForumMediaFiles("reply");
+}
+
+function openCommunityForumReport(targetType, targetId) {
+  if (!currentUser) {
+    closeCommunityForumDetail();
+    openAuthModal("login", "İçerik bildirmek için giriş yapmalısın.");
+    return;
+  }
+  activeCommunityForumReportTarget = { type: targetType, id: targetId };
+  communityForumReportForm?.reset();
+  if (communityForumReportDetails) communityForumReportDetails.value = "";
+  if (communityForumReportStatus) communityForumReportStatus.textContent = "";
+  communityForumReportModal?.classList.add("is-open");
+  communityForumReportModal?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("is-community-forum-report-open");
+}
+
+function closeCommunityForumReport() {
+  communityForumReportModal?.classList.remove("is-open");
+  communityForumReportModal?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("is-community-forum-report-open");
+  activeCommunityForumReportTarget = null;
+}
+
+function resetCommunityForumReplyComposer() {
+  editingCommunityForumReplyId = null;
+  activeCommunityForumReplyParent = null;
+  if (communityForumReplyBody) communityForumReplyBody.value = "";
+  if (communityForumReplySubmit) communityForumReplySubmit.textContent = "Yanıtla";
+  communityForumReplyContext?.classList.add("is-hidden");
+  communityForumReplyForm?.querySelector(".community-forum-reply-media")?.classList.remove("is-hidden");
+  clearForumMediaFiles("reply");
+}
+
+function loadCommunityForumViewedTopics() {
+  if (communityForumViewSessionLoaded) return;
+  communityForumViewSessionLoaded = true;
+  try {
+    const stored = JSON.parse(sessionStorage.getItem("hunt-radar-forum-views") || "[]");
+    if (Array.isArray(stored)) stored.forEach((topicId) => viewedCommunityForumTopics.add(String(topicId)));
+  } catch {
+    // Storage can be unavailable in restrictive browser modes.
+  }
+}
+
+async function incrementCommunityForumTopicView(topic) {
+  if (!supabaseClient || !topic?.id) return;
+  loadCommunityForumViewedTopics();
+  if (viewedCommunityForumTopics.has(topic.id)) return;
+  const { data, error } = await supabaseClient.rpc("increment_community_forum_topic_view", { p_topic_id: topic.id });
+  if (error || !Number.isFinite(Number(data))) return;
+  viewedCommunityForumTopics.add(topic.id);
+  try {
+    sessionStorage.setItem("hunt-radar-forum-views", JSON.stringify([...viewedCommunityForumTopics]));
+  } catch {}
+  topic.view_count = Number(data);
+  if (activeCommunityForumTopic?.id === topic.id) renderCommunityForumDetailTopic(topic);
+  renderCommunityForumTopics();
+}
+
+async function openCommunityForumDetail(topicId) {
+  const topic = communityForumTopics.find((item) => item.id === topicId);
+  if (!topic) return;
+  activeCommunityForumTopic = topic;
+  activeCommunityForumReplies = [];
+  activeCommunityForumReplyParent = null;
+  if (communityForumReplyStatus) communityForumReplyStatus.textContent = "";
+  if (communityForumReplyBody) {
+    communityForumReplyBody.value = "";
+    communityForumReplyBody.disabled = !currentUser || topic.status === "locked";
+    communityForumReplyBody.placeholder = topic.status === "locked"
+      ? "Bu konu yeni yanıtlara kapatıldı"
+      : currentUser ? "Konuya yanıtını yaz..." : "Yanıt yazmak için giriş yap";
+  }
+  if (communityForumReplySubmit) communityForumReplySubmit.disabled = !currentUser || topic.status === "locked";
+  communityForumReplyContext?.classList.add("is-hidden");
+  renderCommunityForumDetailTopic(topic);
+  communityForumDetailModal?.classList.add("is-open");
+  communityForumDetailModal?.setAttribute("data-forum-category", topic.category || "general");
+  communityForumDetailModal?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("is-community-forum-detail-open");
+  void incrementCommunityForumTopicView(topic);
+  await loadCommunityForumReplies(topic.id);
 }
 
 function youtubeVideoId(value) {
@@ -3070,7 +3622,7 @@ async function loadCommunityFeed(options = {}) {
 
   const communityPostSelect = currentUser
     ? `id,author_id,post_type,body,visibility,status,store_name,location_text,external_provider,external_video_id,is_partnership,is_editor_pick,like_count,comment_count,published_at,created_at,
-      author:profiles!community_posts_author_id_fkey(id,username,avatar_id,role),
+      author:profiles!community_posts_author_id_fkey(id,username,avatar_id,avatar_url,role),
       media:community_post_media(id,media_type,storage_path,position,alt_text),
       likes:community_post_likes(user_id),
       creator:community_creators(id,display_name,is_verified,platform,channel_url)`
@@ -3205,7 +3757,7 @@ function renderCommunityDetail(post) {
     <div class="community-detail-visual">${communityDetailMediaMarkup(post)}</div>
     <aside class="community-detail-panel">
       <header class="community-detail-author">
-        <button class="community-detail-author__avatar brand-fallback-avatar" type="button" ${author.username ? `data-community-detail-profile="${escapeHtml(author.username)}"` : "disabled"}>${defaultProfileAvatarMarkup()}</button>
+        <button class="community-detail-author__avatar" type="button" ${author.username ? `data-community-detail-profile="${escapeHtml(author.username)}"` : "disabled"}>${communityForumAuthorAvatar(author, username)}</button>
         <div><button type="button" ${author.username ? `data-community-detail-profile="${escapeHtml(author.username)}"` : "disabled"}>${escapeHtml(username)}</button><span>${communityRelativeTime(post.published_at || post.created_at)} · ${escapeHtml(COMMUNITY_POST_TYPE_LABELS[post.post_type] || "Paylaşım")}</span></div>
       </header>
       <div class="community-detail-copy">
@@ -3345,7 +3897,7 @@ function renderCommunityFeed() {
         ? `<div class="community-post__store"><strong>${escapeHtml(post.store_name || "Mağaza deneyimi")}</strong>${post.location_text ? ` · ${escapeHtml(post.location_text)}` : ""}</div>` : "";
       return `<article class="community-post" data-community-post-id="${escapeHtml(post.id)}" tabindex="0" aria-label="Gönderi detayını aç">
         <header class="community-post__header">
-          <button class="community-post__avatar brand-fallback-avatar" type="button" ${profileButton} aria-label="${escapeHtml(username)} profilini aç">${defaultProfileAvatarMarkup()}</button>
+          <button class="community-post__avatar" type="button" ${profileButton} aria-label="${escapeHtml(username)} profilini aç">${communityForumAuthorAvatar(author, username)}</button>
           <div class="community-post__identity">
             <button type="button" ${profileButton}>${escapeHtml(username)}</button>
             <div class="community-post__meta"><span>${communityRelativeTime(post.published_at || post.created_at)}</span>${post.is_partnership ? "<span>İş birliği</span>" : ""}${post.is_editor_pick ? "<span>Editörün seçimi</span>" : ""}</div>
@@ -3653,28 +4205,127 @@ async function submitCommunityComment(event, post, article) {
 }
 
 function appendCommunityChatMessage(message) {
-  if (!communityChatFeed || !currentUser) return;
-  communityChatFeed.querySelector(".community-chat-empty")?.remove();
-  const article = document.createElement("article");
-  article.dataset.chatCity = activeCommunityCity;
-  const avatar = document.createElement("span");
-  avatar.className = "community-member-avatar brand-fallback-avatar";
-  avatar.innerHTML = defaultProfileAvatarMarkup();
-  const body = document.createElement("div");
-  const header = document.createElement("header");
-  const username = document.createElement("strong");
-  username.textContent = `@${currentUser.username || "avci"}`;
-  const time = document.createElement("time");
-  time.textContent = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-  const city = document.createElement("em");
-  city.textContent = activeCommunityCity;
-  const text = document.createElement("p");
-  text.textContent = message;
-  header.append(username, time, city);
-  body.append(header, text);
-  article.append(avatar, body);
-  communityChatFeed.appendChild(article);
-  communityChatFeed.scrollTo({ top: communityChatFeed.scrollHeight, behavior: "smooth" });
+  if (!currentUser) return;
+  communityChatMessages.push({
+    id: `local-${Date.now()}`,
+    room: activeCommunityCity,
+    author_id: currentUser.id,
+    body: message,
+    status: "published",
+    created_at: new Date().toISOString(),
+    author: { username: currentUser.username, avatar_id: currentUser.avatarId || currentUser.avatar_id || null, avatar_url: currentUser.avatar_url || null }
+  });
+  renderCommunityChatMessages({ scroll: true });
+}
+
+const COMMUNITY_CHAT_COUNT_REFS = {
+  İstanbul: communityChatCountIstanbul,
+  Ankara: communityChatCountAnkara,
+  İzmir: communityChatCountIzmir,
+  Bursa: communityChatCountBursa,
+  Diğer: communityChatCountDiger
+};
+
+function renderCommunityChatRoomCounts() {
+  Object.entries(COMMUNITY_CHAT_COUNT_REFS).forEach(([room, element]) => {
+    if (element) element.textContent = String(communityChatMessages.filter((message) => message.room === room && message.status === "published").length);
+  });
+}
+
+function renderCommunityChatMessages(options = {}) {
+  if (!communityChatFeed) return;
+  const messages = communityChatMessages
+    .filter((message) => message.room === activeCommunityCity && message.status === "published")
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  if (communityChatMessageCount) communityChatMessageCount.textContent = String(messages.length);
+  renderCommunityChatRoomCounts();
+  if (communityChatLoading && !messages.length) {
+    communityChatFeed.innerHTML = `<div class="community-chat-empty"><strong>Mesajlar yükleniyor</strong><p>${escapeHtml(activeCommunityCity)} odası hazırlanıyor.</p></div>`;
+    return;
+  }
+  if (!messages.length) {
+    communityChatFeed.innerHTML = `<div class="community-chat-empty"><strong>Bu odada henüz mesaj yok</strong><p>İlk mesajı göndererek ${escapeHtml(activeCommunityCity)} sohbetini başlatabilirsin.</p></div>`;
+    return;
+  }
+  communityChatFeed.innerHTML = messages.map((message) => {
+    const author = message.author || {};
+    const username = author.username || "Topluluk üyesi";
+    const own = Boolean(currentUser && message.author_id === currentUser.id);
+    const parent = message.parent_id ? communityChatMessages.find((item) => item.id === message.parent_id) : null;
+    const parentUsername = parent?.author?.username || "Topluluk üyesi";
+    return `<article class="${own ? "is-own" : ""}" data-chat-message="${escapeHtml(message.id)}">
+      <span class="community-chat-message__avatar">${communityForumAuthorAvatar(author, username)}</span>
+      <div class="community-chat-message__body">
+        <header><strong>@${escapeHtml(username)}</strong><span><time>${escapeHtml(communityRelativeTime(message.created_at))}</time>${communityForumWasEdited(message) ? "<small>düzenlendi</small>" : ""}</span></header>
+        ${parent ? `<button class="community-chat-message__quote" type="button" data-chat-scroll-parent="${escapeHtml(parent.id)}"><strong>@${escapeHtml(parentUsername)}</strong><span>${escapeHtml(parent.body)}</span></button>` : ""}
+        <p>${escapeHtml(message.body)}</p>
+        <div class="community-chat-message__actions">
+          ${currentUser ? `<button type="button" data-chat-reply="${escapeHtml(message.id)}" data-chat-reply-user="${escapeHtml(username)}">Yanıtla</button>` : ""}
+          ${own ? `<button type="button" data-chat-edit="${escapeHtml(message.id)}">Düzenle</button><button class="is-danger" type="button" data-chat-delete="${escapeHtml(message.id)}">Sil</button>` : ""}
+        </div>
+      </div>
+    </article>`;
+  }).join("");
+  if (options.scroll) communityChatFeed.scrollTo({ top: communityChatFeed.scrollHeight, behavior: "smooth" });
+}
+
+function resetCommunityChatComposer() {
+  activeCommunityChatReplyParent = null;
+  editingCommunityChatMessageId = null;
+  if (communityChatInput) communityChatInput.value = "";
+  communityChatComposeContext?.classList.add("is-hidden");
+  const submit = communityChatForm?.querySelector('button[type="submit"]');
+  setCommunityChatSubmitLabel(submit, "Gönder");
+}
+
+function setCommunityChatSubmitLabel(button, label) {
+  const labelTarget = button?.querySelector("span");
+  if (labelTarget) labelTarget.textContent = label;
+}
+
+function showCommunityChatComposeContext(title, copy) {
+  const titleTarget = communityChatComposeContext?.querySelector("strong");
+  const copyTarget = communityChatComposeContext?.querySelector("span");
+  if (titleTarget) titleTarget.textContent = title;
+  if (copyTarget) copyTarget.textContent = copy;
+  communityChatComposeContext?.classList.remove("is-hidden");
+}
+
+async function loadCommunityChatMessages() {
+  if (!supabaseClient || communityChatLoading) return;
+  communityChatLoading = true;
+  renderCommunityChatMessages();
+  const { data, error } = await supabaseClient
+    .from("community_chat_messages")
+    .select("id,room,author_id,parent_id,body,status,created_at,updated_at,author:profiles!community_chat_messages_author_id_fkey(username,avatar_id,avatar_url)")
+    .eq("room", activeCommunityCity)
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  communityChatLoading = false;
+  if (error) {
+    if (communityChatStatus) communityChatStatus.textContent = error.code === "42P01" ? "Sohbet veritabanı henüz kurulmadı." : "Mesajlar yüklenemedi.";
+    renderCommunityChatMessages();
+    return;
+  }
+  communityChatMessages = [
+    ...communityChatMessages.filter((message) => message.room !== activeCommunityCity),
+    ...(Array.isArray(data) ? data.reverse() : [])
+  ];
+  communityChatLoaded = true;
+  if (communityChatStatus) communityChatStatus.textContent = "";
+  renderCommunityChatMessages({ scroll: true });
+}
+
+function subscribeCommunityChatRealtime() {
+  if (!supabaseClient || communityChatRealtimeChannel) return;
+  communityChatRealtimeChannel = supabaseClient
+    .channel("community-chat-messages-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "community_chat_messages" }, (payload) => {
+      const room = payload.new?.room || payload.old?.room;
+      if (room === activeCommunityCity) void loadCommunityChatMessages();
+    })
+    .subscribe();
 }
 
 function syncDashboardViewHeader() {
@@ -8195,6 +8846,11 @@ function avatarClass(avatar) {
 
 function applyAvatarElement(element, avatar, user, options = {}) {
   if (!element) return;
+  const requestedPreset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
+  if (avatar?.type !== "custom" && requestedPreset?.id !== "hr-default") {
+    setDefaultProfileAvatar(element);
+    return;
+  }
   element.classList.remove("brand-fallback-avatar");
   element.classList.remove(...[...element.classList].filter((name) => name.startsWith("avatar-visual--")));
   element.classList.add("reward-avatar");
@@ -8234,6 +8890,9 @@ function setDefaultProfileAvatar(element) {
 
 function avatarMarkup(avatar, user, size = "") {
   const preset = Rewards?.AVATARS.find((item) => avatar?.type !== "custom" && item.id === avatar?.id);
+  if (avatar?.type !== "custom" && preset?.id !== "hr-default") {
+    return `<span class="reward-avatar brand-fallback-avatar ${size}" aria-hidden="true">${defaultProfileAvatarMarkup()}</span>`;
+  }
   if (avatar?.type !== "custom" && !preset) {
     return `<span class="reward-avatar brand-fallback-avatar ${size}" aria-hidden="true">${defaultProfileAvatarMarkup()}</span>`;
   }
@@ -8351,6 +9010,8 @@ function normalizeSupabaseProfile(authUser, profile = {}) {
     username,
     email: authUser.email || profile.email || "",
     role: profile.role || "user",
+    avatar_id: profile.avatar_id || null,
+    avatar_url: profile.avatar_url || null,
     garageVisibility: profile.garage_visibility || "public",
     profileVisibility: profile.profile_visibility || "public",
     bio: profile.bio || "",
@@ -8369,7 +9030,7 @@ async function ensureSupabaseProfile(authUser) {
   if (!supabaseClient || !authUser) return null;
   const { data: profile, error } = await supabaseClient
     .from("profiles")
-    .select("id, username, role, garage_visibility, profile_visibility, bio, location, favorite_tags, showcase_vehicle_keys, created_at")
+    .select("id, username, role, avatar_id, avatar_url, garage_visibility, profile_visibility, bio, location, favorite_tags, showcase_vehicle_keys, created_at")
     .eq("id", authUser.id)
     .maybeSingle();
 
@@ -8388,7 +9049,7 @@ async function ensureSupabaseProfile(authUser) {
       email: authUser.email,
       username: username || null
     })
-    .select("id, username, role, garage_visibility, profile_visibility, bio, location, favorite_tags, showcase_vehicle_keys, created_at")
+    .select("id, username, role, avatar_id, avatar_url, garage_visibility, profile_visibility, bio, location, favorite_tags, showcase_vehicle_keys, created_at")
     .single();
 
   if (insertError) {
@@ -8901,12 +9562,32 @@ async function updateGarageVisibility(isPublic) {
 }
 
 async function syncPublicAvatar(avatar) {
-  if (!supabaseClient || !currentUser || avatar?.type === "custom" || !avatar?.id) return false;
-  const { error } = await supabaseClient.rpc("set_public_avatar", { p_avatar_id: avatar.id });
+  if (!supabaseClient || !currentUser || !avatar) return false;
+  let avatarId = avatar.id || "hr-default";
+  let avatarUrl = null;
+  if (avatar.type === "custom") {
+    const avatarBlob = await fetch(avatar.dataUrl).then((response) => response.blob());
+    const storagePath = `${currentUser.id}/${crypto.randomUUID()}.webp`;
+    const { error: uploadError } = await supabaseClient.storage
+      .from(PROFILE_AVATAR_BUCKET)
+      .upload(storagePath, avatarBlob, { contentType: "image/webp", cacheControl: "31536000" });
+    if (uploadError) throw uploadError;
+    const { data: publicUrlData } = supabaseClient.storage.from(PROFILE_AVATAR_BUCKET).getPublicUrl(storagePath);
+    avatarId = "custom";
+    avatarUrl = publicUrlData?.publicUrl || null;
+    if (!avatarUrl) throw new Error("Profil fotoğrafı bağlantısı oluşturulamadı.");
+  }
+  const { error } = await supabaseClient.rpc("set_public_avatar", {
+    p_avatar_id: avatarId,
+    p_avatar_url: avatarUrl
+  });
   if (error) {
     if (!["42883", "PGRST202"].includes(error.code)) console.warn("Açık profil avatarı kaydedilemedi:", error.message);
-    return false;
+    throw error;
   }
+  currentUser.avatar_id = avatarId;
+  currentUser.avatar_url = avatarUrl;
+  saveCurrentUser(currentUser);
   return true;
 }
 
@@ -8946,7 +9627,7 @@ function renderAvatarOptions(activeAvatar) {
   if (!Rewards) return;
   const previousScroll = avatarOptions.scrollLeft;
   avatarOptions.innerHTML = "";
-  Rewards.AVATARS.forEach((avatar) => {
+  Rewards.AVATARS.filter((avatar) => avatar.id === "hr-default").forEach((avatar) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "avatar-option";
@@ -10406,7 +11087,8 @@ function renderProfileDashboard() {
   if (profileDashboardAvatar) {
     if (user && Rewards) {
       const publicAvatarId = user.avatar_id || user.avatarId;
-      if (isPublic && !publicAvatarId) setDefaultProfileAvatar(profileDashboardAvatar);
+      if (isPublic && user.avatar_url) applyAvatarElement(profileDashboardAvatar, { type: "custom", dataUrl: user.avatar_url }, user);
+      else if (isPublic && !publicAvatarId) setDefaultProfileAvatar(profileDashboardAvatar);
       else applyAvatarElement(profileDashboardAvatar, isPublic ? { type: "preset", id: publicAvatarId } : Rewards.getAvatar(user), user);
     } else {
       setDefaultProfileAvatar(profileDashboardAvatar);
@@ -12179,6 +12861,29 @@ function readImageFile(file, callback) {
   reader.readAsDataURL(file);
 }
 
+async function prepareProfileAvatarDataUrl(file) {
+  const bitmap = await createImageBitmap(file);
+  const outputSize = 512;
+  const sourceSize = Math.min(bitmap.width, bitmap.height);
+  const sourceX = Math.max(0, (bitmap.width - sourceSize) / 2);
+  const sourceY = Math.max(0, (bitmap.height - sourceSize) / 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) {
+    bitmap.close();
+    throw new Error("Profil fotoğrafı işlenemedi.");
+  }
+  context.fillStyle = "#0a0d11";
+  context.fillRect(0, 0, outputSize, outputSize);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(bitmap, sourceX, sourceY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
+  bitmap.close();
+  return canvas.toDataURL("image/webp", .84);
+}
+
 function selectedAdminCar() {
   return ALL_CATALOG.find((car) => car.id === adminCatalogSelect.value);
 }
@@ -13152,8 +13857,42 @@ communityForumCategories.forEach((card) => {
   });
 });
 
+communityForumSortButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeCommunityForumSort = button.dataset.forumSort || "new";
+    communityForumSortButtons.forEach((item) => {
+      const active = item === button;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    renderCommunityForumTopics();
+  });
+});
+
+communityForumLiveNotice?.addEventListener("click", async () => {
+  communityForumPendingUpdates = 0;
+  renderCommunityForumLiveNotice();
+  await loadCommunityForumTopics();
+});
+
 communityForumTopicsList?.addEventListener("click", (event) => {
   if (event.target.closest("[data-forum-first-topic]")) requestCommunityTopicCreate();
+  const topicCard = event.target.closest("[data-forum-topic]");
+  if (topicCard) void openCommunityForumDetail(topicCard.dataset.forumTopic);
+});
+communityForumTopicsList?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const topicCard = event.target.closest("[data-forum-topic]");
+  if (!topicCard) return;
+  event.preventDefault();
+  void openCommunityForumDetail(topicCard.dataset.forumTopic);
+});
+
+communityPopularTopics?.addEventListener("click", (event) => {
+  const topicButton = event.target.closest("[data-popular-forum-topic]");
+  if (!topicButton) return;
+  selectCommunitySection("communityForum", { scroll: false });
+  void openCommunityForumDetail(topicButton.dataset.popularForumTopic);
 });
 
 communityTopicClose?.addEventListener("click", closeCommunityTopicModal);
@@ -13167,6 +13906,296 @@ communityTopicTitle?.addEventListener("input", () => {
 communityTopicBody?.addEventListener("input", () => {
   if (communityTopicBodyCount) communityTopicBodyCount.textContent = String(communityTopicBody.value.length);
 });
+communityTopicMedia?.addEventListener("change", () => selectForumMediaFiles("topic", communityTopicMedia.files));
+communityForumReplyMedia?.addEventListener("change", () => selectForumMediaFiles("reply", communityForumReplyMedia.files));
+communityTopicMediaPreview?.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-forum-media-preview]");
+  if (!item || !event.target.closest("[data-forum-media-remove]")) return;
+  communityTopicMediaFiles.splice(Number(item.dataset.forumMediaPreview), 1);
+  renderForumMediaPreview("topic");
+});
+communityForumReplyMediaPreview?.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-forum-media-preview]");
+  if (!item || !event.target.closest("[data-forum-media-remove]")) return;
+  communityReplyMediaFiles.splice(Number(item.dataset.forumMediaPreview), 1);
+  renderForumMediaPreview("reply");
+});
+document.addEventListener("click", (event) => {
+  const mediaButton = event.target.closest("[data-forum-media-url]");
+  if (!mediaButton || !communityForumMediaLightbox || !communityForumMediaLightboxImage) return;
+  communityForumMediaLightboxImage.src = mediaButton.dataset.forumMediaUrl;
+  communityForumMediaLightboxImage.alt = mediaButton.getAttribute("aria-label") || "Forum görseli";
+  communityForumMediaLightbox.classList.add("is-open");
+  communityForumMediaLightbox.setAttribute("aria-hidden", "false");
+});
+const closeCommunityForumMediaLightbox = () => {
+  communityForumMediaLightbox?.classList.remove("is-open");
+  communityForumMediaLightbox?.setAttribute("aria-hidden", "true");
+  if (communityForumMediaLightboxImage) communityForumMediaLightboxImage.src = "";
+};
+communityForumMediaLightboxClose?.addEventListener("click", closeCommunityForumMediaLightbox);
+communityForumMediaLightbox?.addEventListener("click", (event) => {
+  if (event.target === communityForumMediaLightbox) closeCommunityForumMediaLightbox();
+});
+communityForumDetailClose?.addEventListener("click", closeCommunityForumDetail);
+communityForumDetailCloseIcon?.addEventListener("click", closeCommunityForumDetail);
+communityForumDetailModal?.addEventListener("click", (event) => {
+  if (event.target === communityForumDetailModal) closeCommunityForumDetail();
+});
+communityForumReportClose?.addEventListener("click", closeCommunityForumReport);
+communityForumReportCancel?.addEventListener("click", closeCommunityForumReport);
+communityForumReportModal?.addEventListener("click", (event) => {
+  if (event.target === communityForumReportModal) closeCommunityForumReport();
+});
+communityForumReportForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentUser || !supabaseClient || !activeCommunityForumReportTarget) return;
+  const reason = communityForumReportForm.querySelector('input[name="forumReportReason"]:checked')?.value || "other";
+  const details = communityForumReportDetails?.value.trim() || "";
+  if (details.length > 0 && details.length < 3) {
+    communityForumReportStatus.textContent = "Açıklama yazacaksan en az 3 karakter kullan.";
+    communityForumReportDetails?.focus();
+    return;
+  }
+  communityForumReportSubmit.disabled = true;
+  communityForumReportSubmit.textContent = "Gönderiliyor...";
+  communityForumReportStatus.textContent = "";
+  const target = activeCommunityForumReportTarget;
+  const { error } = await supabaseClient.from("community_forum_reports").insert({
+    reporter_id: currentUser.id,
+    topic_id: target.type === "topic" ? target.id : null,
+    reply_id: target.type === "reply" ? target.id : null,
+    reason,
+    details: details || null
+  });
+  communityForumReportSubmit.disabled = false;
+  communityForumReportSubmit.textContent = "Bildirimi gönder";
+  if (error) {
+    communityForumReportStatus.textContent = error.code === "23505"
+      ? "Bu içeriği daha önce bildirdin."
+      : "Bildirim gönderilemedi. Tekrar dene.";
+    return;
+  }
+  closeCommunityForumReport();
+  showToast("Bildirim moderasyon ekibine iletildi.");
+});
+communityForumDetailTopic?.addEventListener("click", async (event) => {
+  const actionButton = event.target.closest("[data-forum-topic-action]");
+  if (!actionButton || !activeCommunityForumTopic || !supabaseClient || !currentUser) return;
+  const action = actionButton.dataset.forumTopicAction;
+  const topic = activeCommunityForumTopic;
+  const ownsTopic = topic.author_id === currentUser.id;
+  if (action === "report") {
+    openCommunityForumReport("topic", topic.id);
+    return;
+  }
+  if (!ownsTopic && !isAdminUser()) return;
+  if (action === "edit") {
+    closeCommunityForumDetail();
+    openCommunityTopicModal(topic.category, topic);
+    return;
+  }
+  if (action === "delete" && !window.confirm("Bu konuyu silmek istediğine emin misin?")) return;
+  const updates = action === "delete"
+    ? { status: "deleted" }
+    : action === "solve"
+      ? { is_solved: !topic.is_solved }
+      : action === "pin" && isAdminUser()
+        ? { is_pinned: !topic.is_pinned }
+        : action === "lock" && isAdminUser()
+          ? { status: topic.status === "locked" ? "published" : "locked" }
+          : null;
+  if (!updates) return;
+  actionButton.disabled = true;
+  const { data, error } = await supabaseClient
+    .from("community_forum_topics")
+    .update(updates)
+    .eq("id", topic.id)
+    .select("status,is_pinned,is_solved,updated_at")
+    .single();
+  actionButton.disabled = false;
+  if (error) {
+    showToast("Konu güncellenemedi. Tekrar dene.");
+    return;
+  }
+  if (action === "delete") {
+    if (ownsTopic && (topic.media || []).length) {
+      await cleanupForumMedia(topic.media.map((item) => item.storage_path), { topicId: topic.id });
+    }
+    communityForumTopics = communityForumTopics.filter((item) => item.id !== topic.id);
+    closeCommunityForumDetail();
+    renderCommunityForumTopics();
+    showToast("Konu silindi.");
+    return;
+  }
+  Object.assign(topic, data);
+  renderCommunityForumDetailTopic(topic);
+  renderCommunityForumTopics();
+  if (communityForumReplyBody) {
+    communityForumReplyBody.disabled = topic.status === "locked" || !currentUser;
+    communityForumReplyBody.placeholder = topic.status === "locked"
+      ? "Bu konu yeni yanıtlara kapatıldı"
+      : "Konuya yanıtını yaz...";
+  }
+  if (communityForumReplySubmit) communityForumReplySubmit.disabled = topic.status === "locked" || !currentUser;
+  showToast(action === "solve" ? (topic.is_solved ? "Konu çözüldü olarak işaretlendi." : "Çözüldü işareti kaldırıldı.") : "Konu durumu güncellendi.");
+});
+communityForumRepliesList?.addEventListener("click", (event) => {
+  const reportButton = event.target.closest("[data-forum-reply-report]");
+  if (reportButton) {
+    openCommunityForumReport("reply", reportButton.dataset.forumReplyReport);
+    return;
+  }
+  const editButton = event.target.closest("[data-forum-reply-edit]");
+  if (editButton) {
+    const reply = activeCommunityForumReplies.find((item) => item.id === editButton.dataset.forumReplyEdit);
+    if (!reply || !currentUser || (reply.author_id !== currentUser.id && !isAdminUser())) return;
+    editingCommunityForumReplyId = reply.id;
+    activeCommunityForumReplyParent = null;
+    clearForumMediaFiles("reply");
+    if (communityForumReplyBody) communityForumReplyBody.value = reply.body || "";
+    communityForumReplyForm?.querySelector(".community-forum-reply-media")?.classList.add("is-hidden");
+    communityForumReplyContext?.classList.remove("is-hidden");
+    const contextLabel = communityForumReplyContext?.querySelector("span");
+    if (contextLabel) contextLabel.textContent = "Yanıtını düzenliyorsun";
+    if (communityForumReplySubmit) communityForumReplySubmit.textContent = "Kaydet";
+    communityForumReplyBody?.focus();
+    return;
+  }
+  const deleteButton = event.target.closest("[data-forum-reply-delete]");
+  if (deleteButton) {
+    const reply = activeCommunityForumReplies.find((item) => item.id === deleteButton.dataset.forumReplyDelete);
+    if (!reply || !currentUser || !supabaseClient || (reply.author_id !== currentUser.id && !isAdminUser())) return;
+    if (!window.confirm("Bu yanıtı silmek istediğine emin misin?")) return;
+    deleteButton.disabled = true;
+    void supabaseClient
+      .from("community_forum_replies")
+      .update({ status: "deleted" })
+      .eq("id", reply.id)
+      .select("status")
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          deleteButton.disabled = false;
+          showToast("Yanıt silinemedi. Tekrar dene.");
+          return;
+        }
+        if (reply.author_id === currentUser.id && (reply.media || []).length) {
+          void cleanupForumMedia(reply.media.map((item) => item.storage_path), { replyId: reply.id });
+        }
+        reply.status = data.status;
+        renderCommunityForumReplies();
+        renderCommunityForumDetailTopic(activeCommunityForumTopic);
+        showToast("Yanıt silindi.");
+      });
+    return;
+  }
+  const replyButton = event.target.closest("[data-forum-reply-to]");
+  if (!replyButton) return;
+  if (!currentUser) {
+    closeCommunityForumDetail();
+    openAuthModal("login", "Forum yanıtlarına cevap vermek için giriş yapmalısın.");
+    return;
+  }
+  editingCommunityForumReplyId = null;
+  communityForumReplyForm?.querySelector(".community-forum-reply-media")?.classList.remove("is-hidden");
+  if (communityForumReplySubmit) communityForumReplySubmit.textContent = "Yanıtla";
+  activeCommunityForumReplyParent = replyButton.dataset.forumReplyTo;
+  communityForumReplyContext?.classList.remove("is-hidden");
+  const contextLabel = communityForumReplyContext?.querySelector("span");
+  if (contextLabel) contextLabel.textContent = `@${replyButton.dataset.forumReplyUser} kullanıcısına yanıt veriyorsun`;
+  communityForumReplyBody?.focus();
+});
+communityForumReplyCancel?.addEventListener("click", () => {
+  resetCommunityForumReplyComposer();
+});
+communityForumReplyForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentUser) {
+    closeCommunityForumDetail();
+    openAuthModal("login", "Foruma yanıt yazmak için giriş yapmalısın.");
+    return;
+  }
+  const body = communityForumReplyBody?.value.trim() || "";
+  const files = [...communityReplyMediaFiles];
+  if (activeCommunityForumTopic?.status === "locked") {
+    communityForumReplyStatus.textContent = "Bu konu yeni yanıtlara kapatıldı.";
+    return;
+  }
+  if (body.length < 2) {
+    communityForumReplyStatus.textContent = "Yanıt en az 2 karakter olmalı.";
+    communityForumReplyBody?.focus();
+    return;
+  }
+  if (editingCommunityForumReplyId) {
+    if (!supabaseClient) return;
+    communityForumReplySubmit.disabled = true;
+    communityForumReplySubmit.textContent = "Kaydediliyor...";
+    const reply = activeCommunityForumReplies.find((item) => item.id === editingCommunityForumReplyId);
+    const { data, error } = await supabaseClient
+      .from("community_forum_replies")
+      .update({ body })
+      .eq("id", editingCommunityForumReplyId)
+      .select("body,updated_at")
+      .single();
+    communityForumReplySubmit.disabled = false;
+    if (error || !reply) {
+      communityForumReplySubmit.textContent = "Kaydet";
+      communityForumReplyStatus.textContent = "Yanıt güncellenemedi. Tekrar dene.";
+      return;
+    }
+    Object.assign(reply, data);
+    resetCommunityForumReplyComposer();
+    renderCommunityForumReplies();
+    showToast("Yanıt güncellendi.");
+    return;
+  }
+  if (files.length > 3 || files.some((file) => file.size > 10 * 1024 * 1024)) {
+    communityForumReplyStatus.textContent = "En fazla 3 görsel ekleyebilir ve her görseli 10 MB altında tutabilirsin.";
+    return;
+  }
+  if (!supabaseClient || !activeCommunityForumTopic) return;
+  communityForumReplyStatus.textContent = "";
+  communityForumReplySubmit.disabled = true;
+  communityForumReplySubmit.textContent = "Gönderiliyor...";
+  const { data, error } = await supabaseClient
+    .from("community_forum_replies")
+    .insert({
+      topic_id: activeCommunityForumTopic.id,
+      author_id: currentUser.id,
+      parent_id: activeCommunityForumReplyParent,
+      body
+    })
+    .select("id,topic_id,author_id,parent_id,body,status,created_at")
+    .single();
+  if (error) {
+    communityForumReplySubmit.disabled = false;
+    communityForumReplySubmit.textContent = "Yanıtla";
+    communityForumReplyStatus.textContent = "Yanıt gönderilemedi. Tekrar dene.";
+    return;
+  }
+  if (files.length) {
+    const uploadResult = await uploadForumMedia({ files, replyId: data.id });
+    if (uploadResult.error) {
+      await cleanupForumMedia(uploadResult.uploadedPaths, { replyId: data.id });
+      await supabaseClient.from("community_forum_replies").update({ status: "deleted" }).eq("id", data.id);
+      communityForumReplySubmit.disabled = false;
+      communityForumReplySubmit.textContent = "Yanıtla";
+      communityForumReplyStatus.textContent = "Görseller yüklenemedi. Yarım kalan yanıt temizlendi; tekrar deneyebilirsin.";
+      return;
+    }
+  }
+  communityForumReplySubmit.disabled = false;
+  communityForumReplySubmit.textContent = "Yanıtla";
+  communityForumReplyBody.value = "";
+  clearForumMediaFiles("reply");
+  activeCommunityForumTopic.reply_count = Number(activeCommunityForumTopic.reply_count || 0) + 1;
+  activeCommunityForumTopic.last_reply_at = data.created_at;
+  activeCommunityForumReplyParent = null;
+  communityForumReplyContext?.classList.add("is-hidden");
+  await loadCommunityForumReplies(activeCommunityForumTopic.id);
+  renderCommunityForumTopics();
+});
 communityTopicForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser) {
@@ -13177,6 +14206,7 @@ communityTopicForm?.addEventListener("submit", async (event) => {
   const category = communityTopicForm.querySelector('input[name="forumCategory"]:checked')?.value || "general";
   const title = communityTopicTitle?.value.trim() || "";
   const body = communityTopicBody?.value.trim() || "";
+  const files = [...communityTopicMediaFiles];
   if (title.length < 8) {
     communityTopicError.textContent = "Konu başlığı en az 8 karakter olmalı.";
     communityTopicTitle?.focus();
@@ -13191,39 +14221,98 @@ communityTopicForm?.addEventListener("submit", async (event) => {
     communityTopicError.textContent = "Forum veritabanı bağlantısı bulunamadı.";
     return;
   }
+  if (editingCommunityForumTopicId) {
+    communityTopicError.textContent = "";
+    communityTopicSubmit.disabled = true;
+    communityTopicSubmit.textContent = "Kaydediliyor...";
+    const { data, error } = await supabaseClient
+      .from("community_forum_topics")
+      .update({ category, title, body })
+      .eq("id", editingCommunityForumTopicId)
+      .select("id,category,title,body,updated_at")
+      .single();
+    communityTopicSubmit.disabled = false;
+    if (error) {
+      communityTopicSubmit.textContent = "Değişiklikleri kaydet";
+      communityTopicError.textContent = "Konu güncellenemedi. Tekrar dene.";
+      return;
+    }
+    const topic = communityForumTopics.find((item) => item.id === data.id);
+    if (topic) Object.assign(topic, data);
+    communityTopicForm.reset();
+    closeCommunityTopicModal();
+    showToast(isAdminUser() ? "Konu güncellendi veya yeni kategoriye taşındı." : "Konu güncellendi.");
+    renderCommunityForumTopics();
+    if (topic) void openCommunityForumDetail(topic.id);
+    return;
+  }
+  if (files.length > 6 || files.some((file) => file.size > 10 * 1024 * 1024)) {
+    communityTopicError.textContent = "En fazla 6 görsel ekleyebilir ve her görseli 10 MB altında tutabilirsin.";
+    return;
+  }
   communityTopicError.textContent = "";
   communityTopicSubmit.disabled = true;
   communityTopicSubmit.textContent = "Yayımlanıyor...";
   const { data, error } = await supabaseClient
     .from("community_forum_topics")
-    .insert({ author_id: currentUser.id, category, title, body, status: "published" })
-    .select("id,author_id,category,title,body,reply_count,view_count,published_at,created_at")
+    .insert({ author_id: currentUser.id, category, title, body, status: "draft" })
+    .select("id,author_id,category,title,body,status,is_pinned,is_solved,reply_count,view_count,last_reply_at,published_at,created_at")
     .single();
-  communityTopicSubmit.disabled = false;
-  communityTopicSubmit.textContent = "Konuyu yayımla";
   if (error) {
+    communityTopicSubmit.disabled = false;
+    communityTopicSubmit.textContent = "Konuyu yayımla";
     communityTopicError.textContent = error.code === "42P01"
       ? "Forum veritabanı henüz kurulmadı."
       : "Konu yayımlanamadı. Bilgileri kontrol edip tekrar dene.";
     return;
   }
-  communityForumTopics.unshift({
-    ...data,
-    author: {
-      username: currentUser.username || "Topluluk üyesi",
-      avatar_id: currentUser.avatar_id || currentUser.avatarId || null
+  if (files.length) {
+    const uploadResult = await uploadForumMedia({ files, topicId: data.id });
+    if (uploadResult.error) {
+      await cleanupForumMedia(uploadResult.uploadedPaths, { topicId: data.id });
+      await supabaseClient.from("community_forum_topics").update({ status: "deleted" }).eq("id", data.id);
+      communityTopicSubmit.disabled = false;
+      communityTopicSubmit.textContent = "Konuyu yayımla";
+      communityTopicError.textContent = "Görseller yüklenemedi. Yarım kalan konu temizlendi; tekrar deneyebilirsin.";
+      return;
     }
-  });
-  communityForumTopicsLoaded = true;
-  renderCommunityForumTopics();
+  }
+  const { error: publishError } = await supabaseClient
+    .from("community_forum_topics")
+    .update({ status: "published" })
+    .eq("id", data.id)
+    .eq("author_id", currentUser.id);
+  communityTopicSubmit.disabled = false;
+  communityTopicSubmit.textContent = "Konuyu yayımla";
+  if (publishError) {
+    const paths = (await supabaseClient.from("community_forum_media").select("storage_path").eq("topic_id", data.id)).data?.map((item) => item.storage_path) || [];
+    await cleanupForumMedia(paths, { topicId: data.id });
+    await supabaseClient.from("community_forum_topics").update({ status: "deleted" }).eq("id", data.id);
+    communityTopicError.textContent = "Konu yayınlanamadı. Yarım kalan kayıt temizlendi.";
+    return;
+  }
   communityTopicForm.reset();
+  clearForumMediaFiles("topic");
   if (communityTopicTitleCount) communityTopicTitleCount.textContent = "0";
   if (communityTopicBodyCount) communityTopicBodyCount.textContent = "0";
   closeCommunityTopicModal();
   showToast("Forum konusu yayımlandı.");
+  await loadCommunityForumTopics();
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && communityForumMediaLightbox?.classList.contains("is-open")) {
+    closeCommunityForumMediaLightbox();
+    return;
+  }
+  if (event.key === "Escape" && communityForumReportModal?.classList.contains("is-open")) {
+    closeCommunityForumReport();
+    return;
+  }
+  if (event.key === "Escape" && communityForumDetailModal?.classList.contains("is-open")) {
+    closeCommunityForumDetail();
+    return;
+  }
   if (event.key === "Escape" && communityTopicModal?.classList.contains("is-open")) {
     closeCommunityTopicModal();
     return;
@@ -13235,8 +14324,67 @@ document.addEventListener("keydown", (event) => {
 });
 
 communityChatAuth?.addEventListener("click", () => openAuthModal("login", "Topluluk sohbetine katılmak için giriş yapmalısın."));
+communityChatComposeCancel?.addEventListener("click", resetCommunityChatComposer);
+communityChatFeed?.addEventListener("click", async (event) => {
+  const article = event.target.closest("[data-chat-message]");
+  if (!article) return;
+  const message = communityChatMessages.find((item) => item.id === article.dataset.chatMessage);
+  if (!message) return;
+  const parentTarget = event.target.closest("[data-chat-scroll-parent]");
+  if (parentTarget) {
+    const parentArticle = communityChatFeed.querySelector(`[data-chat-message="${CSS.escape(parentTarget.dataset.chatScrollParent)}"]`);
+    parentArticle?.scrollIntoView({ behavior: "smooth", block: "center" });
+    parentArticle?.classList.add("is-highlighted");
+    window.setTimeout(() => parentArticle?.classList.remove("is-highlighted"), 1200);
+    return;
+  }
+  const replyButton = event.target.closest("[data-chat-reply]");
+  if (replyButton) {
+    if (!currentUser) {
+      openAuthModal("login", "Mesajlara yanıt vermek için giriş yapmalısın.");
+      return;
+    }
+    editingCommunityChatMessageId = null;
+    activeCommunityChatReplyParent = message.id;
+    showCommunityChatComposeContext(`@${replyButton.dataset.chatReplyUser} kullanıcısına yanıt`, message.body);
+    const submit = communityChatForm?.querySelector('button[type="submit"]');
+    setCommunityChatSubmitLabel(submit, "Yanıtla");
+    communityChatInput?.focus();
+    return;
+  }
+  const editButton = event.target.closest("[data-chat-edit]");
+  if (editButton) {
+    if (!currentUser || message.author_id !== currentUser.id) return;
+    activeCommunityChatReplyParent = null;
+    editingCommunityChatMessageId = message.id;
+    if (communityChatInput) communityChatInput.value = message.body;
+    showCommunityChatComposeContext("Mesajını düzenliyorsun", message.body);
+    const submit = communityChatForm?.querySelector('button[type="submit"]');
+    setCommunityChatSubmitLabel(submit, "Kaydet");
+    communityChatInput?.focus();
+    return;
+  }
+  const deleteButton = event.target.closest("[data-chat-delete]");
+  if (!deleteButton || !currentUser || message.author_id !== currentUser.id || !supabaseClient) return;
+  if (!window.confirm("Bu mesajı silmek istediğine emin misin?")) return;
+  deleteButton.disabled = true;
+  const { error } = await supabaseClient
+    .from("community_chat_messages")
+    .update({ status: "deleted" })
+    .eq("id", message.id)
+    .eq("author_id", currentUser.id);
+  if (error) {
+    deleteButton.disabled = false;
+    communityChatStatus.textContent = "Mesaj silinemedi. Tekrar dene.";
+    return;
+  }
+  communityChatMessages = communityChatMessages.filter((item) => item.id !== message.id);
+  if (editingCommunityChatMessageId === message.id || activeCommunityChatReplyParent === message.id) resetCommunityChatComposer();
+  renderCommunityChatMessages();
+  showToast("Mesaj silindi.");
+});
 
-communityChatForm?.addEventListener("submit", (event) => {
+communityChatForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser) {
     openAuthModal("login", "Mesaj göndermek için giriş yapmalısın.");
@@ -13244,8 +14392,61 @@ communityChatForm?.addEventListener("submit", (event) => {
   }
   const message = communityChatInput?.value.trim();
   if (!message) return;
-  appendCommunityChatMessage(message);
-  communityChatInput.value = "";
+  if (message.length > 500) {
+    communityChatStatus.textContent = "Mesaj en fazla 500 karakter olabilir.";
+    return;
+  }
+  const submit = communityChatForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  setCommunityChatSubmitLabel(submit, "Gönderiliyor...");
+  if (!supabaseClient) {
+    appendCommunityChatMessage(message);
+    communityChatInput.value = "";
+    submit.disabled = false;
+    setCommunityChatSubmitLabel(submit, "Gönder");
+    return;
+  }
+  if (editingCommunityChatMessageId) {
+    const editingMessage = communityChatMessages.find((item) => item.id === editingCommunityChatMessageId);
+    if (!editingMessage || editingMessage.author_id !== currentUser.id) {
+      resetCommunityChatComposer();
+      return;
+    }
+    const { data, error } = await supabaseClient
+      .from("community_chat_messages")
+      .update({ body: message })
+      .eq("id", editingMessage.id)
+      .eq("author_id", currentUser.id)
+      .select("body,updated_at")
+      .single();
+    submit.disabled = false;
+    setCommunityChatSubmitLabel(submit, "Kaydet");
+    if (error) {
+      communityChatStatus.textContent = "Mesaj güncellenemedi. Tekrar dene.";
+      return;
+    }
+    Object.assign(editingMessage, data);
+    resetCommunityChatComposer();
+    renderCommunityChatMessages();
+    showToast("Mesaj güncellendi.");
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from("community_chat_messages")
+    .insert({ room: activeCommunityCity, author_id: currentUser.id, parent_id: activeCommunityChatReplyParent, body: message })
+    .select("id,room,author_id,parent_id,body,status,created_at,updated_at")
+    .single();
+  submit.disabled = false;
+  setCommunityChatSubmitLabel(submit, "Gönder");
+  if (error) {
+    communityChatStatus.textContent = "Mesaj gönderilemedi. Tekrar dene.";
+    return;
+  }
+  const replyParent = activeCommunityChatReplyParent;
+  resetCommunityChatComposer();
+  communityChatStatus.textContent = "";
+  communityChatMessages.push({ ...data, parent_id: data.parent_id || replyParent, author: { username: currentUser.username, avatar_id: currentUser.avatarId || currentUser.avatar_id || null, avatar_url: currentUser.avatar_url || null } });
+  renderCommunityChatMessages({ scroll: true });
 });
 
 communityUserSearchForm?.addEventListener("submit", (event) => {
@@ -13351,7 +14552,7 @@ profileGarageVisibility?.addEventListener("change", () => {
 });
 saveProfileAvatar.addEventListener("click", async () => {
   if (!currentUser || !pendingProfileAvatar) {
-    setProfileAvatarSaveStatus("Önce bir arma veya logo seçmelisin.", "danger");
+    setProfileAvatarSaveStatus("Önce varsayılan profili veya bir fotoğraf seçmelisin.", "danger");
     return;
   }
   const isCustomLogo = pendingProfileAvatar.type === "custom";
@@ -13359,51 +14560,56 @@ saveProfileAvatar.addEventListener("click", async () => {
   saveProfileAvatar.disabled = true;
   saveProfileAvatar.classList.add("is-loading");
   saveProfileAvatar.textContent = "Kaydediliyor…";
-  setProfileAvatarSaveStatus("Logo kaydediliyor…", "info");
+  setProfileAvatarSaveStatus("Profil fotoğrafı kaydediliyor…", "info");
   try {
-    Rewards?.setAvatar(currentUser, pendingProfileAvatar);
     await syncPublicAvatar(pendingProfileAvatar);
+    Rewards?.setAvatar(currentUser, pendingProfileAvatar);
     if (profileAvatarUpload) profileAvatarUpload.value = "";
     if (profileAvatarUploadName) profileAvatarUploadName.textContent = "PNG, JPG veya WEBP · En fazla 2 MB";
     updateUserButton();
     renderProfileRewards();
     renderLeaderboard();
     renderRewardCenter();
-    setProfileAvatarSaveStatus(isCustomLogo ? "✓ Kendi logon başarıyla kaydedildi." : "✓ Seçtiğin arma kaydedildi.", "success");
-    showToast("Profil logon kaydedildi.");
+    setProfileAvatarSaveStatus(isCustomLogo ? "✓ Profil fotoğrafın başarıyla kaydedildi." : "✓ Varsayılan profil fotoğrafı kaydedildi.", "success");
+    showToast("Profil fotoğrafın kaydedildi.");
   } catch (error) {
     console.warn("Profil logosu kaydedilemedi:", error);
-    setProfileAvatarSaveStatus("! Logo kaydedilemedi. Tekrar deneyebilirsin.", "danger");
+    setProfileAvatarSaveStatus("! Profil fotoğrafı kaydedilemedi. Tekrar deneyebilirsin.", "danger");
   } finally {
     saveProfileAvatar.disabled = false;
     saveProfileAvatar.classList.remove("is-loading");
     saveProfileAvatar.textContent = defaultButtonText;
   }
 });
-profileAvatarUpload.addEventListener("change", (event) => {
+profileAvatarUpload.addEventListener("change", async (event) => {
   if (!currentUser) return;
   const file = event.currentTarget.files[0];
   if (!file) return;
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
     event.currentTarget.value = "";
     setProfileAvatarSaveStatus("! Desteklenmeyen dosya formatı.", "danger");
-    showToast("Logo PNG, JPG veya WEBP formatında olmalı.");
+    showToast("Profil fotoğrafı PNG, JPG veya WEBP formatında olmalı.");
     return;
   }
   if (file.size > 2 * 1024 * 1024) {
     event.currentTarget.value = "";
     setProfileAvatarSaveStatus("! Dosya boyutu 2 MB sınırını aşıyor.", "danger");
-    showToast("Logo dosyası en fazla 2 MB olabilir.");
+    showToast("Profil fotoğrafı en fazla 2 MB olabilir.");
     return;
   }
   if (profileAvatarUploadName) profileAvatarUploadName.textContent = `${file.name} · ${(file.size / 1024).toFixed(0)} KB`;
-  setProfileAvatarSaveStatus("Logo seçildi. Kaydetmeye hazır.", "info");
-  readImageFile(file, (imageData) => {
-    if (!imageData) return;
+  setProfileAvatarSaveStatus("Profil fotoğrafı hazırlanıyor…", "info");
+  try {
+    const imageData = await prepareProfileAvatarDataUrl(file);
     pendingProfileAvatar = { type: "custom", dataUrl: imageData };
     renderProfileRewards();
-    showToast("Logo önizlemeye hazır. Kaydetmeyi unutma.");
-  });
+    setProfileAvatarSaveStatus("Profil fotoğrafı seçildi. Kaydetmeye hazır.", "info");
+    showToast("Profil fotoğrafı önizlemeye hazır. Kaydetmeyi unutma.");
+  } catch (error) {
+    console.warn("Profil fotoğrafı hazırlanamadı:", error);
+    event.currentTarget.value = "";
+    setProfileAvatarSaveStatus("! Profil fotoğrafı işlenemedi. Başka bir görsel deneyebilirsin.", "danger");
+  }
 });
 document.querySelector("#closePublicProfileModal").addEventListener("click", closePublicProfileModal);
 publicProfileModal.addEventListener("click", (event) => {
