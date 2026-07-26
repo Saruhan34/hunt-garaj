@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=106" />
+  <link rel="stylesheet" href="./community.css?v=112" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1152,39 +1152,41 @@
                   <span>KOLEKSİYONER AĞI</span>
                   <h3 id="communityHuntersCoverTitle">Aynı tutkuyu paylaşan avcıları bul</h3>
                   <p>Kullanıcı adına göre topluluktaki koleksiyonerleri ve açık garajları keşfet.</p>
-                  <strong class="community-section-count" id="communityHunterCount">Kullanıcı dizini</strong>
+                  <div class="community-hunters-cover__signals" aria-label="Avcılar özellikleri">
+                    <strong class="community-section-count" id="communityHunterCount">Avcı dizini</strong>
+                    <span>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12.5l3 3 7-7"/><circle cx="12" cy="12" r="9"/></svg>
+                      Açık profiller
+                    </span>
+                    <span>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-6h12l2 6"/><path d="M3 15h18v4H3zM7 19v2m10-2v2"/></svg>
+                      Garaj keşfi
+                    </span>
+                  </div>
                 </div>
               </section>
-              <form class="community-hunter-search__form" id="communityUserSearchForm">
-                <label for="communityUserSearchInput">Kullanıcı adı</label>
-                <div>
-                  <span class="brand-fallback-avatar" aria-hidden="true"><img src="./assets/default-profile-avatar-hr-v2.svg" alt="" /></span>
-                  <input id="communityUserSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="ör. saruhancakmak" />
-                  <button class="button button--primary" type="submit">Ara</button>
-                </div>
-              </form>
-              <p class="community-hunter-search__status" id="communityUserSearchStatus">Aramak için en az 2 karakter yaz.</p>
-              <div class="community-hunter-results" id="communityUserSearchResults"></div>
-            </section>
 
-            <section class="community-surface community-spotlight" id="communitySpotlight" data-community-panel="hunters">
-              <div class="community-section-heading">
-                <div>
-                  <p class="eyebrow">Keşif Akışı</p>
-                  <h3>Öne çıkan koleksiyonerler</h3>
-                  <p>Aktif garajlar, açık profiller ve güçlü radar sinyalleri.</p>
-                </div>
-                <span class="community-section-count" id="communitySpotlightCount">Hazırlanıyor</span>
-              </div>
-              <div class="community-spotlight-grid" id="communitySpotlightGrid">
-                <article class="community-spotlight-card">
-                  <span class="community-spotlight-card__avatar brand-fallback-avatar"><img src="./assets/default-profile-avatar-hr-v2.svg" alt="" /></span>
+              <div class="community-hunter-search__workspace">
+                <form class="community-hunter-search__form" id="communityUserSearchForm">
+                  <label for="communityUserSearchInput">
+                    <span>AVCI BUL</span>
+                    <strong>Kullanıcı adıyla ara</strong>
+                  </label>
                   <div>
-                    <strong>Profil keşfi hazır</strong>
-                    <p>Arama yaptığında güçlü koleksiyonerler burada daha şık kartlarla görünecek.</p>
+                    <span class="community-hunter-search__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+                    </span>
+                    <input id="communityUserSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="@kullanıcı adı" aria-describedby="communityUserSearchStatus" />
+                    <button class="button button--primary" type="submit">
+                      <span>Ara</span>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+                    </button>
                   </div>
-                </article>
+                </form>
+                <p class="community-hunter-search__status" id="communityUserSearchStatus">Aramak için en az 2 karakter yaz.</p>
+                <div class="community-hunter-results" id="communityUserSearchResults"></div>
               </div>
+
             </section>
 
             <div class="community-discussion-grid">
@@ -2894,7 +2896,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=12"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./app.js?v=273"></script>
+  <script src="./app.js?v=275"></script>
   </body>
 </html>
 
