@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=112" />
+  <link rel="stylesheet" href="./community.css?v=122" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1152,40 +1152,77 @@
                   <span>KOLEKSİYONER AĞI</span>
                   <h3 id="communityHuntersCoverTitle">Aynı tutkuyu paylaşan avcıları bul</h3>
                   <p>Kullanıcı adına göre topluluktaki koleksiyonerleri ve açık garajları keşfet.</p>
-                  <div class="community-hunters-cover__signals" aria-label="Avcılar özellikleri">
-                    <strong class="community-section-count" id="communityHunterCount">Avcı dizini</strong>
-                    <span>
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12.5l3 3 7-7"/><circle cx="12" cy="12" r="9"/></svg>
-                      Açık profiller
-                    </span>
-                    <span>
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-6h12l2 6"/><path d="M3 15h18v4H3zM7 19v2m10-2v2"/></svg>
-                      Garaj keşfi
-                    </span>
-                  </div>
+                  <form class="community-hunter-search__form" id="communityUserSearchForm" role="search">
+                    <label for="communityUserSearchInput">Kullanıcı adıyla ara</label>
+                    <div>
+                      <span class="community-hunter-search__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+                      </span>
+                      <input id="communityUserSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="@kullanıcı adı" aria-label="Kullanıcı adıyla avcı ara" aria-describedby="communityUserSearchStatus" />
+                      <button class="button button--primary" type="submit">
+                        <span>Ara</span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </section>
 
-              <div class="community-hunter-search__workspace">
-                <form class="community-hunter-search__form" id="communityUserSearchForm">
-                  <label for="communityUserSearchInput">
-                    <span>AVCI BUL</span>
-                    <strong>Kullanıcı adıyla ara</strong>
-                  </label>
+              <nav class="community-hunter-sections" role="tablist" aria-label="Avcılar bölümleri">
+                <button class="is-active" type="button" role="tab" data-hunter-section="discover" aria-selected="true" aria-controls="communityHunterDiscoverPanel">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4M11 7.5v7M7.5 11h7"/></svg>
+                  <span>Avcıları Keşfet</span>
+                </button>
+                <button type="button" role="tab" data-hunter-section="requests" aria-selected="false" aria-controls="communityFriendRequestsPanel">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19M17 8v6m-3-3h6"/></svg>
+                  <span>Arkadaşlık İstekleri</span>
+                  <strong class="community-hunter-sections__badge is-hidden" id="communityFriendRequestBadge" aria-label="Bekleyen arkadaşlık isteği sayısı">0</strong>
+                </button>
+                <button type="button" role="tab" data-hunter-section="friends" aria-selected="false" aria-controls="communityFriendListPanel">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 19v-1a4.5 4.5 0 0 1 4.5-4.5h2A4.5 4.5 0 0 1 13.5 18v1M13 14h2a4.5 4.5 0 0 1 4.5 4.5V19"/></svg>
+                  <span>Arkadaşlarım</span>
+                </button>
+              </nav>
+
+              <div class="community-hunter-search__workspace" id="communityHunterDiscoverPanel" role="tabpanel" data-hunter-section-panel="discover">
+                <header class="community-hunter-results__heading">
                   <div>
-                    <span class="community-hunter-search__icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-                    </span>
-                    <input id="communityUserSearchInput" type="search" minlength="2" maxlength="40" autocomplete="off" placeholder="@kullanıcı adı" aria-describedby="communityUserSearchStatus" />
-                    <button class="button button--primary" type="submit">
-                      <span>Ara</span>
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
-                    </button>
+                    <span>AVCI DİZİNİ</span>
+                    <h4>Koleksiyonerler</h4>
                   </div>
-                </form>
-                <p class="community-hunter-search__status" id="communityUserSearchStatus">Aramak için en az 2 karakter yaz.</p>
+                  <div class="community-hunter-results__summary">
+                    <strong class="community-section-count" id="communityHunterCount">Hazır</strong>
+                    <p class="community-hunter-search__status" id="communityUserSearchStatus" aria-live="polite">Aramak için en az 2 karakter yaz.</p>
+                  </div>
+                </header>
                 <div class="community-hunter-results" id="communityUserSearchResults"></div>
               </div>
+
+              <section class="community-hunter-network" id="communityFriendRequestsPanel" role="tabpanel" data-hunter-section-panel="requests" hidden>
+                <header class="community-hunter-network__heading">
+                  <div>
+                    <span>BEKLEYEN BAĞLANTILAR</span>
+                    <h4>Arkadaşlık istekleri</h4>
+                    <p>Gelen istekleri buradan kalıcı olarak yönet.</p>
+                  </div>
+                  <strong class="community-section-count" id="communityFriendRequestCount">0 istek</strong>
+                </header>
+                <p class="community-hunter-network__status" id="communityFriendRequestStatus" aria-live="polite"></p>
+                <div class="community-friend-request-list" id="communityFriendRequestList"></div>
+              </section>
+
+              <section class="community-hunter-network" id="communityFriendListPanel" role="tabpanel" data-hunter-section-panel="friends" hidden>
+                <header class="community-hunter-network__heading">
+                  <div>
+                    <span>GARAJ ÇEVREN</span>
+                    <h4>Arkadaşlarım</h4>
+                    <p>Kabul ettiğin koleksiyonerler ve açık garajları.</p>
+                  </div>
+                  <strong class="community-section-count" id="communityFriendListCount">0 arkadaş</strong>
+                </header>
+                <p class="community-hunter-network__status" id="communityFriendListStatus" aria-live="polite"></p>
+                <div class="community-friend-grid" id="communityFriendList"></div>
+              </section>
 
             </section>
 
@@ -2896,7 +2933,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=12"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./app.js?v=275"></script>
+  <script src="./app.js?v=283"></script>
   </body>
 </html>
 

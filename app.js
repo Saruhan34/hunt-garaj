@@ -645,6 +645,18 @@ let currentFollowSummaryUserId = "";
 const followSummaryCache = new Map();
 let collectorSearchTimer = 0;
 let communityUserSearchTimer = 0;
+let communityUserSearchRequestId = 0;
+let activeCommunityHunterSection = "discover";
+let communityFriendRequests = [];
+let communityFriendListProfiles = [];
+let communityFriendNetworkLoading = false;
+let communityFriendNetworkLoaded = false;
+let communityFriendNetworkViewerId = "";
+const COMMUNITY_HUNTER_RECENT_KEY = "hunt-radar-community-hunter-recent-v1";
+const COMMUNITY_HUNTER_FAVORITES_KEY = "hunt-radar-community-hunter-favorites-v1";
+let communityHunterSearchPanelMode = "recent";
+let communityHunterRecentSearches = loadCommunityHunterStoredNames(COMMUNITY_HUNTER_RECENT_KEY);
+let communityHunterFavoriteUsernames = new Set(loadCommunityHunterStoredNames(COMMUNITY_HUNTER_FAVORITES_KEY));
 let lastCollectorSearchProfiles = [];
 let lastCommunityUserProfiles = [];
 let featuredCommunityProfiles = [];
@@ -774,6 +786,18 @@ const communityUserSearchInput = document.querySelector("#communityUserSearchInp
 const communityUserSearchStatus = document.querySelector("#communityUserSearchStatus");
 const communityUserSearchResults = document.querySelector("#communityUserSearchResults");
 const communityHunterCount = document.querySelector("#communityHunterCount");
+const communityHunterSearchPanel = document.querySelector("#communityHunterSearchPanel");
+const communityHunterSearchPanelList = document.querySelector("#communityHunterSearchPanelList");
+const communityHunterSearchTabs = document.querySelectorAll("[data-hunter-search-tab]");
+const communityHunterSectionTabs = document.querySelectorAll("[data-hunter-section]");
+const communityHunterSectionPanels = document.querySelectorAll("[data-hunter-section-panel]");
+const communityFriendRequestBadge = document.querySelector("#communityFriendRequestBadge");
+const communityFriendRequestCount = document.querySelector("#communityFriendRequestCount");
+const communityFriendRequestStatus = document.querySelector("#communityFriendRequestStatus");
+const communityFriendRequestList = document.querySelector("#communityFriendRequestList");
+const communityFriendListCount = document.querySelector("#communityFriendListCount");
+const communityFriendListStatus = document.querySelector("#communityFriendListStatus");
+const communityFriendList = document.querySelector("#communityFriendList");
 const communitySpotlightCount = document.querySelector("#communitySpotlightCount");
 const communitySpotlightGrid = document.querySelector("#communitySpotlightGrid");
 const communityFeedList = document.querySelector("#communityFeedList");
@@ -2889,10 +2913,7 @@ function selectCommunitySection(targetId, options = {}) {
   if (nextTargetId === "communityFeed" && (leavingSavedArchive || !communityFeedLoaded)) void loadCommunityFeed({ reset: true });
   if (nextTargetId === "communityForum" && !communityForumTopicsLoaded) void loadCommunityForumTopics();
   if (nextTargetId === "communityChat" && communityChatIsNearBottom()) markCommunityChatRoomRead();
-  if (
-    nextTargetId === "communityHunters"
-    && (!communitySpotlightLoaded || communitySpotlightViewerId !== (currentUser?.id || ""))
-  ) void loadCommunitySpotlight();
+  if (nextTargetId === "communityHunters") void loadCommunityHunterDirectory();
   if (options.scroll !== false) {
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -2953,10 +2974,7 @@ function syncCommunityHub() {
   if (!isSignedIn) clearCommunityChatTypingUsers();
   syncCommunityAvatarElements();
   if (communityModule?.dataset.communityActive === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
-  if (
-    communityModule?.dataset.communityActive === "communityHunters"
-    && (!communitySpotlightLoaded || communitySpotlightViewerId !== (currentUser?.id || ""))
-  ) void loadCommunitySpotlight();
+  if (communityModule?.dataset.communityActive === "communityHunters") void loadCommunityHunterDirectory();
   if (!communityForumTopicsLoaded) void loadCommunityForumTopics();
 }
 
@@ -2966,6 +2984,9 @@ function refreshCommunityFeedForAuthChange() {
   communityFeedPosts = [];
   communityFeedCursor = null;
   communityFeedHasMore = true;
+  communityFriendNetworkLoaded = false;
+  communityFriendNetworkViewerId = "";
+  void loadCommunityFriendNetwork({ force: true, silent: true });
   if (communityModule?.dataset.communityActive === "communityFeed") void loadCommunityFeed({ reset: true });
 }
 
@@ -7836,10 +7857,20 @@ function profileId(user = {}) {
 
 function normalizeFollowSummary(source = {}) {
   const follow = source.follow || source.follow_summary || {};
+  const rawFollowing = Boolean(source.is_following ?? source.isFollowing ?? follow.is_following ?? follow.isFollowing);
+  const friendshipState = String(
+    source.friendship_state
+      ?? source.friendshipState
+      ?? follow.friendship_state
+      ?? follow.friendshipState
+      ?? (rawFollowing ? "friends" : "none")
+  );
   return {
     followers: Math.max(0, Number(source.follower_count ?? source.followerCount ?? follow.followers ?? follow.follower_count ?? 0)),
     following: Math.max(0, Number(source.following_count ?? source.followingCount ?? follow.following ?? follow.following_count ?? 0)),
-    isFollowing: Boolean(source.is_following ?? source.isFollowing ?? follow.is_following ?? follow.isFollowing)
+    isFollowing: rawFollowing || friendshipState === "friends",
+    friendshipState,
+    requestId: source.request_id ?? source.requestId ?? follow.request_id ?? follow.requestId ?? ""
   };
 }
 
@@ -7850,9 +7881,13 @@ function mergeFollowSummary(user = {}, summary = {}) {
     follower_count: normalized.followers,
     following_count: normalized.following,
     is_following: normalized.isFollowing,
+    friendship_state: normalized.friendshipState,
+    request_id: normalized.requestId || null,
     followerCount: normalized.followers,
     followingCount: normalized.following,
-    isFollowing: normalized.isFollowing
+    isFollowing: normalized.isFollowing,
+    friendshipState: normalized.friendshipState,
+    requestId: normalized.requestId
   };
 }
 
@@ -7889,16 +7924,21 @@ function setFollowButtonState(button, user = {}, options = {}) {
   const summary = normalizeFollowSummary(user);
   const isOwn = isOwnProfileUser(user);
   button.disabled = Boolean(options.loading || isOwn);
-  button.classList.toggle("is-following", summary.isFollowing && !isOwn);
+  button.classList.toggle("is-following", summary.friendshipState === "friends" && !isOwn);
+  button.classList.toggle("is-pending", summary.friendshipState === "outgoing_pending" && !isOwn);
+  button.classList.toggle("is-incoming", summary.friendshipState === "incoming_pending" && !isOwn);
   button.classList.toggle("is-loading", Boolean(options.loading));
-  button.setAttribute("aria-pressed", String(summary.isFollowing && !isOwn));
+  button.dataset.friendshipState = isOwn ? "self" : summary.friendshipState;
+  button.setAttribute("aria-pressed", String(summary.friendshipState === "friends" && !isOwn));
   button.textContent = options.loading
     ? "Kaydediliyor..."
     : isOwn
       ? "Kendi Profilin"
-      : summary.isFollowing
-        ? "Arkadaşsınız"
-        : "Arkadaş Ekle";
+      : {
+          friends: "Arkadaşsınız",
+          outgoing_pending: "İstek Gönderildi",
+          incoming_pending: "İsteği Yanıtla"
+        }[summary.friendshipState] || "Arkadaş Ekle";
 }
 
 function updateCachedProfileFollow(user = {}) {
@@ -7914,7 +7954,7 @@ function updateCachedProfileFollow(user = {}) {
   featuredCommunityProfiles = featuredCommunityProfiles.map(replaceProfile);
   if (lastCollectorSearchProfiles.length) renderCollectorSearchResults(lastCollectorSearchProfiles);
   if (lastCommunityUserProfiles.length) renderCommunityUserResults(lastCommunityUserProfiles);
-  else if (featuredCommunityProfiles.length) renderCommunitySpotlight(featuredCommunityProfiles);
+  else if (featuredCommunityProfiles.length) renderCommunityUserResults(featuredCommunityProfiles);
 }
 
 function updateProfileFollowViews(user = {}) {
@@ -8114,7 +8154,10 @@ async function toggleFollowForUser(user = {}) {
   }
   if (isOwnProfileUser(user)) return;
   const currentSummary = normalizeFollowSummary(user);
-  const nextFollowing = !currentSummary.isFollowing;
+  if (currentSummary.friendshipState === "incoming_pending") {
+    selectCommunityHunterSection("requests");
+    return;
+  }
   setFollowButtonState(publicProfileFollow, mergeFollowSummary(user, currentSummary), { loading: true });
   setFollowButtonState(publicGarageFollow, mergeFollowSummary(user, currentSummary), { loading: true });
   if (isPublicProfileRoute() && publicGarageProfile && profileId(publicGarageProfile) === id) {
@@ -8122,22 +8165,28 @@ async function toggleFollowForUser(user = {}) {
     if (profileDashboardEdit) profileDashboardEdit.disabled = true;
   }
   if (!supabaseClient) {
+    const nextState = currentSummary.friendshipState === "outgoing_pending" ? "none" : "outgoing_pending";
     const local = mergeFollowSummary(user, {
       ...currentSummary,
-      followers: currentSummary.followers + (nextFollowing ? 1 : -1),
-      isFollowing: nextFollowing
+      friendship_state: nextState,
+      is_following: false,
+      request_id: nextState === "outgoing_pending" ? `local-${id}` : null
     });
     currentPublicProfile = profileId(currentPublicProfile) === id ? local : currentPublicProfile;
     publicGarageProfile = profileId(publicGarageProfile) === id ? local : publicGarageProfile;
     updateProfileFollowViews(local);
     renderProfileDashboard();
-    showToast(nextFollowing ? "Arkadaş eklendi." : "Arkadaşlıktan çıkarıldı.");
+    showToast(nextState === "outgoing_pending" ? "Arkadaşlık isteği gönderildi." : "Arkadaşlık isteği iptal edildi.");
     return;
   }
-  const { data, error } = await supabaseClient.rpc("set_profile_follow", {
-    p_target_user_id: id,
-    p_following: nextFollowing
-  });
+  const rpcName = {
+    friends: "remove_friend",
+    outgoing_pending: "cancel_friend_request"
+  }[currentSummary.friendshipState] || "request_friendship";
+  const rpcArgs = rpcName === "cancel_friend_request"
+    ? { p_request_id: currentSummary.requestId }
+    : { p_target_user_id: id };
+  const { data, error } = await supabaseClient.rpc(rpcName, rpcArgs);
   if (error) {
     console.warn("Arkadaşlık işlemi kaydedilemedi:", error.message);
     showToast("Arkadaşlık işlemi kaydedilemedi.");
@@ -8152,7 +8201,14 @@ async function toggleFollowForUser(user = {}) {
   if (publicGarageProfile && profileId(publicGarageProfile) === id) publicGarageProfile = mergeFollowSummary(publicGarageProfile, summary);
   updateProfileFollowViews(merged);
   renderProfileDashboard();
-  showToast(summary.isFollowing ? "Arkadaş eklendi." : "Arkadaşlıktan çıkarıldı.");
+  showToast({
+    friends: "Artık arkadaşsınız.",
+    outgoing_pending: "Arkadaşlık isteği gönderildi.",
+    none: currentSummary.friendshipState === "friends"
+      ? "Arkadaşlıktan çıkarıldı."
+      : "Arkadaşlık isteği iptal edildi."
+  }[summary.friendshipState] || "Arkadaşlık durumu güncellendi.");
+  void loadCommunityFriendNetwork({ force: true, silent: true });
 }
 
 async function publicProfileByUsername(username) {
@@ -8306,7 +8362,7 @@ async function findPublicProfiles(query = "", limit = 12) {
     if (fallback.profiles.length || fallback.available) return fallback;
     return { profiles: [], status: "Kullanıcı araması şu anda kullanılamıyor.", error };
   }
-  const profiles = await attachPublicProfileAvatars(data || []);
+  const profiles = await attachFriendshipStates(await attachPublicProfileAvatars(data || []));
   return { profiles, status: profiles.length ? `${profiles.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı." };
 }
 
@@ -8324,6 +8380,41 @@ async function attachPublicProfileAvatars(profiles = []) {
   }
   const avatarById = new Map((data || []).map((profile) => [profile.id, profile]));
   return profiles.map((profile) => ({ ...profile, ...(avatarById.get(profile.id) || {}) }));
+}
+
+async function attachFriendshipStates(profiles = []) {
+  if (!profiles.length) return profiles;
+  if (!supabaseClient || !currentUser) {
+    return profiles.map((profile) => ({
+      ...profile,
+      friendship_state: isOwnProfileUser(profile)
+        ? "self"
+        : normalizeFollowSummary(profile).friendshipState,
+      request_id: normalizeFollowSummary(profile).requestId || null
+    }));
+  }
+  const profileIds = [...new Set(profiles.map((profile) => profileId(profile)).filter(Boolean))];
+  if (!profileIds.length) return profiles;
+  const { data, error } = await supabaseClient.rpc("get_friendship_states", {
+    p_target_user_ids: profileIds
+  });
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) {
+      console.warn("Arkadaşlık durumları yüklenemedi:", error.message);
+    }
+    return profiles;
+  }
+  const statesById = new Map((data || []).map((row) => [row.target_user_id, row]));
+  return profiles.map((profile) => {
+    const relation = statesById.get(profileId(profile));
+    if (!relation) return profile;
+    return mergeFollowSummary(profile, {
+      ...profile,
+      friendship_state: relation.friendship_state,
+      request_id: relation.request_id,
+      is_following: relation.friendship_state === "friends"
+    });
+  });
 }
 
 async function findPublicProfilesFallback(term = "", limit = 12) {
@@ -8486,7 +8577,7 @@ async function loadCommunitySpotlight({ force = false } = {}) {
     } else {
       const { data, error } = await supabaseClient.rpc("get_featured_collectors", { p_limit: 4 });
       if (error) throw error;
-      featuredCommunityProfiles = await attachPublicProfileAvatars(data || []);
+      featuredCommunityProfiles = await attachFriendshipStates(await attachPublicProfileAvatars(data || []));
     }
     communitySpotlightLoaded = true;
     communitySpotlightViewerId = viewerId;
@@ -8514,53 +8605,606 @@ async function searchCollectorProfiles(query = collectorSearchInput?.value || ""
   if (result.authRequired) openAuthModal("login", "Koleksiyoner garajlarını görmek için giriş yapmalısın.");
 }
 
+function loadCommunityHunterStoredNames(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((value) => profileSearchTerm(value))
+      .filter(Boolean)
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+function saveCommunityHunterStoredNames(key, names = []) {
+  try {
+    localStorage.setItem(key, JSON.stringify(names.slice(0, 12)));
+  } catch {
+    // Yerel depolama kullanılamıyorsa arama çalışmaya devam eder.
+  }
+}
+
+function communityHunterFavoriteName(username = "") {
+  const target = normalize(profileSearchTerm(username));
+  return [...communityHunterFavoriteUsernames].find((name) => normalize(name) === target) || "";
+}
+
+function isCommunityHunterFavorite(username = "") {
+  return Boolean(communityHunterFavoriteName(username));
+}
+
+function rememberCommunityHunterSearch(username = "") {
+  const value = profileSearchTerm(username);
+  if (!value) return;
+  communityHunterRecentSearches = [
+    value,
+    ...communityHunterRecentSearches.filter((name) => normalize(name) !== normalize(value))
+  ].slice(0, 8);
+  saveCommunityHunterStoredNames(COMMUNITY_HUNTER_RECENT_KEY, communityHunterRecentSearches);
+  if (communityHunterSearchPanel?.classList.contains("is-open")) renderCommunityHunterSearchPanel();
+}
+
+function setCommunityHunterSearchPanelOpen(open) {
+  if (!communityHunterSearchPanel) return;
+  communityHunterSearchPanel.classList.toggle("is-open", Boolean(open));
+  communityHunterSearchPanel.setAttribute("aria-hidden", String(!open));
+  if (open) renderCommunityHunterSearchPanel();
+}
+
+function syncCommunityHunterFavoriteButtons() {
+  document.querySelectorAll("[data-community-favorite], [data-hunter-search-favorite]").forEach((button) => {
+    const username = button.dataset.communityFavorite || button.dataset.hunterSearchFavorite || "";
+    const isFavorite = isCommunityHunterFavorite(username);
+    button.classList.toggle("is-active", isFavorite);
+    button.setAttribute("aria-pressed", String(isFavorite));
+    button.setAttribute("aria-label", isFavorite ? `@${username} yıldızlılardan çıkar` : `@${username} yıldızlılara ekle`);
+  });
+}
+
+function toggleCommunityHunterFavorite(username = "") {
+  const value = profileSearchTerm(username);
+  if (!value) return;
+  const existing = communityHunterFavoriteName(value);
+  if (existing) communityHunterFavoriteUsernames.delete(existing);
+  else communityHunterFavoriteUsernames.add(value);
+  saveCommunityHunterStoredNames(COMMUNITY_HUNTER_FAVORITES_KEY, [...communityHunterFavoriteUsernames]);
+  syncCommunityHunterFavoriteButtons();
+  renderCommunityHunterSearchPanel();
+  showToast(existing ? `@${value} yıldızlılardan çıkarıldı.` : `@${value} yıldızlı avcılara eklendi.`);
+}
+
+function renderCommunityHunterSearchPanel() {
+  if (!communityHunterSearchPanelList) return;
+  const names = communityHunterSearchPanelMode === "favorites"
+    ? [...communityHunterFavoriteUsernames]
+    : communityHunterRecentSearches;
+  communityHunterSearchTabs.forEach((button) => {
+    const active = button.dataset.hunterSearchTab === communityHunterSearchPanelMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  if (!names.length) {
+    communityHunterSearchPanelList.innerHTML = `
+      <div class="community-hunter-search-panel__empty">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>
+        <span>${communityHunterSearchPanelMode === "favorites" ? "Henüz yıldızladığın bir avcı yok." : "Henüz bir avcı aramadın."}</span>
+      </div>
+    `;
+    return;
+  }
+  communityHunterSearchPanelList.innerHTML = names.map((username) => `
+    <div class="community-hunter-search-panel__item">
+      <button type="button" class="community-hunter-search-panel__target" data-hunter-search-pick="${escapeHtml(username)}">
+        <span aria-hidden="true">@</span>
+        <strong>${escapeHtml(username)}</strong>
+      </button>
+      <button type="button" class="community-hunter-search-panel__star${isCommunityHunterFavorite(username) ? " is-active" : ""}" data-hunter-search-favorite="${escapeHtml(username)}" aria-pressed="${String(isCommunityHunterFavorite(username))}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>
+      </button>
+      ${communityHunterSearchPanelMode === "recent" ? `
+        <button type="button" class="community-hunter-search-panel__remove" data-hunter-search-remove="${escapeHtml(username)}" aria-label="@${escapeHtml(username)} son aramalardan kaldır">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+        </button>
+      ` : ""}
+    </div>
+  `).join("");
+  communityHunterSearchPanelList.querySelectorAll("[data-hunter-search-pick]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const username = button.dataset.hunterSearchPick || "";
+      if (communityUserSearchInput) communityUserSearchInput.value = username;
+      rememberCommunityHunterSearch(username);
+      setCommunityHunterSearchPanelOpen(false);
+      void searchCommunityUserProfiles(username);
+    });
+  });
+  communityHunterSearchPanelList.querySelectorAll("[data-hunter-search-favorite]").forEach((button) => {
+    button.addEventListener("click", () => toggleCommunityHunterFavorite(button.dataset.hunterSearchFavorite || ""));
+  });
+  communityHunterSearchPanelList.querySelectorAll("[data-hunter-search-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const username = button.dataset.hunterSearchRemove || "";
+      communityHunterRecentSearches = communityHunterRecentSearches.filter((name) => normalize(name) !== normalize(username));
+      saveCommunityHunterStoredNames(COMMUNITY_HUNTER_RECENT_KEY, communityHunterRecentSearches);
+      renderCommunityHunterSearchPanel();
+    });
+  });
+  syncCommunityHunterFavoriteButtons();
+}
+
+function communityHunterSkeletonMarkup(count = 4) {
+  return Array.from({ length: count }, () => `
+    <article class="community-hunter-card community-hunter-card--skeleton" aria-hidden="true">
+      <span></span><div><i></i><i></i></div><div><i></i><i></i></div>
+    </article>
+  `).join("");
+}
+
 function renderCommunityUserResults(profiles = []) {
   if (!communityUserSearchResults) return;
   communityUserSearchResults.innerHTML = "";
-  if (communityHunterCount) communityHunterCount.textContent = profiles.length ? `${profiles.length} avcı` : "Kullanıcı dizini";
-  renderCommunitySpotlight(profiles.length ? profiles : featuredCommunityProfiles);
+  const hasSearchQuery = (communityUserSearchInput?.value || "").trim().length >= 2;
+  if (communityHunterCount) {
+    communityHunterCount.textContent = profiles.length ? `${profiles.length} avcı` : hasSearchQuery ? "Sonuç yok" : "Hazır";
+    communityHunterCount.dataset.state = profiles.length ? "success" : hasSearchQuery ? "empty" : "ready";
+  }
+  if (!profiles.length && hasSearchQuery) {
+    communityUserSearchResults.innerHTML = `
+      <section class="community-hunter-empty" role="status">
+        <span aria-hidden="true">
+          <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4M8 10.5h5"/></svg>
+        </span>
+        <div>
+          <strong>Eşleşen avcı bulunamadı</strong>
+          <p>Kullanıcı adını kontrol edip yeniden arayabilirsin.</p>
+        </div>
+      </section>
+    `;
+    return;
+  }
   profiles.forEach((profile) => {
     const meta = profileSearchMeta(profile);
+    const isOwnProfile = isOwnProfileUser(profile);
+    const isFavorite = isCommunityHunterFavorite(profile.username);
     const vehicleCount = Math.max(0, Number(profile.vehicle_count || 0));
-    const bestHunt = profile.highest_rarity ? collectorRarityLabel(profile.highest_rarity) : (meta.isPrivate ? "Gizli" : "Açık");
     const profileState = meta.isPrivate ? "Garaj gizli" : "Açık garaj";
+    const relationshipState = meta.summary.friendshipState;
+    const relationshipLabel = {
+      friends: "Arkadaşsınız",
+      outgoing_pending: "İstek Gönderildi",
+      incoming_pending: "İsteği Yanıtla"
+    }[relationshipState] || "Arkadaş Ekle";
+    const relationshipTitle = {
+      friends: "Arkadaşlıktan çıkar",
+      outgoing_pending: "İsteği iptal et",
+      incoming_pending: "Arkadaşlık isteğini yanıtla"
+    }[relationshipState] || "Arkadaşlık isteği gönder";
+    const relationshipIcon = relationshipState === "friends"
+      ? '<path d="m7 12.5 3.2 3.2L17 8.8"/>'
+      : relationshipState === "outgoing_pending"
+        ? '<path d="M7 12h10M12 7v10"/><circle cx="12" cy="12" r="8"/>'
+        : relationshipState === "incoming_pending"
+          ? '<path d="M8 12h8m-4-4 4 4-4 4"/><circle cx="12" cy="12" r="8"/>'
+          : '<path d="M12 7v10M7 12h10"/>';
     const card = document.createElement("article");
     card.className = "community-hunter-card";
     card.innerHTML = `
+      <button class="community-hunter-card__favorite${isFavorite ? " is-active" : ""}" type="button" data-community-favorite="${escapeHtml(profile.username)}" aria-pressed="${String(isFavorite)}" aria-label="@${escapeHtml(profile.username)} yıldızlı avcılara ekle">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>
+      </button>
       <div class="community-hunter-card__top">
-        <span class="community-hunter-card__avatar">${communityForumAuthorAvatar(profile, profile.username)}</span>
-        <div class="community-hunter-card__body">
-          <span>Koleksiyoner</span>
-          <strong>@${escapeHtml(profile.username)}</strong>
+        <div class="community-hunter-card__identity">
+          <div class="community-hunter-card__avatar-wrap">
+            <span class="community-hunter-card__avatar">${communityForumAuthorAvatar(profile, profile.username)}</span>
+            ${isOwnProfile ? '<span class="community-hunter-card__self-mark" aria-label="Kendi profilin">Sen</span>' : ""}
+          </div>
+          <div class="community-hunter-card__body">
+            <strong title="@${escapeHtml(profile.username)}">@${escapeHtml(profile.username)}</strong>
+            <span>Koleksiyoner</span>
+            <div class="community-hunter-card__relation">
+              <em class="community-hunter-card__status${meta.isPrivate ? " is-private" : ""}">${escapeHtml(profileState)}</em>
+              ${isOwnProfile ? "" : `
+                <button class="community-hunter-card__follow${relationshipState === "friends" ? " is-following" : ""}${relationshipState === "outgoing_pending" ? " is-pending" : ""}${relationshipState === "incoming_pending" ? " is-incoming" : ""}" type="button" data-community-follow="${escapeHtml(profile.username)}" data-friendship-state="${escapeHtml(relationshipState)}" aria-pressed="${String(relationshipState === "friends")}" aria-label="@${escapeHtml(profile.username)} ${escapeHtml(relationshipLabel)}" title="${escapeHtml(relationshipTitle)}">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">${relationshipIcon}</svg>
+                  <span>${escapeHtml(relationshipLabel)}</span>
+                </button>
+              `}
+            </div>
+          </div>
         </div>
-        <em class="community-hunter-card__status">${escapeHtml(profileState)}</em>
       </div>
-      <div class="community-hunter-card__stats">
-        <span><strong>${escapeHtml(vehicleCount.toLocaleString("tr-TR"))}</strong><small>araç</small></span>
-        <span><strong>${escapeHtml(meta.summary.followers.toLocaleString("tr-TR"))}</strong><small>arkadaş</small></span>
-        <span><strong>${escapeHtml(bestHunt)}</strong><small>en iyi av</small></span>
+      <div class="community-hunter-card__stats" aria-label="Koleksiyoner bilgileri">
+        <span>
+          <i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 15l2-6h12l2 6M3 15h18v4H3z"/><circle cx="7" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg></i>
+          <span><small>Araçlar</small><strong>${escapeHtml(vehicleCount.toLocaleString("tr-TR"))}</strong></span>
+        </span>
+        <span>
+          <i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19M16 11a3 3 0 1 0 0-6M15 14h1a4.5 4.5 0 0 1 4.5 4.5V19"/></svg></i>
+          <span><small>Arkadaşlar</small><strong>${escapeHtml(meta.summary.followers.toLocaleString("tr-TR"))}</strong></span>
+        </span>
       </div>
       <div class="community-hunter-card__actions">
-        <button type="button" data-community-profile="${escapeHtml(profile.username)}">Profili Aç</button>
-        <button class="community-hunter-card__follow follow-button${meta.summary.isFollowing ? " is-following" : ""}" type="button" data-community-follow="${escapeHtml(profile.username)}" ${isOwnProfileUser(profile) ? "disabled" : ""}>${escapeHtml(isOwnProfileUser(profile) ? "Kendi Profilin" : meta.summary.isFollowing ? "Arkadaşsınız" : "Arkadaş Ekle")}</button>
-        <button type="button" data-community-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>Garaj</button>
+        <button class="is-primary" type="button" data-community-profile="${escapeHtml(profile.username)}">
+          <span>Profili Aç</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+        </button>
+        <button type="button" data-community-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>
+          <span>Garaja Git</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-6h12l2 6M3 15h18v4H3zM7 19v2m10-2v2"/></svg>
+        </button>
       </div>
     `;
     card.querySelector("[data-community-profile]")?.addEventListener("click", () => navigateToPublicProfile(profile.username));
     card.querySelector("[data-community-follow]")?.addEventListener("click", () => void toggleFollowForUser(profile));
     card.querySelector("[data-community-garage]")?.addEventListener("click", () => navigateToPublicGarage(profile.username));
+    card.querySelector("[data-community-favorite]")?.addEventListener("click", () => toggleCommunityHunterFavorite(profile.username));
     communityUserSearchResults.appendChild(card);
   });
+  syncCommunityHunterFavoriteButtons();
+}
+
+function syncCommunityFriendRequestBadge(count = communityFriendRequests.length) {
+  if (!communityFriendRequestBadge) return;
+  const total = Math.max(0, Number(count || 0));
+  communityFriendRequestBadge.textContent = total > 99 ? "99+" : String(total);
+  communityFriendRequestBadge.classList.toggle("is-hidden", total === 0);
+  communityFriendRequestBadge.setAttribute(
+    "aria-label",
+    total ? `${total} bekleyen arkadaşlık isteği` : "Bekleyen arkadaşlık isteği yok"
+  );
+}
+
+function communityFriendEmptyMarkup(title, description, icon = "users") {
+  const iconMarkup = icon === "request"
+    ? '<circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19M17 8v6m-3-3h6"/>'
+    : '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 19v-1a4.5 4.5 0 0 1 4.5-4.5h2A4.5 4.5 0 0 1 13.5 18v1M13 14h2a4.5 4.5 0 0 1 4.5 4.5V19"/>';
+  return `
+    <section class="community-friend-empty" role="status">
+      <span aria-hidden="true"><svg viewBox="0 0 24 24">${iconMarkup}</svg></span>
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <p>${escapeHtml(description)}</p>
+      </div>
+    </section>
+  `;
+}
+
+function renderCommunityFriendRequests() {
+  if (!communityFriendRequestList) return;
+  const total = communityFriendRequests.length;
+  if (communityFriendRequestCount) communityFriendRequestCount.textContent = `${total} istek`;
+  syncCommunityFriendRequestBadge(total);
+  if (!total) {
+    communityFriendRequestList.innerHTML = communityFriendEmptyMarkup(
+      "Bekleyen isteğin yok",
+      "Yeni arkadaşlık istekleri geldiğinde burada görünecek.",
+      "request"
+    );
+    return;
+  }
+  communityFriendRequestList.innerHTML = communityFriendRequests.map((profile) => `
+    <article class="community-friend-request" data-friend-request-row="${escapeHtml(profile.request_id)}">
+      <button class="community-friend-request__identity" type="button" data-friend-request-profile="${escapeHtml(profile.username)}">
+        <span class="community-friend-request__avatar">${communityForumAuthorAvatar(profile, profile.username)}</span>
+        <span>
+          <strong>@${escapeHtml(profile.username)}</strong>
+          <small>${escapeHtml(Number(profile.vehicle_count || 0).toLocaleString("tr-TR"))} araç · ${escapeHtml(Number(profile.friend_count || 0).toLocaleString("tr-TR"))} arkadaş</small>
+        </span>
+      </button>
+      <div class="community-friend-request__actions">
+        <button class="is-secondary" type="button" data-friend-request-reject="${escapeHtml(profile.request_id)}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+          <span>Reddet</span>
+        </button>
+        <button class="is-primary" type="button" data-friend-request-accept="${escapeHtml(profile.request_id)}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 12.5 3.2 3.2L17.5 8"/></svg>
+          <span>Kabul Et</span>
+        </button>
+      </div>
+    </article>
+  `).join("");
+  communityFriendRequestList.querySelectorAll("[data-friend-request-profile]").forEach((button) => {
+    button.addEventListener("click", () => navigateToPublicProfile(button.dataset.friendRequestProfile));
+  });
+  communityFriendRequestList.querySelectorAll("[data-friend-request-accept]").forEach((button) => {
+    button.addEventListener("click", () => void respondToCommunityFriendRequest(button.dataset.friendRequestAccept, true, button));
+  });
+  communityFriendRequestList.querySelectorAll("[data-friend-request-reject]").forEach((button) => {
+    button.addEventListener("click", () => void respondToCommunityFriendRequest(button.dataset.friendRequestReject, false, button));
+  });
+}
+
+function renderCommunityFriendList() {
+  if (!communityFriendList) return;
+  const total = communityFriendListProfiles.length;
+  if (communityFriendListCount) communityFriendListCount.textContent = `${total} arkadaş`;
+  if (!total) {
+    communityFriendList.innerHTML = communityFriendEmptyMarkup(
+      "Henüz arkadaşın yok",
+      "Avcıları keşfet bölümünden koleksiyonerlerle bağlantı kurabilirsin."
+    );
+    return;
+  }
+  communityFriendList.innerHTML = communityFriendListProfiles.map((profile) => {
+    const garagePrivate = profile.garage_visibility === "private";
+    return `
+      <article class="community-friend-card">
+        <div class="community-friend-card__top">
+          <button class="community-friend-card__avatar" type="button" data-friend-profile="${escapeHtml(profile.username)}" aria-label="@${escapeHtml(profile.username)} profilini aç">
+            ${communityForumAuthorAvatar(profile, profile.username)}
+          </button>
+          <div class="community-friend-card__identity">
+            <strong>@${escapeHtml(profile.username)}</strong>
+            <span><i aria-hidden="true"></i> Arkadaşsınız</span>
+          </div>
+        </div>
+        <div class="community-friend-card__stats">
+          <span><strong>${escapeHtml(Number(profile.vehicle_count || 0).toLocaleString("tr-TR"))}</strong><small>Araç</small></span>
+          <span><strong>${escapeHtml(Number(profile.friend_count || 0).toLocaleString("tr-TR"))}</strong><small>Arkadaş</small></span>
+        </div>
+        <div class="community-friend-card__actions">
+          <button class="is-primary" type="button" data-friend-profile="${escapeHtml(profile.username)}">
+            <span>Profili Aç</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+          </button>
+          <button type="button" data-friend-garage="${escapeHtml(profile.username)}"${garagePrivate ? " disabled" : ""}>
+            <span>${garagePrivate ? "Garaj Gizli" : "Garaja Git"}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-6h12l2 6M3 15h18v4H3zM7 19v2m10-2v2"/></svg>
+          </button>
+        </div>
+      </article>
+    `;
+  }).join("");
+  communityFriendList.querySelectorAll("[data-friend-profile]").forEach((button) => {
+    button.addEventListener("click", () => navigateToPublicProfile(button.dataset.friendProfile));
+  });
+  communityFriendList.querySelectorAll("[data-friend-garage]").forEach((button) => {
+    button.addEventListener("click", () => navigateToPublicGarage(button.dataset.friendGarage));
+  });
+}
+
+async function loadCommunityFriendNetwork({ force = false, silent = false } = {}) {
+  if (!communityFriendRequestList || !communityFriendList) return;
+  const viewerId = currentUser?.id || "";
+  if (communityFriendNetworkLoading) return;
+  if (communityFriendNetworkLoaded && communityFriendNetworkViewerId === viewerId && !force) {
+    renderCommunityFriendRequests();
+    renderCommunityFriendList();
+    return;
+  }
+  if (!currentUser) {
+    communityFriendRequests = [];
+    communityFriendListProfiles = [];
+    communityFriendNetworkLoaded = true;
+    communityFriendNetworkViewerId = "";
+    renderCommunityFriendRequests();
+    renderCommunityFriendList();
+    if (!silent) {
+      if (communityFriendRequestStatus) communityFriendRequestStatus.textContent = "İsteklerini görmek için giriş yapmalısın.";
+      if (communityFriendListStatus) communityFriendListStatus.textContent = "Arkadaşlarını görmek için giriş yapmalısın.";
+    }
+    return;
+  }
+  communityFriendNetworkLoading = true;
+  if (!silent) {
+    if (communityFriendRequestStatus) communityFriendRequestStatus.textContent = "Arkadaşlık istekleri yükleniyor...";
+    if (communityFriendListStatus) communityFriendListStatus.textContent = "Arkadaşların yükleniyor...";
+  }
+  try {
+    if (!supabaseClient) {
+      communityFriendRequests = [];
+      communityFriendListProfiles = [];
+    } else {
+      const [requestsResult, friendsResult] = await Promise.all([
+        supabaseClient.rpc("get_friend_requests", { p_limit: 40 }),
+        supabaseClient.rpc("get_friend_list", { p_limit: 80 })
+      ]);
+      if (requestsResult.error) throw requestsResult.error;
+      if (friendsResult.error) throw friendsResult.error;
+      communityFriendRequests = await attachPublicProfileAvatars(requestsResult.data || []);
+      communityFriendListProfiles = await attachPublicProfileAvatars(friendsResult.data || []);
+    }
+    communityFriendNetworkLoaded = true;
+    communityFriendNetworkViewerId = viewerId;
+    renderCommunityFriendRequests();
+    renderCommunityFriendList();
+    if (communityFriendRequestStatus) communityFriendRequestStatus.textContent = communityFriendRequests.length
+      ? `${communityFriendRequests.length} arkadaşlık isteği seni bekliyor.`
+      : "";
+    if (communityFriendListStatus) communityFriendListStatus.textContent = communityFriendListProfiles.length
+      ? `${communityFriendListProfiles.length} koleksiyoner arkadaşın gösteriliyor.`
+      : "";
+  } catch (error) {
+    console.warn("Arkadaşlık ağı yüklenemedi:", error?.message || error);
+    if (communityFriendRequestStatus) communityFriendRequestStatus.textContent = "Arkadaşlık istekleri şu anda yüklenemiyor.";
+    if (communityFriendListStatus) communityFriendListStatus.textContent = "Arkadaşların şu anda yüklenemiyor.";
+  } finally {
+    communityFriendNetworkLoading = false;
+  }
+}
+
+async function respondToCommunityFriendRequest(requestId, accept, button) {
+  if (!requestId || !currentUser || !supabaseClient) return;
+  const row = button?.closest("[data-friend-request-row]");
+  row?.querySelectorAll("button").forEach((action) => { action.disabled = true; });
+  row?.setAttribute("aria-busy", "true");
+  const { error } = await supabaseClient.rpc("respond_friend_request", {
+    p_request_id: requestId,
+    p_accept: Boolean(accept)
+  });
+  if (error) {
+    console.warn("Arkadaşlık isteği yanıtlanamadı:", error.message);
+    row?.querySelectorAll("button").forEach((action) => { action.disabled = false; });
+    row?.removeAttribute("aria-busy");
+    showToast("Arkadaşlık isteği yanıtlanamadı.");
+    return;
+  }
+  showToast(accept ? "Arkadaşlık isteği kabul edildi." : "Arkadaşlık isteği reddedildi.");
+  communitySpotlightLoaded = false;
+  communitySpotlightViewerId = "";
+  await loadCommunityFriendNetwork({ force: true });
+}
+
+function selectCommunityHunterSection(section = "discover") {
+  const nextSection = ["discover", "requests", "friends"].includes(section) ? section : "discover";
+  activeCommunityHunterSection = nextSection;
+  communityHunterSectionTabs.forEach((button) => {
+    const active = button.dataset.hunterSection === nextSection;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+  communityHunterSectionPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.hunterSectionPanel !== nextSection;
+  });
+  if (nextSection === "discover") {
+    void loadCommunityHunterDirectory();
+    return;
+  }
+  void loadCommunityFriendNetwork();
+}
+
+async function loadCommunityHunterDirectory({ force = false } = {}) {
+  if (!communityUserSearchResults || !communityUserSearchStatus) return;
+  const viewerId = currentUser?.id || "";
+  if (
+    communitySpotlightLoading
+    || (communitySpotlightLoaded && communitySpotlightViewerId === viewerId && !force)
+  ) {
+    if ((communityUserSearchInput?.value || "").trim().length < 2 && featuredCommunityProfiles.length) {
+      lastCommunityUserProfiles = featuredCommunityProfiles;
+      renderCommunityUserResults(featuredCommunityProfiles);
+    }
+    return;
+  }
+  communitySpotlightLoading = true;
+  communityUserSearchResults.classList.add("is-loading");
+  communityUserSearchResults.innerHTML = communityHunterSkeletonMarkup(4);
+  communityUserSearchStatus.textContent = "Avcı dizini hazırlanıyor...";
+  if (communityHunterCount) {
+    communityHunterCount.textContent = "Yükleniyor";
+    communityHunterCount.dataset.state = "loading";
+  }
+  try {
+    if (!currentUser) {
+      featuredCommunityProfiles = [];
+      communitySpotlightLoaded = true;
+      communitySpotlightViewerId = "";
+      communityUserSearchResults.innerHTML = `
+        <section class="community-hunter-empty" role="status">
+          <div><strong>Avcı dizini için giriş yap</strong><p>Açık koleksiyoner profillerini keşfetmek için hesabına giriş yapmalısın.</p></div>
+        </section>
+      `;
+      communityUserSearchStatus.textContent = "Koleksiyonerleri görmek için giriş yapmalısın.";
+      if (communityHunterCount) {
+        communityHunterCount.textContent = "Giriş gerekli";
+        communityHunterCount.dataset.state = "empty";
+      }
+      return;
+    }
+    if (!supabaseClient) {
+      featuredCommunityProfiles = users
+        .filter((profile) => profile?.username)
+        .slice(0, 12)
+        .map((profile) => ({
+          ...profile,
+          garage_visibility: profile.garage_visibility || "public",
+          profile_visibility: profile.profile_visibility || "public",
+          vehicle_count: collectionItemsForUsername(profile.username).length
+        }));
+    } else {
+      const { data, error } = await supabaseClient.rpc("get_featured_collectors", { p_limit: 12 });
+      if (error) throw error;
+      featuredCommunityProfiles = await attachFriendshipStates(await attachPublicProfileAvatars(data || []));
+    }
+    lastCommunityUserProfiles = featuredCommunityProfiles;
+    communitySpotlightLoaded = true;
+    communitySpotlightViewerId = viewerId;
+    renderCommunityUserResults(featuredCommunityProfiles);
+    void loadCommunityFriendNetwork({ silent: true });
+    if (!featuredCommunityProfiles.length) {
+      communityUserSearchResults.innerHTML = `
+        <section class="community-hunter-empty" role="status">
+          <div><strong>Henüz açık bir avcı profili yok</strong><p>Açık garaj kullanan koleksiyonerler burada görünecek.</p></div>
+        </section>
+      `;
+    }
+    communityUserSearchStatus.textContent = featuredCommunityProfiles.length
+      ? `${featuredCommunityProfiles.length} açık koleksiyoner profili gösteriliyor.`
+      : "Gösterilebilecek açık profil bulunamadı.";
+  } catch (error) {
+    console.warn("Avcı dizini yüklenemedi:", error?.message || error);
+    featuredCommunityProfiles = [];
+    communitySpotlightViewerId = viewerId;
+    communityUserSearchResults.innerHTML = `
+      <section class="community-hunter-empty" role="status">
+        <div><strong>Avcı dizini yüklenemedi</strong><p>Bağlantını kontrol edip biraz sonra yeniden deneyebilirsin.</p></div>
+      </section>
+    `;
+    communityUserSearchStatus.textContent = "Avcı dizini şu anda kullanılamıyor.";
+    if (communityHunterCount) {
+      communityHunterCount.textContent = "Bağlantı hatası";
+      communityHunterCount.dataset.state = "error";
+    }
+  } finally {
+    communitySpotlightLoading = false;
+    communityUserSearchResults.classList.remove("is-loading");
+  }
 }
 
 async function searchCommunityUserProfiles(query = communityUserSearchInput?.value || "") {
   if (!communityUserSearchStatus || !communityUserSearchResults) return;
+  const term = profileSearchTerm(query);
+  if (term.length < 2) {
+    communityUserSearchRequestId += 1;
+    if (featuredCommunityProfiles.length) {
+      lastCommunityUserProfiles = featuredCommunityProfiles;
+      renderCommunityUserResults(featuredCommunityProfiles);
+      communityUserSearchStatus.textContent = `${featuredCommunityProfiles.length} açık koleksiyoner profili gösteriliyor.`;
+    } else {
+      void loadCommunityHunterDirectory();
+    }
+    return;
+  }
+  const requestId = ++communityUserSearchRequestId;
+  const searchButton = communityUserSearchForm?.querySelector('button[type="submit"]');
   communityUserSearchStatus.textContent = "Avcılar aranıyor...";
-  const result = await findPublicProfiles(query, 16);
-  lastCommunityUserProfiles = result.profiles;
-  renderCommunityUserResults(lastCommunityUserProfiles);
-  communityUserSearchStatus.textContent = result.status;
-  if (result.authRequired) openAuthModal("login", "Koleksiyoner profillerini görmek için giriş yapmalısın.");
+  if (communityHunterCount) {
+    communityHunterCount.textContent = "Aranıyor";
+    communityHunterCount.dataset.state = "loading";
+  }
+  if (searchButton) {
+    searchButton.disabled = true;
+    searchButton.setAttribute("aria-busy", "true");
+  }
+  communityUserSearchResults.classList.add("is-loading");
+  communityUserSearchResults.innerHTML = communityHunterSkeletonMarkup(4);
+  try {
+    const result = await findPublicProfiles(query, 16);
+    if (requestId !== communityUserSearchRequestId) return;
+    lastCommunityUserProfiles = result.profiles;
+    renderCommunityUserResults(lastCommunityUserProfiles);
+    communityUserSearchStatus.textContent = result.status;
+    if (result.profiles.length) rememberCommunityHunterSearch(term);
+    if (result.authRequired) openAuthModal("login", "Koleksiyoner profillerini görmek için giriş yapmalısın.");
+  } catch (error) {
+    if (requestId !== communityUserSearchRequestId) return;
+    console.warn("Avcı araması tamamlanamadı:", error?.message || error);
+    communityUserSearchResults.innerHTML = "";
+    communityUserSearchStatus.textContent = "Arama tamamlanamadı. Biraz sonra yeniden dene.";
+    if (communityHunterCount) {
+      communityHunterCount.textContent = "Bağlantı hatası";
+      communityHunterCount.dataset.state = "error";
+    }
+  } finally {
+    if (requestId !== communityUserSearchRequestId) return;
+    communityUserSearchResults.classList.remove("is-loading");
+    if (searchButton) {
+      searchButton.disabled = false;
+      searchButton.removeAttribute("aria-busy");
+    }
+  }
 }
 
 function publicGarageHash(username) {
@@ -15272,12 +15916,35 @@ communityChatForm?.addEventListener("submit", async (event) => {
 communityUserSearchForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   window.clearTimeout(communityUserSearchTimer);
+  setCommunityHunterSearchPanelOpen(false);
   void searchCommunityUserProfiles();
 });
 
 communityUserSearchInput?.addEventListener("input", () => {
   window.clearTimeout(communityUserSearchTimer);
   communityUserSearchTimer = window.setTimeout(() => void searchCommunityUserProfiles(), 300);
+});
+
+communityUserSearchInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    setCommunityHunterSearchPanelOpen(false);
+    communityUserSearchInput.blur();
+  }
+});
+
+communityHunterSearchTabs.forEach((button) => {
+  button.addEventListener("click", () => {
+    communityHunterSearchPanelMode = button.dataset.hunterSearchTab === "favorites" ? "favorites" : "recent";
+    renderCommunityHunterSearchPanel();
+  });
+});
+
+communityHunterSectionTabs.forEach((button) => {
+  button.addEventListener("click", () => selectCommunityHunterSection(button.dataset.hunterSection));
+});
+
+document.addEventListener("click", (event) => {
+  if (!communityUserSearchForm?.contains(event.target)) setCommunityHunterSearchPanelOpen(false);
 });
 
 document.querySelectorAll("[data-community-action]").forEach((button) => {
