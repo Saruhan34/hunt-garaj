@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./explore.css?v=19" />
     <link rel="stylesheet" href="./garage.css?v=12" />
   <link rel="stylesheet" href="./wishlist.css?v=9" />
-  <link rel="stylesheet" href="./community.css?v=93" />
+  <link rel="stylesheet" href="./community.css?v=106" />
   </head>
   <body class="dashboard-shell is-home-view">
     <div class="dashboard-sidebar-backdrop" id="dashboardSidebarBackdrop" aria-hidden="true"></div>
@@ -1425,11 +1425,48 @@
                 <header class="community-chat-hero">
                   <div>
                     <p class="eyebrow">Hunt Garaj Sohbet</p>
-                    <h3>Avcılarla anında bağlantı kur.</h3>
+                    <h3>Avcılarla anında <span>bağlantı kur.</span></h3>
                     <p>Mağaza stoklarını, yeni buluntuları ve şehirdeki hareketi toplulukla paylaş.</p>
                   </div>
                   <div class="community-chat-hero__signal" aria-hidden="true">
-                    <span></span><span></span><span></span><span></span>
+                    <div class="community-chat-hero__wave">
+                      <span style="--wave-height:2px;--wave-delay:-.10s"></span>
+                      <span style="--wave-height:3px;--wave-delay:-.22s"></span>
+                      <span style="--wave-height:4px;--wave-delay:-.34s"></span>
+                      <span style="--wave-height:5px;--wave-delay:-.46s"></span>
+                      <span style="--wave-height:7px;--wave-delay:-.58s"></span>
+                      <span style="--wave-height:10px;--wave-delay:-.70s"></span>
+                      <span style="--wave-height:6px;--wave-delay:-.82s"></span>
+                      <span style="--wave-height:14px;--wave-delay:-.94s"></span>
+                      <span style="--wave-height:22px;--wave-delay:-1.06s"></span>
+                      <span style="--wave-height:10px;--wave-delay:-1.18s"></span>
+                      <span style="--wave-height:18px;--wave-delay:-1.30s"></span>
+                      <span style="--wave-height:30px;--wave-delay:-1.42s"></span>
+                      <span style="--wave-height:16px;--wave-delay:-1.54s"></span>
+                      <span style="--wave-height:38px;--wave-delay:-1.66s"></span>
+                      <span style="--wave-height:24px;--wave-delay:-1.78s"></span>
+                      <span style="--wave-height:52px;--wave-delay:-1.90s"></span>
+                      <span style="--wave-height:34px;--wave-delay:-2.02s"></span>
+                      <span style="--wave-height:64px;--wave-delay:-2.14s"></span>
+                      <span style="--wave-height:46px;--wave-delay:-2.26s"></span>
+                      <span style="--wave-height:72px;--wave-delay:-2.38s"></span>
+                      <span style="--wave-height:42px;--wave-delay:-2.50s"></span>
+                      <span style="--wave-height:58px;--wave-delay:-2.62s"></span>
+                      <span style="--wave-height:34px;--wave-delay:-2.74s"></span>
+                      <span style="--wave-height:48px;--wave-delay:-2.86s"></span>
+                      <span style="--wave-height:28px;--wave-delay:-2.98s"></span>
+                      <span style="--wave-height:38px;--wave-delay:-3.10s"></span>
+                      <span style="--wave-height:20px;--wave-delay:-3.22s"></span>
+                      <span style="--wave-height:29px;--wave-delay:-3.34s"></span>
+                      <span style="--wave-height:16px;--wave-delay:-3.46s"></span>
+                      <span style="--wave-height:22px;--wave-delay:-3.58s"></span>
+                      <span style="--wave-height:12px;--wave-delay:-3.70s"></span>
+                      <span style="--wave-height:17px;--wave-delay:-3.82s"></span>
+                      <span style="--wave-height:9px;--wave-delay:-3.94s"></span>
+                    </div>
+                    <div class="community-chat-hero__radar">
+                      <i></i><i></i><i></i><i></i>
+                    </div>
                   </div>
                   <div class="community-chat-hero__status">
                     <span class="community-live-status"><i></i>Canlı bağlantı</span>
@@ -1452,8 +1489,24 @@
                         <span class="community-chat-stage__mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6.5h14v9H9l-4 3v-12Z"/><path d="M9 10h6M9 13h4"/></svg></span>
                         <div><strong id="communityChatStageTitle">İstanbul odası</strong><small>Mesajlar gerçek zamanlı yenilenir.</small></div>
                       </div>
-                      <button class="community-mini-button" id="communityJoinChat" type="button">Sohbete Katıl</button>
+                      <div class="community-chat-stage__actions">
+                        <button class="community-chat-online-toggle is-hidden" id="communityChatOnlineToggle" type="button" aria-expanded="false" aria-controls="communityChatOnlinePanel">
+                          <i aria-hidden="true"></i><span><b id="communityChatOnlineCount">0</b> çevrimiçi</span>
+                        </button>
+                        <button class="community-mini-button" id="communityJoinChat" type="button">Sohbete Katıl</button>
+                      </div>
                     </header>
+                    <aside class="community-chat-online-panel" id="communityChatOnlinePanel" aria-hidden="true" aria-label="Çevrimiçi kullanıcılar">
+                      <header>
+                        <div><span>CANLI ODA</span><strong>Çevrimiçi kullanıcılar</strong></div>
+                        <button type="button" id="communityChatOnlineClose" aria-label="Çevrimiçi listesini kapat">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                        </button>
+                      </header>
+                      <div class="community-chat-online-list" id="communityChatOnlineList">
+                        <p>Oda bağlantısı kuruluyor...</p>
+                      </div>
+                    </aside>
                     <div class="community-chat-feed" id="communityChatFeed" aria-live="polite">
                       <div class="community-chat-empty">
                         <strong>Bu odada henüz mesaj yok</strong>
@@ -1464,6 +1517,10 @@
                       <span><b id="communityChatNewMessageCount">0</b> yeni mesaj</span>
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
                     </button>
+                    <div class="community-chat-typing is-hidden" id="communityChatTyping" role="status" aria-live="polite">
+                      <span class="community-chat-typing__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                      <span id="communityChatTypingText"></span>
+                    </div>
                     <div class="community-chat-compose-context is-hidden" id="communityChatComposeContext">
                       <div><strong></strong><span></span></div>
                       <button type="button" id="communityChatComposeCancel" aria-label="Mesaj işlemini iptal et">
@@ -2837,7 +2894,7 @@
     <script src="./explore-page.js?v=10"></script>
     <script src="./reward-service.js?v=12"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./app.js?v=267"></script>
+  <script src="./app.js?v=273"></script>
   </body>
 </html>
 

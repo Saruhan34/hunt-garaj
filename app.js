@@ -565,9 +565,24 @@ let communityChatMessages = [];
 let communityChatLoaded = false;
 let communityChatLoading = false;
 let communityChatRealtimeChannel = null;
+let communityChatPresenceChannel = null;
+let communityChatPresenceReady = false;
+let communityChatPresenceUserId = null;
+let communityChatPresenceTrackedSignature = "";
+let communityChatOnlineUsers = [];
 let communityChatPendingNewCount = 0;
 let communityChatOlderLoading = false;
+let communityChatRealtimeReady = false;
+let communityChatTypingStopTimer = 0;
+let communityChatTypingLastSentAt = 0;
+const communityChatTypingUsers = new Map();
+let communityChatReactions = [];
+let communityChatReactionRequestId = 0;
+const communityChatReactionPending = new Set();
 const COMMUNITY_CHAT_PAGE_SIZE = 50;
+const COMMUNITY_CHAT_TYPING_IDLE_MS = 1800;
+const COMMUNITY_CHAT_TYPING_EXPIRE_MS = 4000;
+const COMMUNITY_CHAT_REACTION_OPTIONS = ["🔥", "❤️", "👍", "😂", "😮"];
 const communityChatHasOlderByRoom = new Map();
 const COMMUNITY_CHAT_UNREAD_KEY = "hunt-radar-community-chat-unread-v2";
 const communityChatUnreadByRoom = loadCommunityChatUnreadState();
@@ -725,6 +740,8 @@ const communityChat = document.querySelector("#communityChat");
 const communityChatFeed = document.querySelector("#communityChatFeed");
 const communityChatNewMessages = document.querySelector("#communityChatNewMessages");
 const communityChatNewMessageCount = document.querySelector("#communityChatNewMessageCount");
+const communityChatTyping = document.querySelector("#communityChatTyping");
+const communityChatTypingText = document.querySelector("#communityChatTypingText");
 const communityChatForm = document.querySelector("#communityChatForm");
 const communityChatInput = document.querySelector("#communityChatInput");
 const communityChatInputCount = document.querySelector("#communityChatInputCount");
@@ -733,6 +750,11 @@ const communityChatStatus = document.querySelector("#communityChatStatus");
 const communityChatRoomTitle = document.querySelector("#communityChatRoomTitle");
 const communityChatStageTitle = document.querySelector("#communityChatStageTitle");
 const communityChatMessageCount = document.querySelector("#communityChatMessageCount");
+const communityChatOnlineToggle = document.querySelector("#communityChatOnlineToggle");
+const communityChatOnlineCount = document.querySelector("#communityChatOnlineCount");
+const communityChatOnlinePanel = document.querySelector("#communityChatOnlinePanel");
+const communityChatOnlineList = document.querySelector("#communityChatOnlineList");
+const communityChatOnlineClose = document.querySelector("#communityChatOnlineClose");
 const communityChatCountIstanbul = document.querySelector("#communityChatCountIstanbul");
 const communityChatCountAnkara = document.querySelector("#communityChatCountAnkara");
 const communityChatCountIzmir = document.querySelector("#communityChatCountIzmir");
@@ -2864,6 +2886,7 @@ function selectCommunitySection(targetId, options = {}) {
 
 function selectCommunityCity(city, options = {}) {
   const roomChanged = activeCommunityCity !== (city || "İstanbul");
+  if (roomChanged) stopCommunityChatTyping(activeCommunityCity);
   activeCommunityCity = city || "İstanbul";
   if (roomChanged) {
     resetCommunityChatComposer();
@@ -2878,6 +2901,8 @@ function selectCommunityCity(city, options = {}) {
   if (communityChatRoomTitle) communityChatRoomTitle.textContent = activeCommunityCity;
   if (communityChatStageTitle) communityChatStageTitle.textContent = `${activeCommunityCity} odası`;
   if (communityChatInput) communityChatInput.placeholder = currentUser ? `${activeCommunityCity} odasına bir mesaj yaz...` : "Mesaj göndermek için giriş yap";
+  renderCommunityChatPresence();
+  trackCommunityChatPresence();
   renderCommunityChatMessages();
   if (supabaseClient) void loadCommunityChatMessages();
   if (options.scroll && communityChat) {
@@ -2905,11 +2930,13 @@ function syncCommunityHub() {
   });
   selectCommunityCity(activeCommunityCity, { scroll: false });
   subscribeCommunityChatRealtime();
+  syncCommunityChatPresence();
   if (isSignedIn && !communityChatBlocksLoaded) void loadCommunityChatBlocks();
   if (!isSignedIn && communityChatBlocksLoaded) {
     communityChatBlockedUserIds = new Set();
     communityChatBlocksLoaded = false;
   }
+  if (!isSignedIn) clearCommunityChatTypingUsers();
   syncCommunityAvatarElements();
   if (communityModule?.dataset.communityActive === "communityFeed" && !communityFeedLoaded) void loadCommunityFeed({ reset: true });
   if (!communityForumTopicsLoaded) void loadCommunityForumTopics();
@@ -4339,6 +4366,8 @@ async function blockCommunityChatUser(userId, username = "bu kullanıcı") {
   }
   communityChatBlockedUserIds.add(userId);
   renderCommunityChatMessages({ preservePosition: true });
+  renderCommunityChatTyping();
+  renderCommunityChatPresence();
   showToast(`@${username} engellendi.`);
 }
 
@@ -4355,7 +4384,210 @@ async function unblockCommunityChatUser(userId) {
   }
   communityChatBlockedUserIds.delete(userId);
   renderCommunityChatMessages({ preservePosition: true });
+  renderCommunityChatTyping();
+  renderCommunityChatPresence();
   showToast("Kullanıcı engeli kaldırıldı.");
+}
+
+function setCommunityChatOnlinePanelOpen(open) {
+  const isOpen = Boolean(open && currentUser);
+  communityChatOnlinePanel?.classList.toggle("is-open", isOpen);
+  communityChatOnlinePanel?.setAttribute("aria-hidden", String(!isOpen));
+  communityChatOnlineToggle?.setAttribute("aria-expanded", String(isOpen));
+}
+
+function renderCommunityChatPresence() {
+  const roomUsers = communityChatOnlineUsers
+    .filter((user) => user.room === activeCommunityCity && !communityChatBlockedUserIds.has(user.userId))
+    .sort((a, b) => {
+      if (a.userId === currentUser?.id) return -1;
+      if (b.userId === currentUser?.id) return 1;
+      return a.username.localeCompare(b.username, "tr");
+    });
+  if (communityChatOnlineCount) communityChatOnlineCount.textContent = String(roomUsers.length);
+  if (!communityChatOnlineList) return;
+  if (!roomUsers.length) {
+    communityChatOnlineList.innerHTML = `<p>Bu odada şu anda çevrimiçi kullanıcı yok.</p>`;
+    return;
+  }
+  communityChatOnlineList.innerHTML = roomUsers.map((user) => {
+    const own = user.userId === currentUser?.id;
+    const matchingMessageAuthor = communityChatMessages
+      .find((message) => message.author_id === user.userId && message.author)
+      ?.author;
+    const author = own
+      ? {
+          username: currentUser.username || user.username,
+          avatar_id: currentUser.avatar_id || currentUser.avatarId || user.avatarId || matchingMessageAuthor?.avatar_id || null,
+          avatar_url: currentUser.avatar_url || user.avatarUrl || matchingMessageAuthor?.avatar_url || null
+        }
+      : {
+          username: user.username,
+          avatar_id: user.avatarId || matchingMessageAuthor?.avatar_id || null,
+          avatar_url: user.avatarUrl || matchingMessageAuthor?.avatar_url || null
+        };
+    return `<div class="community-chat-online-user">
+      <span class="community-chat-online-user__avatar">${communityForumAuthorAvatar(author, user.username)}<i aria-hidden="true"></i></span>
+      <span class="community-chat-online-user__identity"><strong>@${escapeHtml(user.username)}</strong><small>${own ? "Sen" : `${escapeHtml(activeCommunityCity)} odasında`}</small></span>
+    </div>`;
+  }).join("");
+}
+
+function syncCommunityChatPresenceState() {
+  if (!communityChatPresenceChannel) return;
+  const nextUsers = new Map();
+  Object.values(communityChatPresenceChannel.presenceState() || {}).flat().forEach((presence) => {
+    const userId = String(presence.user_id || "").trim();
+    const room = String(presence.room || "").trim();
+    if (!userId || !room) return;
+    const username = String(presence.username || "Topluluk üyesi").trim().slice(0, 40);
+    const presenceKey = `${room}:${userId}`;
+    const existing = nextUsers.get(presenceKey);
+    nextUsers.set(presenceKey, {
+      userId,
+      room,
+      username,
+      avatarId: presence.avatar_id || existing?.avatarId || null,
+      avatarUrl: presence.avatar_url || existing?.avatarUrl || null
+    });
+  });
+  communityChatOnlineUsers = [...nextUsers.values()];
+  renderCommunityChatPresence();
+}
+
+function trackCommunityChatPresence() {
+  if (!communityChatPresenceChannel || !communityChatPresenceReady || !currentUser) return;
+  const payload = {
+    user_id: currentUser.id,
+    username: currentUser.username || "Topluluk üyesi",
+    room: activeCommunityCity,
+    avatar_id: currentUser.avatarId || currentUser.avatar_id || null,
+    avatar_url: currentUser.avatar_url || null,
+    online_at: new Date().toISOString()
+  };
+  const signature = JSON.stringify(payload, ["user_id", "username", "room", "avatar_id", "avatar_url"]);
+  if (signature === communityChatPresenceTrackedSignature) return;
+  communityChatPresenceTrackedSignature = signature;
+  const trackedChannel = communityChatPresenceChannel;
+  void trackedChannel.track(payload).then((status) => {
+    if (communityChatPresenceChannel === trackedChannel && status !== "ok") {
+      communityChatPresenceTrackedSignature = "";
+    }
+  });
+}
+
+function clearCommunityChatPresence() {
+  const previousChannel = communityChatPresenceChannel;
+  communityChatPresenceChannel = null;
+  communityChatPresenceReady = false;
+  communityChatPresenceUserId = null;
+  communityChatPresenceTrackedSignature = "";
+  communityChatOnlineUsers = [];
+  renderCommunityChatPresence();
+  setCommunityChatOnlinePanelOpen(false);
+  if (previousChannel && supabaseClient) {
+    void previousChannel.untrack();
+    void supabaseClient.removeChannel(previousChannel);
+  }
+}
+
+function syncCommunityChatPresence() {
+  const isSignedIn = Boolean(currentUser && supabaseClient);
+  communityChatOnlineToggle?.classList.toggle("is-hidden", !isSignedIn);
+  if (!isSignedIn) {
+    if (communityChatPresenceChannel) clearCommunityChatPresence();
+    return;
+  }
+  if (communityChatPresenceChannel && communityChatPresenceUserId === currentUser.id) {
+    trackCommunityChatPresence();
+    return;
+  }
+  if (communityChatPresenceChannel) clearCommunityChatPresence();
+  communityChatPresenceUserId = currentUser.id;
+  const presenceChannel = supabaseClient.channel("community-chat-presence-live");
+  communityChatPresenceChannel = presenceChannel;
+  presenceChannel
+    .on("presence", { event: "sync" }, () => {
+      if (communityChatPresenceChannel === presenceChannel) syncCommunityChatPresenceState();
+    })
+    .subscribe((status) => {
+      if (communityChatPresenceChannel !== presenceChannel) return;
+      communityChatPresenceReady = status === "SUBSCRIBED";
+      if (communityChatPresenceReady) {
+        trackCommunityChatPresence();
+      } else {
+        communityChatOnlineUsers = [];
+        renderCommunityChatPresence();
+      }
+    });
+}
+
+async function loadCommunityChatReactions(room = activeCommunityCity, options = {}) {
+  if (!supabaseClient) return;
+  const messageIds = communityChatMessages
+    .filter((message) => message.room === room && message.status === "published")
+    .map((message) => message.id)
+    .filter((id) => id && !String(id).startsWith("local-"));
+  const requestId = ++communityChatReactionRequestId;
+  if (!messageIds.length) {
+    communityChatReactions = [];
+    if (options.render !== false && room === activeCommunityCity) renderCommunityChatMessages({ preservePosition: true });
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from("community_chat_reactions")
+    .select("message_id,user_id,emoji")
+    .in("message_id", messageIds);
+  if (requestId !== communityChatReactionRequestId || room !== activeCommunityCity) return;
+  if (error) {
+    if (!["42P01", "PGRST205"].includes(error.code)) console.warn("Sohbet tepkileri yüklenemedi:", error.message);
+    return;
+  }
+  communityChatReactions = Array.isArray(data) ? data : [];
+  if (options.render !== false) renderCommunityChatMessages({ preservePosition: true });
+}
+
+async function toggleCommunityChatReaction(messageId, emoji) {
+  if (!currentUser) {
+    openAuthModal("login", "Mesajlara tepki vermek için giriş yapmalısın.");
+    return;
+  }
+  if (!supabaseClient || !messageId || !COMMUNITY_CHAT_REACTION_OPTIONS.includes(emoji)) return;
+  const pendingKey = `${messageId}:${emoji}`;
+  if (communityChatReactionPending.has(pendingKey)) return;
+  communityChatReactionPending.add(pendingKey);
+  const existing = communityChatReactions.find((reaction) => (
+    reaction.message_id === messageId
+    && reaction.user_id === currentUser.id
+    && reaction.emoji === emoji
+  ));
+  const query = existing
+    ? supabaseClient
+      .from("community_chat_reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("user_id", currentUser.id)
+      .eq("emoji", emoji)
+    : supabaseClient
+      .from("community_chat_reactions")
+      .insert({ message_id: messageId, user_id: currentUser.id, emoji });
+  const { error } = await query;
+  communityChatReactionPending.delete(pendingKey);
+  if (error) {
+    if (communityChatStatus) communityChatStatus.textContent = "Tepki kaydedilemedi. Tekrar dene.";
+    return;
+  }
+  if (existing) {
+    communityChatReactions = communityChatReactions.filter((reaction) => !(
+      reaction.message_id === messageId
+      && reaction.user_id === currentUser.id
+      && reaction.emoji === emoji
+    ));
+  } else {
+    communityChatReactions.push({ message_id: messageId, user_id: currentUser.id, emoji });
+  }
+  if (communityChatStatus) communityChatStatus.textContent = "";
+  renderCommunityChatMessages({ preservePosition: true });
 }
 
 function renderCommunityChatMessages(options = {}) {
@@ -4388,6 +4620,21 @@ function renderCommunityChatMessages(options = {}) {
     const blocked = communityChatBlockedUserIds.has(message.author_id);
     const parent = message.parent_id ? communityChatMessages.find((item) => item.id === message.parent_id) : null;
     const parentUsername = parent?.author?.username || "Topluluk üyesi";
+    const messageReactions = communityChatReactions.filter((reaction) => reaction.message_id === message.id);
+    const reactionChips = COMMUNITY_CHAT_REACTION_OPTIONS.map((emoji) => {
+      const matchingReactions = messageReactions.filter((reaction) => reaction.emoji === emoji);
+      if (!matchingReactions.length) return "";
+      const active = matchingReactions.some((reaction) => reaction.user_id === currentUser?.id);
+      return `<button class="community-chat-reaction${active ? " is-active" : ""}" type="button" data-chat-reaction="${emoji}" aria-pressed="${String(active)}" aria-label="${emoji} tepkisi, ${matchingReactions.length} kişi"><span>${emoji}</span><b>${matchingReactions.length}</b></button>`;
+    }).join("");
+    const reactionPicker = currentUser
+      ? `<span class="community-chat-reaction-picker">
+          <button class="community-chat-reaction-add" type="button" data-chat-reaction-picker aria-label="Tepki ekle" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r=".7"/><circle cx="15" cy="10" r=".7"/><path d="M8.5 14c1 1.2 2.1 1.8 3.5 1.8s2.5-.6 3.5-1.8"/></svg>
+          </button>
+          <span class="community-chat-reaction-menu" role="menu">${COMMUNITY_CHAT_REACTION_OPTIONS.map((emoji) => `<button type="button" role="menuitem" data-chat-reaction="${emoji}" aria-label="${emoji} tepkisi ekle">${emoji}</button>`).join("")}</span>
+        </span>`
+      : "";
     const messageDate = new Date(message.created_at);
     const dateKey = Number.isNaN(messageDate.getTime()) ? "" : messageDate.toLocaleDateString("en-CA");
     const dateSeparator = dateKey && dateKey !== previousDateKey
@@ -4411,6 +4658,7 @@ function renderCommunityChatMessages(options = {}) {
         <header><strong>@${escapeHtml(username)}</strong><span><time>${escapeHtml(communityRelativeTime(message.created_at))}</time>${communityForumWasEdited(message) ? "<small>düzenlendi</small>" : ""}</span></header>
         ${parent ? `<button class="community-chat-message__quote" type="button" data-chat-scroll-parent="${escapeHtml(parent.id)}"><strong>@${escapeHtml(parentUsername)}</strong><span>${escapeHtml(parent.body)}</span></button>` : ""}
         <p>${escapeHtml(message.body)}</p>
+        <div class="community-chat-message__reactions">${reactionChips}${reactionPicker}</div>
         <div class="community-chat-message__actions">
           ${currentUser ? `<button type="button" data-chat-reply="${escapeHtml(message.id)}" data-chat-reply-user="${escapeHtml(username)}">Yanıtla</button>` : ""}
           ${currentUser && !own ? `<button type="button" data-chat-report="${escapeHtml(message.id)}">Bildir</button><button type="button" data-chat-block-user="${escapeHtml(message.author_id)}" data-chat-block-username="${escapeHtml(username)}">Engelle</button>` : ""}
@@ -4458,7 +4706,89 @@ function syncCommunityChatInputCount() {
   if (communityChatInputCount) communityChatInputCount.textContent = String(communityChatInput?.value.length || 0);
 }
 
+function renderCommunityChatTyping() {
+  if (!communityChatTyping || !communityChatTypingText) return;
+  const usernames = [...communityChatTypingUsers.values()]
+    .filter((entry) => entry.room === activeCommunityCity && !communityChatBlockedUserIds.has(entry.userId))
+    .map((entry) => entry.username);
+  if (!usernames.length) {
+    communityChatTyping.classList.add("is-hidden");
+    communityChatTypingText.textContent = "";
+    return;
+  }
+  communityChatTypingText.textContent = usernames.length === 1
+    ? `@${usernames[0]} yazıyor`
+    : usernames.length === 2
+      ? `@${usernames[0]} ve @${usernames[1]} yazıyor`
+      : `@${usernames[0]}, @${usernames[1]} ve ${usernames.length - 2} kişi daha yazıyor`;
+  communityChatTyping.classList.remove("is-hidden");
+}
+
+function clearCommunityChatTypingUsers() {
+  communityChatTypingUsers.forEach((entry) => window.clearTimeout(entry.timeoutId));
+  communityChatTypingUsers.clear();
+  renderCommunityChatTyping();
+}
+
+function receiveCommunityChatTyping(payload = {}) {
+  const userId = String(payload.user_id || "").trim();
+  const room = String(payload.room || "").trim();
+  const username = String(payload.username || "Topluluk üyesi").trim().slice(0, 40);
+  if (!userId || !room || userId === currentUser?.id) return;
+  const typingKey = `${room}:${userId}`;
+  const existing = communityChatTypingUsers.get(typingKey);
+  if (existing?.timeoutId) window.clearTimeout(existing.timeoutId);
+  if (!payload.is_typing) {
+    communityChatTypingUsers.delete(typingKey);
+    renderCommunityChatTyping();
+    return;
+  }
+  const timeoutId = window.setTimeout(() => {
+    communityChatTypingUsers.delete(typingKey);
+    renderCommunityChatTyping();
+  }, COMMUNITY_CHAT_TYPING_EXPIRE_MS);
+  communityChatTypingUsers.set(typingKey, { userId, room, username, timeoutId });
+  renderCommunityChatTyping();
+}
+
+function broadcastCommunityChatTyping(isTyping, room = activeCommunityCity) {
+  if (!currentUser || !communityChatRealtimeChannel || !communityChatRealtimeReady) return;
+  communityChatRealtimeChannel.send({
+    type: "broadcast",
+    event: "typing",
+    payload: {
+      room,
+      user_id: currentUser.id,
+      username: currentUser.username || "Topluluk üyesi",
+      is_typing: Boolean(isTyping)
+    }
+  });
+}
+
+function stopCommunityChatTyping(room = activeCommunityCity) {
+  window.clearTimeout(communityChatTypingStopTimer);
+  communityChatTypingStopTimer = 0;
+  communityChatTypingLastSentAt = 0;
+  broadcastCommunityChatTyping(false, room);
+}
+
+function syncCommunityChatTyping() {
+  if (!currentUser || !communityChatInput) return;
+  window.clearTimeout(communityChatTypingStopTimer);
+  if (!communityChatInput.value.trim()) {
+    stopCommunityChatTyping();
+    return;
+  }
+  const now = Date.now();
+  if (now - communityChatTypingLastSentAt >= 1200) {
+    communityChatTypingLastSentAt = now;
+    broadcastCommunityChatTyping(true);
+  }
+  communityChatTypingStopTimer = window.setTimeout(() => stopCommunityChatTyping(), COMMUNITY_CHAT_TYPING_IDLE_MS);
+}
+
 function resetCommunityChatComposer() {
+  stopCommunityChatTyping();
   activeCommunityChatReplyParent = null;
   editingCommunityChatMessageId = null;
   if (communityChatInput) communityChatInput.value = "";
@@ -4511,6 +4841,7 @@ async function loadCommunityChatMessages(options = {}) {
     ...preservedOlderMessages,
     ...latestMessages
   ];
+  await loadCommunityChatReactions(room, { render: false });
   if (!options.realtime || !communityChatHasOlderByRoom.has(room)) {
     communityChatHasOlderByRoom.set(room, latestMessages.length === COMMUNITY_CHAT_PAGE_SIZE);
   }
@@ -4558,6 +4889,7 @@ async function loadOlderCommunityChatMessages() {
   const olderMessages = Array.isArray(data) ? data.reverse() : [];
   const existingIds = new Set(communityChatMessages.map((message) => message.id));
   communityChatMessages.push(...olderMessages.filter((message) => !existingIds.has(message.id)));
+  await loadCommunityChatReactions(room, { render: false });
   communityChatHasOlderByRoom.set(room, olderMessages.length === COMMUNITY_CHAT_PAGE_SIZE);
   if (communityChatStatus) communityChatStatus.textContent = "";
   if (room !== activeCommunityCity) return;
@@ -4572,6 +4904,7 @@ function subscribeCommunityChatRealtime() {
   if (!supabaseClient || communityChatRealtimeChannel) return;
   communityChatRealtimeChannel = supabaseClient
     .channel("community-chat-messages-live")
+    .on("broadcast", { event: "typing" }, ({ payload }) => receiveCommunityChatTyping(payload))
     .on("postgres_changes", { event: "*", schema: "public", table: "community_chat_messages" }, (payload) => {
       const room = payload.new?.room || payload.old?.room;
       const isIncomingMessage = payload.eventType === "INSERT"
@@ -4589,7 +4922,15 @@ function subscribeCommunityChatRealtime() {
         });
       }
     })
-    .subscribe();
+    .on("postgres_changes", { event: "*", schema: "public", table: "community_chat_reactions" }, (payload) => {
+      const messageId = payload.new?.message_id || payload.old?.message_id;
+      if (!messageId || !communityChatMessages.some((message) => message.id === messageId && message.room === activeCommunityCity)) return;
+      void loadCommunityChatReactions(activeCommunityCity);
+    })
+    .subscribe((status) => {
+      communityChatRealtimeReady = status === "SUBSCRIBED";
+      if (!communityChatRealtimeReady) clearCommunityChatTypingUsers();
+    });
 }
 
 function syncDashboardViewHeader() {
@@ -14105,6 +14446,24 @@ communityCityLinks.forEach((button) => {
   button.addEventListener("click", () => selectCommunityCity(button.dataset.communityCityLink, { scroll: true }));
 });
 
+communityChatOnlineToggle?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setCommunityChatOnlinePanelOpen(!communityChatOnlinePanel?.classList.contains("is-open"));
+});
+communityChatOnlineClose?.addEventListener("click", () => setCommunityChatOnlinePanelOpen(false));
+communityChatOnlinePanel?.addEventListener("click", (event) => event.stopPropagation());
+document.addEventListener("click", (event) => {
+  if (!communityChatOnlinePanel?.classList.contains("is-open")) return;
+  if (event.target.closest("#communityChatOnlineToggle, #communityChatOnlinePanel")) return;
+  setCommunityChatOnlinePanelOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && communityChatOnlinePanel?.classList.contains("is-open")) {
+    setCommunityChatOnlinePanelOpen(false);
+    communityChatOnlineToggle?.focus();
+  }
+});
+
 communityJoinChat?.addEventListener("click", () => {
   selectCommunitySection("communityChat");
   if (!currentUser) {
@@ -14623,7 +14982,11 @@ document.addEventListener("keydown", (event) => {
 
 communityChatAuth?.addEventListener("click", () => openAuthModal("login", "Topluluk sohbetine katılmak için giriş yapmalısın."));
 communityChatComposeCancel?.addEventListener("click", resetCommunityChatComposer);
-communityChatInput?.addEventListener("input", syncCommunityChatInputCount);
+communityChatInput?.addEventListener("input", () => {
+  syncCommunityChatInputCount();
+  syncCommunityChatTyping();
+});
+communityChatInput?.addEventListener("blur", () => stopCommunityChatTyping());
 communityChatNewMessages?.addEventListener("click", scrollCommunityChatToBottom);
 communityChatFeed?.addEventListener("scroll", () => {
   if (communityChatIsNearBottom()) {
@@ -14649,6 +15012,23 @@ communityChatFeed?.addEventListener("click", async (event) => {
   if (!article) return;
   const message = communityChatMessages.find((item) => item.id === article.dataset.chatMessage);
   if (!message) return;
+  const reactionPickerButton = event.target.closest("[data-chat-reaction-picker]");
+  if (reactionPickerButton) {
+    const picker = reactionPickerButton.closest(".community-chat-reaction-picker");
+    const willOpen = !picker?.classList.contains("is-open");
+    communityChatFeed.querySelectorAll(".community-chat-reaction-picker.is-open").forEach((item) => {
+      item.classList.remove("is-open");
+      item.querySelector("[data-chat-reaction-picker]")?.setAttribute("aria-expanded", "false");
+    });
+    picker?.classList.toggle("is-open", willOpen);
+    reactionPickerButton.setAttribute("aria-expanded", String(willOpen));
+    return;
+  }
+  const reactionButton = event.target.closest("[data-chat-reaction]");
+  if (reactionButton) {
+    await toggleCommunityChatReaction(message.id, reactionButton.dataset.chatReaction);
+    return;
+  }
   const unblockButton = event.target.closest("[data-chat-unblock-user]");
   if (unblockButton) {
     await unblockCommunityChatUser(unblockButton.dataset.chatUnblockUser);
