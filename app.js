@@ -19,13 +19,14 @@ const ASSET_BUCKET = "hunt-radar-assets";
 const PROFILE_AVATAR_BUCKET = "profile-avatars";
 const SUPABASE_ASSET_BASE = `${SUPABASE_URL}/storage/v1/object/public/${ASSET_BUCKET}`;
 const HOTWHEELS_IMAGE_PROXY_URL = `${SUPABASE_URL}/functions/v1/hotwheels-image-proxy`;
-const DEFAULT_PROFILE_AVATAR_PATH = "./assets/default-profile-avatar-hr-v2.svg";
+const DEFAULT_PROFILE_AVATAR_PATH = "./assets/default-profile-avatar-hr-v3-black.webp";
 const MANAGED_ASSET_PATHS = [
   "garage-hero.png",
   "hunt-radar-hero-car.webp",
   "hunt-radar-brand-portfolio.png",
   "default-profile-avatar-hr-v1.png",
   "default-profile-avatar-hr-v2.svg",
+  "default-profile-avatar-hr-v3-black.webp",
   "f40-competizione-yellow.jpg",
   "porsche-911-carrera-t.jpg",
   "barbie-dream-camper.jpg",

@@ -50,7 +50,7 @@
   ];
 
   const DEFAULT_AVATARS = [
-    { id: "hr-default", label: "Hunt Radar", image: "./assets/default-profile-avatar-hr-v2.svg", storagePath: "default-profile-avatar-hr-v2.svg" },
+    { id: "hr-default", label: "Hunt Radar", image: "./assets/default-profile-avatar-hr-v3-black.webp", storagePath: "default-profile-avatar-hr-v3-black.webp" },
     { id: "flame-wheel", label: "Alevli jant", image: "./assets/avatars/flame-wheel.png", storagePath: "avatars/flame-wheel.png" },
     { id: "neon-front", label: "Neon avcı", image: "./assets/avatars/neon-front.png", storagePath: "avatars/neon-front.png" },
     { id: "carbon-wing", label: "Karbon kanat", image: "./assets/avatars/carbon-wing.png", storagePath: "avatars/carbon-wing.png" },
