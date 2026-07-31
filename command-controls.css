@@ -1,0 +1,1415 @@
+/*
+ * Hunt Garaj — ortak üst kontrol sistemi
+ * Ayrık bileşenler, ortak ölçü ve ortak malzeme dili.
+ */
+
+:root {
+  /* Primitive */
+  --command-neutral-975: #070a0e;
+  --command-neutral-950: #090d12;
+  --command-neutral-925: #0c1117;
+  --command-neutral-900: #10161d;
+  --command-neutral-875: #141c24;
+  --command-neutral-300: #d5dbe1;
+  --command-neutral-400: #a3adb7;
+  --command-neutral-500: #7b8792;
+  --command-line-100: rgba(255, 255, 255, .07);
+  --command-line-200: rgba(177, 190, 203, .15);
+  --command-line-300: rgba(190, 202, 214, .24);
+  --command-orange-400: #ff8a66;
+  --command-orange-500: #ff6841;
+  --command-orange-600: #e94e2b;
+  --command-orange-ghost: rgba(255, 103, 64, .09);
+  --command-orange-soft: rgba(255, 103, 64, .15);
+  --command-gold-500: #e8a52e;
+
+  /* Semantic */
+  --command-surface: var(--command-neutral-925);
+  --command-surface-raised: var(--command-neutral-900);
+  --command-surface-hover: var(--command-neutral-875);
+  --command-border: var(--command-line-200);
+  --command-border-hover: var(--command-line-300);
+  --command-text: var(--command-neutral-300);
+  --command-text-muted: var(--command-neutral-400);
+  --command-text-dim: var(--command-neutral-500);
+  --command-primary: var(--command-orange-500);
+  --command-primary-border: rgba(255, 112, 74, .48);
+  --command-primary-surface: var(--command-orange-ghost);
+  --command-primary-surface-hover: var(--command-orange-soft);
+  --command-focus: rgba(255, 119, 79, .82);
+
+  /* Component */
+  --command-control-height: 48px;
+  --command-icon-control-size: 48px;
+  --command-control-radius: 10px;
+  --command-control-gap: 8px;
+  --command-control-padding-x: 15px;
+  --command-control-icon-size: 18px;
+  --command-control-font-size: var(--font-size-caption, .6875rem);
+  --command-control-font-weight: var(--font-weight-bold, 750);
+  --command-bar-height: 92px;
+  --command-bar-gap: 10px;
+  --command-bar-padding-x: 22px;
+  --command-title-search-space: 6px;
+  --command-search-width: clamp(196px, calc(100vw - 1052px), 488px);
+  --command-search-font-size: .75rem;
+  --command-search-font-weight: 600;
+  --command-search-icon-size: 18px;
+  --command-sort-width: 160px;
+  --command-account-height: 54px;
+  --command-account-action-size: 44px;
+  --command-account-icon-size: 19px;
+  --command-avatar-size: 40px;
+  --command-avatar-radius: 12px;
+  --command-account-width: 148px;
+  --command-header-safe-space: 178px;
+  --command-transition: 160ms cubic-bezier(.2, .8, .2, 1);
+  --command-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .035),
+    0 8px 20px rgba(0, 0, 0, .16);
+  --command-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, .055),
+    0 10px 26px rgba(0, 0, 0, .22);
+}
+
+/* Shared control material */
+body.dashboard-shell :where(
+  .explore-quick-action,
+  .garage-dashboard__actions .button,
+  .wishlist-bulk-toggle,
+  .wishlist-command-add,
+  .community-header-create,
+  .profile-dashboard__actions .profile-action,
+  .dashboard-view-header__actions .button
+) {
+  box-sizing: border-box;
+  min-height: var(--command-control-height);
+  height: var(--command-control-height);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--command-border);
+  border-radius: var(--command-control-radius);
+  padding: 0 var(--command-control-padding-x);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .018), transparent 58%),
+    var(--command-surface);
+  color: var(--command-text);
+  box-shadow: var(--command-shadow);
+  font-family: var(--font-ui);
+  font-size: var(--command-control-font-size);
+  font-weight: var(--command-control-font-weight);
+  line-height: 1;
+  text-shadow: none;
+  white-space: nowrap;
+  transform: none;
+  transition:
+    color var(--command-transition),
+    border-color var(--command-transition),
+    background-color var(--command-transition),
+    box-shadow var(--command-transition),
+    transform var(--command-transition);
+}
+
+body.dashboard-shell :where(
+  .explore-quick-action,
+  .garage-dashboard__actions .button,
+  .wishlist-bulk-toggle,
+  .wishlist-command-add,
+  .community-header-create,
+  .profile-dashboard__actions .profile-action,
+  .dashboard-view-header__actions .button
+):hover {
+  border-color: var(--command-border-hover);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .028), transparent 64%),
+    var(--command-surface-hover);
+  color: #f5f7f9;
+  box-shadow: var(--command-shadow-hover);
+  filter: none;
+  transform: translateY(-1px);
+}
+
+body.dashboard-shell :where(
+  .explore-quick-action--primary,
+  .garage-dashboard__add,
+  .wishlist-command-add,
+  .community-header-create,
+  .profile-action--primary,
+  .dashboard-view-header__actions .button--primary
+) {
+  border-color: var(--command-primary-border) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 151, 113, .075), transparent 62%),
+    var(--command-primary-surface) !important;
+  color: #ffb198 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 188, 157, .09),
+    0 8px 22px rgba(68, 20, 10, .2) !important;
+}
+
+body.dashboard-shell :where(
+  .explore-quick-action--primary,
+  .garage-dashboard__add,
+  .wishlist-command-add,
+  .community-header-create,
+  .profile-action--primary,
+  .dashboard-view-header__actions .button--primary
+):hover {
+  border-color: rgba(255, 126, 88, .7) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 158, 120, .1), transparent 65%),
+    var(--command-primary-surface-hover) !important;
+  color: #fff1ea !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 203, 178, .12),
+    0 10px 26px rgba(92, 27, 13, .26) !important;
+}
+
+body.dashboard-shell :where(
+  .explore-quick-action,
+  .garage-dashboard__actions .button,
+  .wishlist-bulk-toggle,
+  .wishlist-command-add,
+  .community-header-create,
+  .profile-dashboard__actions .profile-action,
+  .dashboard-view-header__actions .button,
+  .top-action-button,
+  .user-button
+):focus-visible {
+  outline: 2px solid var(--command-focus);
+  outline-offset: 2px;
+}
+
+body.dashboard-shell :where(
+  .garage-dashboard__actions .button,
+  .wishlist-bulk-toggle,
+  .wishlist-command-add,
+  .community-header-create,
+  .profile-dashboard__actions .profile-action,
+  .dashboard-view-header__actions .button
+):disabled {
+  cursor: not-allowed;
+  opacity: .5;
+  transform: none;
+}
+
+/* Search and sorting share the same surface without becoming buttons. */
+body.dashboard-shell :where(
+  .explore-search,
+  .garage-command-search,
+  .wishlist-command-search,
+  .community-feed-search
+) {
+  box-sizing: border-box;
+  min-height: var(--command-control-height);
+  height: var(--command-control-height);
+  border-color: var(--command-border);
+  border-radius: var(--command-control-radius);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .012), transparent 62%),
+    var(--command-neutral-950);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+
+/* One command-rail material and one search field specification site-wide. */
+body.dashboard-shell.is-explore-view .explore-commandbar,
+body.dashboard-shell.is-collection-view .garage-dashboard__hero,
+body.dashboard-shell.is-wishlist-view .wishlist-commandbar,
+body.dashboard-shell.is-community-view .community-hub-hero {
+  min-height: var(--command-bar-height);
+  align-items: center;
+  justify-content: start;
+  gap: var(--command-bar-gap);
+  padding: 14px var(--command-bar-padding-x);
+  border: 0;
+  border-bottom: 1px solid rgba(232, 165, 46, .3);
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .012), transparent 72%),
+    rgba(7, 10, 14, .975);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(18px) saturate(1.06);
+}
+
+body.dashboard-shell.is-explore-view .explore-search,
+body.dashboard-shell.is-collection-view .garage-command-search,
+body.dashboard-shell.is-wishlist-view .wishlist-command-search,
+body.dashboard-shell.is-community-view .community-feed-search {
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  height: var(--command-control-height);
+  min-height: var(--command-control-height);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--command-border);
+  border-radius: var(--command-control-radius);
+  padding: 0 12px 0 15px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .012), transparent 62%),
+    var(--command-neutral-950);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+
+body.dashboard-shell.is-explore-view .explore-search input,
+body.dashboard-shell.is-collection-view .garage-command-search input,
+body.dashboard-shell.is-wishlist-view .wishlist-command-search input,
+body.dashboard-shell.is-community-view .community-feed-search input {
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  height: calc(var(--command-control-height) - 2px);
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--command-text);
+  font-family: var(--font-ui);
+  font-size: var(--command-search-font-size);
+  font-weight: var(--command-search-font-weight);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+body.dashboard-shell.is-explore-view .explore-search input::placeholder,
+body.dashboard-shell.is-collection-view .garage-command-search input::placeholder,
+body.dashboard-shell.is-wishlist-view .wishlist-command-search input::placeholder,
+body.dashboard-shell.is-community-view .community-feed-search input::placeholder {
+  color: var(--command-text-dim);
+  opacity: 1;
+}
+
+body.dashboard-shell.is-explore-view .explore-search__icon,
+body.dashboard-shell.is-collection-view .garage-command-search > svg,
+body.dashboard-shell.is-wishlist-view .wishlist-command-search > svg,
+body.dashboard-shell.is-community-view .community-feed-search > svg {
+  width: var(--command-search-icon-size);
+  min-width: var(--command-search-icon-size);
+  height: var(--command-search-icon-size);
+  flex: 0 0 var(--command-search-icon-size);
+  color: var(--command-orange-400);
+}
+
+body.dashboard-shell.is-explore-view .explore-search__icon {
+  border-color: var(--command-orange-400);
+}
+
+body.dashboard-shell.is-explore-view .explore-search__icon::after {
+  background: var(--command-orange-400);
+}
+
+body.dashboard-shell.is-collection-view .garage-command-search > svg,
+body.dashboard-shell.is-wishlist-view .wishlist-command-search > svg,
+body.dashboard-shell.is-community-view .community-feed-search > svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+body.dashboard-shell.is-explore-view .explore-search kbd,
+body.dashboard-shell.is-collection-view .garage-command-search kbd,
+body.dashboard-shell.is-wishlist-view .wishlist-command-search kbd {
+  flex: 0 0 auto;
+  border: 1px solid var(--command-line-100);
+  border-radius: 4px;
+  padding: 5px 7px;
+  background: rgba(255, 255, 255, .025);
+  color: var(--command-text-dim);
+  font-family: var(--font-ui);
+  font-size: .5625rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+body.dashboard-shell.is-explore-view .explore-search button,
+body.dashboard-shell.is-wishlist-view .wishlist-command-search button {
+  width: 36px;
+  min-width: 36px;
+  height: calc(var(--command-control-height) - 2px);
+  flex: 0 0 36px;
+  margin-right: -12px;
+  border-left-color: var(--command-line-100);
+  font-family: var(--font-ui);
+}
+
+body.dashboard-shell :where(
+  .explore-commandbar__result strong,
+  .garage-command-result strong,
+  .wishlist-command-result strong
+) {
+  font-family: var(--font-ui);
+  font-size: var(--command-search-font-size);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+body.dashboard-shell :where(
+  .explore-commandbar__result span,
+  .garage-command-result span,
+  .wishlist-command-result span
+) {
+  font-family: var(--font-ui);
+  font-size: .5625rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+body.dashboard-shell :where(
+  .explore-sort > span,
+  .garage-command-sort > span,
+  .wishlist-sort > span,
+  .community-feed-sort--command > span
+) {
+  font-family: var(--font-ui);
+  font-size: .5rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+body.dashboard-shell :where(
+  .explore-sort select,
+  .garage-command-sort select,
+  .wishlist-sort select,
+  .community-feed-sort--command select
+) {
+  box-sizing: border-box;
+  height: var(--command-control-height);
+  border-color: var(--command-border);
+  border-radius: var(--command-control-radius);
+  background-color: var(--command-surface);
+  color: var(--command-text);
+  box-shadow: var(--command-shadow);
+  font-family: var(--font-ui);
+  font-size: var(--command-control-font-size);
+  font-weight: var(--command-control-font-weight);
+}
+
+body.dashboard-shell :where(
+  .explore-sort select,
+  .garage-command-sort select,
+  .wishlist-sort select,
+  .community-feed-sort--command select
+):hover {
+  border-color: var(--command-border-hover);
+  background-color: var(--command-surface-raised);
+}
+
+body.dashboard-shell :where(
+  .explore-search,
+  .garage-command-search,
+  .wishlist-command-search,
+  .community-feed-search,
+  .explore-sort select,
+  .garage-command-sort select,
+  .wishlist-sort select,
+  .community-feed-sort--command select
+):focus-within,
+body.dashboard-shell :where(
+  .explore-sort select,
+  .garage-command-sort select,
+  .wishlist-sort select,
+  .community-feed-sort--command select
+):focus {
+  border-color: rgba(255, 119, 79, .56);
+  box-shadow: 0 0 0 3px rgba(255, 103, 64, .08);
+}
+
+/* Account controls: one premium instrument island. */
+body.dashboard-shell .dashboard-account-dock,
+body.dashboard-shell.is-profile-view .dashboard-account-dock {
+  isolation: isolate;
+  top: calc((var(--command-bar-height) - var(--command-account-height)) / 2);
+  right: 18px;
+  width: var(--command-account-width);
+  min-width: var(--command-account-width);
+  height: var(--command-account-height);
+  align-items: center;
+  gap: 2px;
+  overflow: visible;
+  border: 1px solid rgba(181, 194, 207, .23);
+  border-radius: 16px;
+  padding: 4px;
+  background:
+    radial-gradient(circle at 86% -18%, rgba(255, 117, 74, .2), transparent 47%),
+    linear-gradient(180deg, rgba(255, 255, 255, .065), transparent 46%),
+    linear-gradient(110deg, rgba(12, 18, 24, .985), rgba(7, 11, 15, .985));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .075),
+    inset 0 -1px 0 rgba(255, 91, 48, .08),
+    0 16px 36px rgba(0, 0, 0, .4),
+    0 0 22px rgba(255, 91, 48, .055);
+  backdrop-filter: blur(20px) saturate(1.18);
+}
+
+body.dashboard-shell .dashboard-account-dock::before,
+body.dashboard-shell.is-profile-view .dashboard-account-dock::before {
+  position: absolute;
+  z-index: 2;
+  right: 10px;
+  bottom: -1px;
+  left: 37%;
+  height: 1px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 101, 61, .86), rgba(255, 183, 101, .46), transparent);
+  box-shadow: 0 0 14px rgba(255, 91, 48, .26);
+  content: "";
+  pointer-events: none;
+}
+
+body.dashboard-shell .dashboard-account-dock::after,
+body.dashboard-shell.is-profile-view .dashboard-account-dock::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(118deg, rgba(255, 255, 255, .025), transparent 34%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .022);
+  content: "";
+  pointer-events: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-quick-actions,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-quick-actions {
+  width: 90px;
+  height: var(--command-account-action-size);
+  gap: 2px;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button,
+body.dashboard-shell .dashboard-account-dock .user-button,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button {
+  box-sizing: border-box;
+  width: var(--command-account-action-size);
+  min-width: var(--command-account-action-size);
+  height: var(--command-account-action-size);
+  min-height: var(--command-account-action-size);
+  border: 0;
+  border-radius: 10px;
+  padding: 0;
+  background: transparent;
+  color: #aeb8c2;
+  box-shadow: none;
+  font-family: var(--font-ui);
+  font-size: var(--command-control-font-size);
+  font-weight: var(--command-control-font-weight);
+  transform: none;
+  transition:
+    color var(--command-transition),
+    border-color var(--command-transition),
+    background-color var(--command-transition),
+    box-shadow var(--command-transition),
+    transform var(--command-transition);
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button + .top-action-button,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button + .top-action-button {
+  border-left: 0;
+  border-radius: 11px;
+}
+
+body.dashboard-shell .dashboard-account-dock :where(.top-action-button, .user-button):focus-visible,
+body.dashboard-shell.is-profile-view .dashboard-account-dock :where(.top-action-button, .user-button):focus-visible {
+  outline: 2px solid var(--command-focus);
+  outline-offset: 2px;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button:hover,
+body.dashboard-shell .dashboard-account-dock .user-button:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button:hover,
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in:hover {
+  border-color: transparent;
+  background:
+    radial-gradient(circle at 50% -8%, rgba(255, 151, 112, .1), transparent 60%),
+    rgba(255, 255, 255, .05);
+  color: #f4f7f9;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .045),
+    0 5px 14px rgba(0, 0, 0, .14);
+  transform: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button[aria-expanded="true"],
+body.dashboard-shell .dashboard-account-dock .top-action-button.is-active[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button.is-active[aria-expanded="true"] {
+  border-color: transparent;
+  background: rgba(255, 103, 64, .1);
+  color: var(--command-orange-400);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 124, 83, .2),
+    0 0 14px rgba(255, 91, 48, .08);
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button.is-active,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button.is-active {
+  color: #ffd1c2;
+}
+
+body.dashboard-shell .dashboard-account-dock__action-icon,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-icon,
+body.dashboard-shell .dashboard-account-dock__action-icon svg,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-icon svg {
+  width: var(--command-account-icon-size);
+  height: var(--command-account-icon-size);
+  stroke-width: 1.75;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-shell,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-shell {
+  box-sizing: border-box;
+  display: grid;
+  position: relative;
+  width: 48px;
+  height: var(--command-account-action-size);
+  place-items: center;
+  margin-left: 0;
+  padding: 0;
+  border-left: 0;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-shell::before,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-shell::before {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(190, 202, 214, .19), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button[aria-expanded="true"],
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in[aria-expanded="true"] {
+  border-color: transparent;
+  background: rgba(255, 255, 255, .05);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 130, 86, .2),
+    0 0 15px rgba(255, 91, 48, .08);
+  transform: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__avatar {
+  position: relative;
+  width: var(--command-avatar-size);
+  min-width: var(--command-avatar-size);
+  height: var(--command-avatar-size);
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--command-avatar-radius) !important;
+  padding: 1px !important;
+  background:
+    linear-gradient(var(--command-neutral-975), var(--command-neutral-975)) padding-box,
+    linear-gradient(145deg, rgba(255, 221, 184, .82), rgba(255, 112, 69, .62) 46%, rgba(185, 197, 208, .26)) border-box !important;
+  box-shadow:
+    0 0 0 2px rgba(255, 103, 64, .075),
+    0 9px 20px rgba(0, 0, 0, .42),
+    0 0 20px rgba(255, 91, 48, .14);
+  isolation: isolate;
+  transition:
+    box-shadow var(--command-transition),
+    transform var(--command-transition);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in .user-button__avatar {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--command-neutral-975), var(--command-neutral-975)) padding-box,
+    linear-gradient(145deg, rgba(255, 221, 184, .82), rgba(255, 112, 69, .62) 46%, rgba(185, 197, 208, .26)) border-box !important;
+  box-shadow:
+    0 0 0 2px rgba(255, 103, 64, .075),
+    0 9px 20px rgba(0, 0, 0, .42),
+    0 0 20px rgba(255, 91, 48, .14);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__avatar::after,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__avatar::after {
+  position: absolute;
+  z-index: 2;
+  inset: 1px;
+  border-radius: calc(var(--command-avatar-radius) - 2px);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .15), transparent 36%, transparent 72%, rgba(255, 108, 66, .06));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .055);
+  content: "";
+  pointer-events: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__avatar img,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: calc(var(--command-avatar-radius) - 3px) !important;
+  object-fit: cover;
+  object-position: center center;
+  filter: saturate(1.06) contrast(1.04) brightness(1.02);
+  transform: scale(1.035);
+  transition:
+    filter var(--command-transition),
+    transform var(--command-transition);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button:hover .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button:hover .user-button__avatar,
+body.dashboard-shell .dashboard-account-dock .user-button[aria-expanded="true"] .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button[aria-expanded="true"] .user-button__avatar {
+  box-shadow:
+    0 0 0 2px rgba(255, 103, 64, .12),
+    0 10px 22px rgba(0, 0, 0, .44),
+    0 0 24px rgba(255, 91, 48, .22);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button:hover .user-button__avatar img,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button:hover .user-button__avatar img,
+body.dashboard-shell .dashboard-account-dock .user-button[aria-expanded="true"] .user-button__avatar img,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button[aria-expanded="true"] .user-button__avatar img {
+  filter: saturate(1.1) contrast(1.055) brightness(1.045);
+  transform: scale(1.07);
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button .message-count,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button .message-count {
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  border-color: var(--command-neutral-975);
+  background: var(--command-orange-500);
+  box-shadow:
+    0 4px 10px rgba(255, 72, 39, .34),
+    0 0 0 1px rgba(255, 127, 91, .12);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-label, .625rem);
+  font-weight: var(--command-control-font-weight);
+}
+
+/* Every desktop header reserves the same account area. */
+@media (min-width: 1181px) {
+  body.dashboard-shell.is-explore-view .explore-commandbar,
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar,
+  body.dashboard-shell.is-community-view .community-hub-hero,
+  body.dashboard-shell.is-profile-view .profile-dashboard__hero,
+  body.dashboard-shell .dashboard-view-header {
+    padding-right: var(--command-header-safe-space);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar {
+    grid-template-columns: 88px minmax(220px, 1fr) 112px minmax(148px, 166px) auto;
+    gap: 14px;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-actions {
+    position: static;
+    display: flex;
+    width: auto;
+    height: var(--command-control-height);
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--command-control-gap);
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-action {
+    min-width: 0;
+    height: var(--command-control-height);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-action:first-child,
+  body.dashboard-shell.is-explore-view .explore-quick-action + .explore-quick-action {
+    border-left: 1px solid var(--command-border);
+    border-radius: var(--command-control-radius);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-action--secondary > i {
+    width: var(--command-control-icon-size);
+    height: var(--command-control-icon-size);
+    flex-basis: var(--command-control-icon-size);
+    background: var(--command-gold-500);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-action--primary > i {
+    width: var(--command-control-icon-size);
+    height: var(--command-control-icon-size);
+    flex-basis: var(--command-control-icon-size);
+    background: currentColor;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions,
+  body.dashboard-shell.is-community-view .community-hub-hero__actions,
+  body.dashboard-shell.is-profile-view .profile-dashboard__actions,
+  body.dashboard-shell .dashboard-view-header__actions {
+    gap: var(--command-control-gap);
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions .button,
+  body.dashboard-shell.is-collection-view .garage-dashboard .garage-dashboard__add {
+    height: var(--command-control-height);
+    min-height: var(--command-control-height);
+    border-radius: var(--command-control-radius);
+    padding: 0 var(--command-control-padding-x);
+    font-family: var(--font-ui);
+    font-size: var(--command-control-font-size);
+    font-weight: var(--command-control-font-weight);
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar {
+    grid-template-columns: 88px minmax(220px, 1fr) auto 160px 64px 118px;
+    gap: 10px;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle {
+    width: 64px;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add {
+    width: 118px;
+    min-width: 118px;
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero {
+    grid-template-columns: 88px minmax(250px, 1fr);
+    gap: 16px;
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero__actions {
+    grid-template-columns: minmax(220px, 1fr) 160px 112px;
+    gap: var(--command-control-gap);
+  }
+
+  body.dashboard-shell.is-community-view .community-feed-search,
+  body.dashboard-shell.is-community-view .community-feed-sort--command select,
+  body.dashboard-shell.is-community-view .community-header-create {
+    border-radius: var(--command-control-radius);
+  }
+
+  body.dashboard-shell.is-community-view .community-feed-sort--command select {
+    font-family: var(--font-ui);
+    font-size: var(--command-control-font-size);
+    font-weight: var(--command-control-font-weight);
+  }
+
+  body.dashboard-shell.is-community-view .community-header-create {
+    width: 112px;
+    min-width: 112px;
+    padding-inline: var(--command-control-padding-x);
+  }
+
+  body.dashboard-shell.is-profile-view .profile-dashboard__actions {
+    width: min(236px, 100%);
+  }
+
+  body.dashboard-shell.is-profile-view .profile-dashboard__actions .button,
+  body.dashboard-shell.is-profile-view .profile-action,
+  body.dashboard-shell.is-profile-view .profile-action--primary {
+    min-height: var(--command-control-height);
+    height: var(--command-control-height);
+    border-radius: var(--command-control-radius);
+    font-family: var(--font-ui);
+    font-size: var(--command-control-font-size);
+    font-weight: var(--command-control-font-weight);
+    text-shadow: none;
+  }
+
+  body.dashboard-shell.is-profile-view .profile-action::before {
+    opacity: .22;
+  }
+
+  body.dashboard-shell .dashboard-view-header__actions .button {
+    min-height: var(--command-control-height);
+    height: var(--command-control-height);
+    border-radius: var(--command-control-radius);
+    font-family: var(--font-ui);
+    font-size: var(--command-control-font-size);
+    font-weight: var(--command-control-font-weight);
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1420px) {
+  body.dashboard-shell.is-explore-view .explore-commandbar {
+    grid-template-columns: 88px minmax(190px, 1fr) 138px auto;
+    gap: 10px;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar__result {
+    display: none;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar {
+    grid-template-columns: 88px minmax(190px, 1fr) 148px 48px 112px;
+    gap: 8px;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-command-result {
+    display: none;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle {
+    width: 48px;
+    padding: 0;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle span {
+    display: none;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add {
+    width: 112px;
+    min-width: 112px;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-command-result {
+    display: none;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero {
+    grid-template-columns: 88px minmax(180px, 1fr) 138px 248px;
+    gap: 10px;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions {
+    display: grid;
+    width: 248px;
+    grid-template-columns: 130px 110px;
+    gap: var(--command-control-gap);
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions .button {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero__actions {
+    grid-template-columns: minmax(190px, 1fr) 148px 104px;
+  }
+
+  body.dashboard-shell.is-community-view .community-header-create {
+    width: 104px;
+    min-width: 104px;
+  }
+}
+
+@media (max-width: 760px) {
+  body.dashboard-shell .dashboard-account-dock,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock {
+    width: var(--command-account-width);
+    min-width: var(--command-account-width);
+  }
+
+  body.dashboard-shell .dashboard-account-dock .top-action-button,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button,
+  body.dashboard-shell .dashboard-account-dock .user-button,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button {
+    width: var(--command-account-action-size);
+    min-width: var(--command-account-action-size);
+    height: var(--command-account-action-size);
+    min-height: var(--command-account-action-size);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.dashboard-shell :where(
+    .explore-quick-action,
+    .garage-dashboard__actions .button,
+    .wishlist-bulk-toggle,
+    .wishlist-command-add,
+    .community-header-create,
+    .profile-dashboard__actions .profile-action,
+    .dashboard-view-header__actions .button,
+    .top-action-button,
+    .user-button
+  ) {
+    transition: none;
+  }
+}
+
+/* Wide desktop: every search receives the same responsive width token. */
+@media (min-width: 1600px) {
+  body.dashboard-shell {
+    --command-search-width: clamp(440px, calc(100vw - 1160px), 488px);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar,
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar,
+  body.dashboard-shell.is-community-view .community-hub-hero {
+    padding-right: var(--command-header-safe-space);
+    gap: var(--command-bar-gap);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar {
+    grid-template-columns: max-content var(--command-search-width) 112px minmax(0, 1fr) var(--command-sort-width) max-content;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero {
+    grid-template-columns: max-content var(--command-search-width) 74px minmax(0, 1fr) var(--command-sort-width) max-content;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar {
+    grid-template-columns: max-content var(--command-search-width) 74px minmax(0, 1fr) var(--command-sort-width) 64px 118px;
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero__actions {
+    grid-template-columns: var(--command-search-width) minmax(0, 1fr) var(--command-sort-width) 112px;
+    justify-content: start;
+    gap: var(--command-control-gap);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-sort { grid-column: 5; }
+  body.dashboard-shell.is-explore-view .explore-quick-actions { grid-column: 6; }
+  body.dashboard-shell.is-collection-view .garage-command-sort { grid-column: 5; }
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions { grid-column: 6; }
+  body.dashboard-shell.is-wishlist-view .wishlist-sort { grid-column: 5; }
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle { grid-column: 6; }
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add { grid-column: 7; }
+  body.dashboard-shell.is-community-view .community-feed-sort--command { grid-column: 3; }
+  body.dashboard-shell.is-community-view .community-header-create { grid-column: 4; }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions {
+    display: flex;
+    width: auto;
+    height: var(--command-control-height);
+    flex-wrap: nowrap;
+    gap: var(--command-control-gap);
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions .button {
+    width: auto;
+    min-width: 0 !important;
+    flex: 1 1 0;
+    padding-inline: 12px;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-search-shell,
+  body.dashboard-shell.is-collection-view .garage-command-search,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-search,
+  body.dashboard-shell.is-community-view .community-feed-search {
+    width: var(--command-search-width);
+    min-width: var(--command-search-width);
+    max-width: var(--command-search-width);
+  }
+}
+
+/* Standard desktop: still one row, with metadata compacted instead of wrapping. */
+@media (min-width: 1181px) and (max-width: 1599px) {
+  body.dashboard-shell.is-explore-view .explore-commandbar,
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar,
+  body.dashboard-shell.is-community-view .community-hub-hero {
+    padding-right: var(--command-header-safe-space);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar {
+    grid-template-columns: max-content var(--command-search-width) minmax(0, 1fr) 138px max-content;
+    gap: var(--command-bar-gap);
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero {
+    grid-template-columns: max-content var(--command-search-width) minmax(0, 1fr) 138px 228px;
+    gap: var(--command-bar-gap);
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions {
+    width: 228px;
+    grid-template-columns: 125px 95px;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar {
+    grid-template-columns: max-content var(--command-search-width) minmax(0, 1fr) 148px 48px 112px;
+    gap: var(--command-bar-gap);
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero {
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--command-bar-gap);
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero__actions {
+    grid-template-columns: var(--command-search-width) minmax(0, 1fr) 148px 104px;
+    justify-content: start;
+    gap: var(--command-control-gap);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-sort { grid-column: 4; }
+  body.dashboard-shell.is-explore-view .explore-quick-actions { grid-column: 5; }
+  body.dashboard-shell.is-collection-view .garage-command-sort { grid-column: 4; }
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions { grid-column: 5; }
+  body.dashboard-shell.is-wishlist-view .wishlist-sort { grid-column: 4; }
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle { grid-column: 5; }
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add { grid-column: 6; }
+  body.dashboard-shell.is-community-view .community-feed-sort--command { grid-column: 3; }
+  body.dashboard-shell.is-community-view .community-header-create { grid-column: 4; }
+
+  body.dashboard-shell.is-explore-view .explore-search-shell,
+  body.dashboard-shell.is-collection-view .garage-command-search,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-search,
+  body.dashboard-shell.is-community-view .community-feed-search {
+    width: var(--command-search-width);
+    min-width: var(--command-search-width);
+    max-width: var(--command-search-width);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar__result,
+  body.dashboard-shell.is-collection-view .garage-command-result,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-result {
+    display: none;
+  }
+}
+
+/* Compact desktop/tablet: one row is preserved by switching actions to icons. */
+@media (min-width: 821px) and (max-width: 1180px) {
+  body.dashboard-shell {
+    --command-search-width: clamp(108px, calc(100vw - 812px), 216px);
+    --command-compact-sort-width: 112px;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar,
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar,
+  body.dashboard-shell.is-community-view .community-hub-hero {
+    min-height: var(--command-bar-height);
+    padding: 14px var(--command-header-safe-space) 14px 14px;
+    gap: 6px;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar {
+    grid-template-columns: max-content var(--command-search-width) minmax(0, 1fr) var(--command-compact-sort-width) 94px;
+    grid-template-areas: none;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar__title,
+  body.dashboard-shell.is-explore-view .explore-search-shell,
+  body.dashboard-shell.is-explore-view .explore-sort,
+  body.dashboard-shell.is-explore-view .explore-quick-actions {
+    grid-area: auto;
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar__title,
+  body.dashboard-shell.is-collection-view .garage-dashboard__copy,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar__title,
+  body.dashboard-shell.is-community-view .community-hub-hero__copy {
+    width: max-content !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    overflow: visible;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar__title > .module-jargon__label,
+  body.dashboard-shell.is-collection-view .garage-dashboard__copy .module-jargon__label,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar__title > .module-jargon__label,
+  body.dashboard-shell.is-community-view .community-hub-hero__copy > .module-jargon__label,
+  body.dashboard-shell.is-explore-view .explore-commandbar__title > .module-jargon__title,
+  body.dashboard-shell.is-collection-view .garage-dashboard__copy .module-jargon__title,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar__title > .module-jargon__title,
+  body.dashboard-shell.is-community-view .community-hub-hero__copy > .module-jargon__title {
+    width: max-content !important;
+    max-width: none !important;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-sort {
+    display: grid;
+    height: var(--command-control-height);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-sort > span {
+    position: absolute;
+    bottom: calc(100% + 5px);
+    left: 0;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-actions {
+    position: static;
+    display: grid;
+    width: 94px;
+    height: var(--command-control-height);
+    grid-template-columns: repeat(2, 44px);
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-action {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-quick-action span {
+    display: none;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero {
+    grid-template-columns: max-content var(--command-search-width) minmax(0, 1fr) var(--command-compact-sort-width) 94px;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__copy,
+  body.dashboard-shell.is-collection-view .garage-command-search,
+  body.dashboard-shell.is-collection-view .garage-command-sort,
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions {
+    display: grid;
+    width: 94px;
+    grid-template-columns: repeat(2, 44px);
+    justify-content: start;
+    gap: 6px;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions .button {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions .button svg {
+    width: var(--command-control-icon-size);
+    height: var(--command-control-icon-size);
+    margin: 0;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar {
+    grid-template-columns: max-content var(--command-search-width) minmax(0, 1fr) var(--command-compact-sort-width) 40px 40px;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar__title,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-search,
+  body.dashboard-shell.is-wishlist-view .wishlist-sort,
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-sort {
+    height: var(--command-control-height);
+    margin: 0;
+    padding: 0;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-sort > span {
+    top: -14px;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle span,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add span {
+    display: none;
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero__actions {
+    display: grid;
+    grid-column: auto;
+    width: 100%;
+    grid-template-columns: var(--command-search-width) minmax(0, 1fr) var(--command-compact-sort-width) 40px;
+    gap: 6px;
+  }
+
+  body.dashboard-shell.is-community-view .community-header-create {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+
+  body.dashboard-shell.is-community-view .community-header-create span {
+    display: none;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-search-shell,
+  body.dashboard-shell.is-collection-view .garage-command-search,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-search,
+  body.dashboard-shell.is-community-view .community-feed-search {
+    width: var(--command-search-width);
+    min-width: var(--command-search-width);
+    max-width: var(--command-search-width);
+  }
+
+  body.dashboard-shell.is-explore-view .explore-search kbd,
+  body.dashboard-shell.is-collection-view .garage-command-search kbd,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-search kbd {
+    display: none;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-commandbar__result,
+  body.dashboard-shell.is-collection-view .garage-command-result,
+  body.dashboard-shell.is-wishlist-view .wishlist-command-result {
+    display: none;
+  }
+
+  body.dashboard-shell.is-explore-view .explore-sort { grid-column: 4; }
+  body.dashboard-shell.is-explore-view .explore-quick-actions { grid-column: 5; }
+  body.dashboard-shell.is-collection-view .garage-command-sort { grid-column: 4; }
+  body.dashboard-shell.is-collection-view .garage-dashboard__actions { grid-column: 5; }
+  body.dashboard-shell.is-wishlist-view .wishlist-sort { grid-column: 4; }
+  body.dashboard-shell.is-wishlist-view .wishlist-bulk-toggle { grid-column: 5; }
+  body.dashboard-shell.is-wishlist-view .wishlist-command-add { grid-column: 6; }
+  body.dashboard-shell.is-community-view .community-feed-sort--command { grid-column: 3; }
+  body.dashboard-shell.is-community-view .community-header-create { grid-column: 4; }
+
+  body.dashboard-shell :where(
+    .explore-commandbar__title .module-jargon__title,
+    .garage-dashboard__copy .module-jargon__title,
+    .wishlist-commandbar__title .module-jargon__title,
+    .community-hub-hero__copy .module-jargon__title
+  ) {
+    overflow: hidden;
+    font-size: 1rem !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 821px) {
+  body.dashboard-shell.is-explore-view .explore-commandbar__title,
+  body.dashboard-shell.is-collection-view .garage-dashboard__copy,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar__title,
+  body.dashboard-shell.is-community-view .community-hub-hero__copy {
+    width: max-content !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin-right: var(--command-title-search-space) !important;
+    text-align: left;
+  }
+
+  body.dashboard-shell.is-collection-view .garage-dashboard__copy > .module-jargon {
+    width: max-content !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+  }
+
+  body.dashboard-shell :where(
+    .explore-commandbar__title,
+    .garage-dashboard__copy,
+    .wishlist-commandbar__title,
+    .community-hub-hero__copy
+  ) .module-jargon__label,
+  body.dashboard-shell :where(
+    .explore-commandbar__title,
+    .garage-dashboard__copy,
+    .wishlist-commandbar__title,
+    .community-hub-hero__copy
+  ) .module-jargon__title {
+    width: max-content !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    text-align: left !important;
+  }
+
+  body.dashboard-shell :where(
+    .explore-commandbar__title,
+    .garage-dashboard__copy,
+    .wishlist-commandbar__title,
+    .community-hub-hero__copy
+  ) .module-jargon__title::after {
+    margin-left: 0 !important;
+  }
+}
+
+/* One literal search specification: geometry, type and icon stay identical. */
+body.dashboard-shell :where(
+  .explore-search,
+  .garage-command-search,
+  .wishlist-command-search,
+  .community-feed-search
+) {
+  height: var(--command-control-height) !important;
+  min-height: var(--command-control-height) !important;
+  gap: 10px !important;
+  padding: 0 12px 0 15px !important;
+}
+
+body.dashboard-shell :where(
+  .explore-search,
+  .garage-command-search,
+  .wishlist-command-search,
+  .community-feed-search
+)::before {
+  width: var(--command-search-icon-size);
+  min-width: var(--command-search-icon-size);
+  height: var(--command-search-icon-size);
+  flex: 0 0 var(--command-search-icon-size);
+  background: var(--command-orange-400);
+  content: "";
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Ccircle cx='7.5' cy='7.5' r='5.5' fill='none' stroke='black' stroke-width='1.8'/%3E%3Cpath d='m11.75 11.75 4 4' fill='none' stroke='black' stroke-linecap='round' stroke-width='1.8'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Ccircle cx='7.5' cy='7.5' r='5.5' fill='none' stroke='black' stroke-width='1.8'/%3E%3Cpath d='m11.75 11.75 4 4' fill='none' stroke='black' stroke-linecap='round' stroke-width='1.8'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+}
+
+body.dashboard-shell :where(
+  .explore-search > .explore-search__icon,
+  .garage-command-search > svg,
+  .wishlist-command-search > svg,
+  .community-feed-search > svg
+) {
+  display: none !important;
+}
+
+body.dashboard-shell :where(
+  .explore-search input,
+  .garage-command-search input,
+  .wishlist-command-search input,
+  .community-feed-search input
+) {
+  height: calc(var(--command-control-height) - 2px) !important;
+  font-family: var(--font-ui) !important;
+  font-size: var(--command-search-font-size) !important;
+  font-weight: var(--command-search-font-weight) !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+}
+
+body.dashboard-shell :where(
+  .explore-search kbd,
+  .garage-command-search kbd,
+  .wishlist-command-search kbd
+) {
+  padding: 5px 7px !important;
+  border-radius: 4px !important;
+  font-family: var(--font-ui) !important;
+  font-size: .5625rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}

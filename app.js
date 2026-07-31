@@ -653,6 +653,9 @@ let communityFriendListProfiles = [];
 let communityFriendNetworkLoading = false;
 let communityFriendNetworkLoaded = false;
 let communityFriendNetworkViewerId = "";
+let communityFavoriteProfiles = [];
+let communityFavoriteProfilesSignature = "";
+let communityFavoriteProfilesRequestId = 0;
 const COMMUNITY_HUNTER_RECENT_KEY = "hunt-radar-community-hunter-recent-v1";
 const COMMUNITY_HUNTER_FAVORITES_KEY = "hunt-radar-community-hunter-favorites-v1";
 let communityHunterSearchPanelMode = "recent";
@@ -683,6 +686,8 @@ let activeThreadDraftListing = null;
 let activeThreadDraftRecipient = "";
 let currentPublicProfileUsername = "";
 let activeNotificationTab = "messages";
+let activeNotificationQuickFilter = "all";
+let accountCenterLastTrigger = null;
 let pendingProfileAvatar = null;
 let profileStudioScrollFrame = 0;
 let catalogOverrides = loadCatalogOverrides();
@@ -799,6 +804,9 @@ const communityFriendRequestList = document.querySelector("#communityFriendReque
 const communityFriendListCount = document.querySelector("#communityFriendListCount");
 const communityFriendListStatus = document.querySelector("#communityFriendListStatus");
 const communityFriendList = document.querySelector("#communityFriendList");
+const communityFavoriteListCount = document.querySelector("#communityFavoriteListCount");
+const communityFavoriteListStatus = document.querySelector("#communityFavoriteListStatus");
+const communityFavoriteList = document.querySelector("#communityFavoriteList");
 const communitySpotlightCount = document.querySelector("#communitySpotlightCount");
 const communitySpotlightGrid = document.querySelector("#communitySpotlightGrid");
 const communityFeedList = document.querySelector("#communityFeedList");
@@ -887,10 +895,20 @@ const userButton = document.querySelector("#userButton");
 const userButtonText = document.querySelector("#userButtonText");
 const userButtonMeta = document.querySelector("#userButtonMeta");
 const userAvatar = document.querySelector("#userAvatar");
+const dashboardAccountDock = document.querySelector("#dashboardAccountDock");
 const topMessageButton = document.querySelector("#topMessageButton");
 const topMessageCount = document.querySelector("#topMessageCount");
 const topNotificationButton = document.querySelector("#topNotificationButton");
 const topNotificationCount = document.querySelector("#topNotificationCount");
+const messageQuickPanel = document.querySelector("#messageQuickPanel");
+const messageQuickList = document.querySelector("#messageQuickList");
+const notificationQuickPanel = document.querySelector("#notificationQuickPanel");
+const notificationQuickList = document.querySelector("#notificationQuickList");
+const notificationQuickFilterButtons = document.querySelectorAll("[data-notification-filter]");
+const accountPopoverCloseButtons = document.querySelectorAll("[data-close-account-popover]");
+const markAllNotificationsReadButton = document.querySelector("#markAllNotificationsRead");
+const openAllMessages = document.querySelector("#openAllMessages");
+const openAllNotifications = document.querySelector("#openAllNotifications");
 const accountMenu = document.querySelector("#accountMenu");
 const accountMenuAvatar = document.querySelector("#accountMenuAvatar");
 const accountMenuName = document.querySelector("#accountMenuName");
@@ -902,6 +920,7 @@ const accountMessageCount = document.querySelector("#accountMessageCount");
 const accountLogout = document.querySelector("#accountLogout");
 const openInbox = document.querySelector("#openInbox");
 const openProfileSettings = document.querySelector("#openProfileSettings");
+const openAccountGarage = document.querySelector("#openAccountGarage");
 const openProfileEditor = document.querySelector("#openProfileEditor");
 const openAccountSettings = document.querySelector("#openAccountSettings");
 const openAccountNotifications = document.querySelector("#openAccountNotifications");
@@ -7061,7 +7080,9 @@ function unreadCommentCount() {
 function unreadNotificationCount() {
   const messages = unreadMessageCount();
   const comments = unreadCommentCount() + rewardNotifications.filter((item) => !item.read_at).length;
-  return { messages, comments, total: messages + comments };
+  const friendRequests = currentUser ? communityFriendRequests.length : 0;
+  const notifications = comments + friendRequests;
+  return { messages, comments, friendRequests, notifications, total: messages + notifications };
 }
 
 function commentNotifications() {
@@ -7100,6 +7121,264 @@ function commentNotifications() {
     if (a.unread !== b.unread) return a.unread ? -1 : 1;
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
+}
+
+function accountCenterAvatarMarkup(username = "", fallbackProfile = null) {
+  const target = normalize(profileSearchTerm(username));
+  const profilePools = [
+    fallbackProfile ? [fallbackProfile] : [],
+    communityFriendRequests,
+    communityFriendListProfiles,
+    communityFavoriteProfiles,
+    lastCommunityUserProfiles,
+    featuredCommunityProfiles
+  ];
+  const profile = profilePools
+    .flat()
+    .find((item) => normalize(profileSearchTerm(item?.username)) === target) || fallbackProfile || {};
+  return communityForumAuthorAvatar(profile, username || "Koleksiyoner");
+}
+
+function accountPreviewEmptyMarkup(title, description, type = "notifications") {
+  const icon = type === "messages"
+    ? '<path d="M4 5.5h16v11H8l-4 3v-14Z"/><path d="M8 9h8M8 12.5h5"/>'
+    : '<path d="M6.5 10a5.5 5.5 0 0 1 11 0v3.5l2 2.5h-15l2-2.5V10Z"/><path d="M10 19h4"/>';
+  return `
+    <div class="account-preview-empty" role="status">
+      <div>
+        <span class="account-preview-empty__icon" aria-hidden="true"><svg viewBox="0 0 24 24">${icon}</svg></span>
+        <strong>${escapeHtml(title)}</strong>
+        <p>${escapeHtml(description)}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderMessageQuickPanel() {
+  if (!messageQuickList) return;
+  if (!currentUser) {
+    messageQuickList.innerHTML = accountPreviewEmptyMarkup(
+      "Mesajlarını görmek için giriş yap",
+      "Giriş yaptıktan sonra son konuşmaların burada görünecek.",
+      "messages"
+    );
+    return;
+  }
+
+  const threads = userThreads().slice(0, 6);
+  if (!threads.length) {
+    messageQuickList.innerHTML = accountPreviewEmptyMarkup(
+      "Henüz mesajın yok",
+      "Bir koleksiyonere veya ilan sahibine yazdığında konuşma burada görünecek.",
+      "messages"
+    );
+    return;
+  }
+
+  messageQuickList.innerHTML = "";
+  threads.forEach((thread) => {
+    const other = thread.participants.find((participant) => normalize(participant) !== normalize(currentUser.username)) || "Kullanıcı";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "account-preview-item";
+    button.classList.toggle("is-unread", thread.unread > 0);
+    button.innerHTML = `
+      <span class="account-preview-item__avatar" aria-hidden="true">${accountCenterAvatarMarkup(other)}</span>
+      <span class="account-preview-item__body">
+        <span class="account-preview-item__topline">
+          <strong>@${escapeHtml(other)}</strong>
+          <time>${escapeHtml(formatDateTime(thread.lastMessage?.createdAt))}</time>
+        </span>
+        <p>${escapeHtml(thread.lastMessage?.text || thread.listingTitle || "Konuşma")}</p>
+      </span>
+      ${thread.unread ? `<span class="account-preview-item__count">${escapeHtml(thread.unread > 99 ? "99+" : String(thread.unread))}</span>` : ""}
+    `;
+    button.addEventListener("click", () => {
+      activeThreadKey = thread.threadKey;
+      closeAccountCenterPanels();
+      openMessageModal("messages");
+    });
+    messageQuickList.appendChild(button);
+  });
+}
+
+function notificationQuickItems() {
+  const friends = communityFriendRequests.map((profile) => ({
+    kind: "friend",
+    id: profile.request_id,
+    unread: true,
+    createdAt: profile.created_at || profile.requested_at || "",
+    profile
+  }));
+  const rewards = rewardNotifications.map((notification) => ({
+    kind: "reward",
+    id: notification.id,
+    unread: !notification.read_at,
+    createdAt: notification.created_at,
+    notification
+  }));
+  const comments = commentNotifications().map((notification) => ({
+    kind: "comment",
+    id: notification.id,
+    unread: notification.unread,
+    createdAt: notification.createdAt,
+    notification
+  }));
+  return [...friends, ...rewards, ...comments].sort((a, b) => {
+    if (a.kind === "friend" && b.kind !== "friend") return -1;
+    if (b.kind === "friend" && a.kind !== "friend") return 1;
+    if (a.unread !== b.unread) return a.unread ? -1 : 1;
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
+}
+
+function renderNotificationQuickPanel() {
+  if (!notificationQuickList) return;
+  notificationQuickFilterButtons.forEach((button) => {
+    const active = button.dataset.notificationFilter === activeNotificationQuickFilter;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  if (!currentUser) {
+    notificationQuickList.innerHTML = accountPreviewEmptyMarkup(
+      "Bildirimlerini görmek için giriş yap",
+      "Hesap hareketlerin giriş yaptıktan sonra burada görünecek."
+    );
+    return;
+  }
+
+  const items = notificationQuickItems()
+    .filter((item) => {
+      if (activeNotificationQuickFilter === "friends") return item.kind === "friend";
+      if (activeNotificationQuickFilter === "unread") return item.unread;
+      return true;
+    })
+    .slice(0, 10);
+
+  if (!items.length) {
+    const isFriends = activeNotificationQuickFilter === "friends";
+    const isUnread = activeNotificationQuickFilter === "unread";
+    notificationQuickList.innerHTML = accountPreviewEmptyMarkup(
+      isFriends ? "Bekleyen arkadaşlık isteğin yok" : isUnread ? "Okunmamış bildirimin yok" : "Henüz bildirimin yok",
+      isFriends
+        ? "Yeni bir istek geldiğinde bu bölümde kabul edebilir veya reddedebilirsin."
+        : isUnread ? "Yeni hareketler burada öne çıkarılacak." : "Yorumlar, Radar Puanı hareketleri ve arkadaşlık istekleri burada görünecek."
+    );
+    return;
+  }
+
+  notificationQuickList.innerHTML = "";
+  items.forEach((item) => {
+    if (item.kind === "friend") {
+      const profile = item.profile;
+      const article = document.createElement("article");
+      article.className = "account-friend-request";
+      article.dataset.accountFriendRequest = profile.request_id;
+      article.innerHTML = `
+        <button class="account-preview-item__avatar" type="button" data-account-friend-profile="${escapeHtml(profile.username)}" aria-label="@${escapeHtml(profile.username)} profilini aç">
+          ${accountCenterAvatarMarkup(profile.username, profile)}
+        </button>
+        <div class="account-friend-request__identity">
+          <strong>@${escapeHtml(profile.username)}</strong>
+          <span>Sana arkadaşlık isteği gönderdi.</span>
+        </div>
+        <div class="account-friend-request__actions">
+          <button type="button" data-account-friend-reject="${escapeHtml(profile.request_id)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+            <span>Reddet</span>
+          </button>
+          <button class="is-primary" type="button" data-account-friend-accept="${escapeHtml(profile.request_id)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 12.5 3.2 3.2L17.5 8"/></svg>
+            <span>Kabul Et</span>
+          </button>
+        </div>
+      `;
+      article.querySelector("[data-account-friend-profile]")?.addEventListener("click", () => {
+        closeAccountCenterPanels();
+        navigateToPublicProfile(profile.username);
+      });
+      article.querySelector("[data-account-friend-accept]")?.addEventListener("click", async (event) => {
+        await respondToCommunityFriendRequest(profile.request_id, true, event.currentTarget);
+        renderNotificationQuickPanel();
+      });
+      article.querySelector("[data-account-friend-reject]")?.addEventListener("click", async (event) => {
+        await respondToCommunityFriendRequest(profile.request_id, false, event.currentTarget);
+        renderNotificationQuickPanel();
+      });
+      notificationQuickList.appendChild(article);
+      return;
+    }
+
+    const isReward = item.kind === "reward";
+    const notification = item.notification;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "account-preview-item";
+    button.classList.toggle("is-unread", item.unread);
+    button.innerHTML = `
+      <span class="account-preview-item__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">${isReward
+          ? '<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>'
+          : '<path d="M5 5h14v10H9l-4 3V5Z"/><path d="M8 9h8M8 12h5"/>'}</svg>
+      </span>
+      <span class="account-preview-item__body">
+        <span class="account-preview-item__topline">
+          <strong>${isReward
+            ? escapeHtml(notification.title)
+            : `@${escapeHtml(notification.authorUsername)} · ${escapeHtml(notification.listing.model)}`}</strong>
+          <time>${escapeHtml(formatDateTime(isReward ? notification.created_at : notification.createdAt))}</time>
+        </span>
+        <p>${isReward
+          ? escapeHtml(Rewards?.RULES[notification.event_type]?.label || notification.body)
+          : escapeHtml(notification.text)}</p>
+      </span>
+    `;
+    button.addEventListener("click", async () => {
+      closeAccountCenterPanels();
+      if (isReward) {
+        if (!notification.read_at && supabaseClient) {
+          await supabaseClient.from("reward_notifications").update({ read_at: new Date().toISOString() }).eq("id", notification.id);
+          notification.read_at = new Date().toISOString();
+        }
+        updateUserButton();
+        setActiveView("rewards", { clearSearch: true, scroll: true });
+        return;
+      }
+      openListingDetail(notification.listing);
+    });
+    notificationQuickList.appendChild(button);
+  });
+}
+
+async function markAllAccountNotificationsRead() {
+  if (!currentUser) return;
+  const username = normalize(currentUser.username);
+  let changed = false;
+  state.comments = state.comments.map((comment) => {
+    const targets = commentNotificationTargets(comment).map(normalize);
+    if (!targets.includes(username)) return comment;
+    const replies = comment.replies.map((reply) => {
+      if (!isUnreadForUser(reply, username)) return reply;
+      changed = true;
+      return { ...reply, readBy: [...reply.readBy, currentUser.username] };
+    });
+    if (!isUnreadForUser(comment, username)) return { ...comment, replies };
+    changed = true;
+    return { ...comment, readBy: [...comment.readBy, currentUser.username], replies };
+  });
+  if (changed) saveState();
+
+  const unreadRewards = rewardNotifications.filter((item) => !item.read_at);
+  if (supabaseClient && unreadRewards.length) {
+    const readAt = new Date().toISOString();
+    await Promise.all(unreadRewards.map((item) => (
+      supabaseClient.from("reward_notifications").update({ read_at: readAt }).eq("id", item.id)
+    )));
+    unreadRewards.forEach((item) => { item.read_at = readAt; });
+  }
+  updateUserButton();
+  renderNotificationQuickPanel();
 }
 
 function setNotificationTab(tab) {
@@ -7186,7 +7465,7 @@ function openTopNotifications() {
     return;
   }
 
-  if (notifications.comments) {
+  if (notifications.notifications) {
     openMessageModal("comments");
     return;
   }
@@ -8350,10 +8629,10 @@ async function findPublicProfiles(query = "", limit = 12) {
   if (term.length < 2) return { profiles: [], status: "Aramak için en az 2 karakter yaz.", short: true };
   if (!currentUser) return { profiles: [], status: "Koleksiyoner aramak için giriş yapmalısın.", authRequired: true };
   if (!supabaseClient) {
-    const localProfiles = users
+    const localProfiles = await attachCommunityRewardSummaries(users
       .filter((user) => normalize(user.username).startsWith(normalize(term)))
       .slice(0, limit)
-      .map((user) => ({ ...user, garage_visibility: "public", vehicle_count: collectionItemsForUsername(user.username).length }));
+      .map((user) => ({ ...user, garage_visibility: "public", vehicle_count: collectionItemsForUsername(user.username).length })));
     return { profiles: localProfiles, status: localProfiles.length ? `${localProfiles.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı." };
   }
   const { data, error } = await supabaseClient.rpc("search_public_profiles", { p_query: term, p_limit: limit });
@@ -8363,7 +8642,9 @@ async function findPublicProfiles(query = "", limit = 12) {
     if (fallback.profiles.length || fallback.available) return fallback;
     return { profiles: [], status: "Kullanıcı araması şu anda kullanılamıyor.", error };
   }
-  const profiles = await attachFriendshipStates(await attachPublicProfileAvatars(data || []));
+  const profiles = await attachCommunityRewardSummaries(
+    await attachFriendshipStates(await attachPublicProfileAvatars(data || []))
+  );
   return { profiles, status: profiles.length ? `${profiles.length} kullanıcı bulundu.` : "Kullanıcı bulunamadı." };
 }
 
@@ -8381,6 +8662,50 @@ async function attachPublicProfileAvatars(profiles = []) {
   }
   const avatarById = new Map((data || []).map((profile) => [profile.id, profile]));
   return profiles.map((profile) => ({ ...profile, ...(avatarById.get(profile.id) || {}) }));
+}
+
+async function attachCommunityRewardSummaries(profiles = []) {
+  if (!profiles.length) return profiles;
+  if (!supabaseClient) {
+    return profiles.map((profile) => {
+      const badges = Rewards?.badgesFor?.(profile, state);
+      return {
+        ...profile,
+        badge_count: Array.isArray(badges) ? badges.length : null,
+        radar_points: Number(profile.radar_points || profile.radarPoints || profile.points || 0)
+      };
+    });
+  }
+  const profileIds = [...new Set(profiles.map((profile) => profileId(profile)).filter(Boolean))];
+  if (!profileIds.length) return profiles;
+  const [rewardResult, badgeResult] = await Promise.all([
+    supabaseClient
+      .from("user_rewards")
+      .select("user_id, radar_points")
+      .in("user_id", profileIds),
+    supabaseClient
+      .from("user_badges")
+      .select("user_id, badge_id")
+      .in("user_id", profileIds)
+  ]);
+  const pointsById = new Map(
+    (rewardResult.error ? [] : rewardResult.data || [])
+      .map((row) => [row.user_id, Math.max(0, Number(row.radar_points || 0))])
+  );
+  const badgeCountById = new Map();
+  if (!badgeResult.error) {
+    (badgeResult.data || []).forEach((row) => {
+      badgeCountById.set(row.user_id, (badgeCountById.get(row.user_id) || 0) + 1);
+    });
+  }
+  return profiles.map((profile) => {
+    const id = profileId(profile);
+    return {
+      ...profile,
+      radar_points: rewardResult.error ? Number(profile.radar_points || 0) : pointsById.get(id) || 0,
+      badge_count: badgeResult.error ? null : badgeCountById.get(id) || 0
+    };
+  });
 }
 
 async function attachFriendshipStates(profiles = []) {
@@ -8432,14 +8757,14 @@ async function findPublicProfilesFallback(term = "", limit = 12) {
     console.warn("Koleksiyoner fallback araması başarısız:", error.message);
     return { profiles: [], status: "Kullanıcı araması şu anda kullanılamıyor.", available: false };
   }
-  const profiles = (data || []).map((profile) => ({
+  const profiles = await attachCommunityRewardSummaries((data || []).map((profile) => ({
     ...profile,
     profile_visibility: "public",
     vehicle_count: 0,
     follower_count: 0,
     following_count: 0,
     is_following: false
-  }));
+  })));
   return {
     profiles,
     status: profiles.length
@@ -8673,6 +8998,10 @@ function toggleCommunityHunterFavorite(username = "") {
   saveCommunityHunterStoredNames(COMMUNITY_HUNTER_FAVORITES_KEY, [...communityHunterFavoriteUsernames]);
   syncCommunityHunterFavoriteButtons();
   renderCommunityHunterSearchPanel();
+  communityFavoriteProfilesSignature = "";
+  if (activeCommunityHunterSection === "favorites") {
+    void loadCommunityFavoriteProfiles({ force: true });
+  }
   showToast(existing ? `@${value} yıldızlılardan çıkarıldı.` : `@${value} yıldızlı avcılara eklendi.`);
 }
 
@@ -8737,28 +9066,39 @@ function renderCommunityHunterSearchPanel() {
 function communityHunterSkeletonMarkup(count = 4) {
   return Array.from({ length: count }, () => `
     <article class="community-hunter-card community-hunter-card--skeleton" aria-hidden="true">
-      <span></span><div><i></i><i></i></div><div><i></i><i></i></div>
+      <span></span><div><i></i><i></i><i></i></div><div><i></i><i></i></div>
     </article>
   `).join("");
 }
 
-function renderCommunityUserResults(profiles = []) {
-  if (!communityUserSearchResults) return;
-  communityUserSearchResults.innerHTML = "";
-  const hasSearchQuery = (communityUserSearchInput?.value || "").trim().length >= 2;
-  if (communityHunterCount) {
-    communityHunterCount.textContent = profiles.length ? `${profiles.length} avcı` : hasSearchQuery ? "Sonuç yok" : "Hazır";
-    communityHunterCount.dataset.state = profiles.length ? "success" : hasSearchQuery ? "empty" : "ready";
+function renderCommunityUserResults(profiles = [], options = {}) {
+  const target = options.target || communityUserSearchResults;
+  const countTarget = options.countTarget || communityHunterCount;
+  const favoriteMode = options.mode === "favorites";
+  if (!target) return;
+  target.innerHTML = "";
+  const hasSearchQuery = favoriteMode || (communityUserSearchInput?.value || "").trim().length >= 2;
+  if (countTarget) {
+    countTarget.textContent = profiles.length
+      ? `${profiles.length} ${favoriteMode ? "favori" : "avcı"}`
+      : favoriteMode
+        ? "0 favori"
+        : hasSearchQuery
+          ? "Sonuç yok"
+          : "Hazır";
+    countTarget.dataset.state = profiles.length ? "success" : hasSearchQuery ? "empty" : "ready";
   }
   if (!profiles.length && hasSearchQuery) {
-    communityUserSearchResults.innerHTML = `
+    target.innerHTML = `
       <section class="community-hunter-empty" role="status">
         <span aria-hidden="true">
-          <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4M8 10.5h5"/></svg>
+          <svg viewBox="0 0 24 24">${favoriteMode
+            ? '<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>'
+            : '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 4 4M8 10.5h5"/>'}</svg>
         </span>
         <div>
-          <strong>Eşleşen avcı bulunamadı</strong>
-          <p>Kullanıcı adını kontrol edip yeniden arayabilirsin.</p>
+          <strong>${favoriteMode ? "Henüz favori avcın yok" : "Eşleşen avcı bulunamadı"}</strong>
+          <p>${favoriteMode ? "Beğendiğin koleksiyoner kartlarındaki yıldız simgesine dokunarak buraya ekleyebilirsin." : "Kullanıcı adını kontrol edip yeniden arayabilirsin."}</p>
         </div>
       </section>
     `;
@@ -8769,6 +9109,9 @@ function renderCommunityUserResults(profiles = []) {
     const isOwnProfile = isOwnProfileUser(profile);
     const isFavorite = isCommunityHunterFavorite(profile.username);
     const vehicleCount = Math.max(0, Number(profile.vehicle_count || 0));
+    const badgeCount = profile.badge_count === null || profile.badge_count === undefined
+      ? null
+      : Math.max(0, Number(profile.badge_count || 0));
     const profileState = meta.isPrivate ? "Garaj gizli" : "Açık garaj";
     const relationshipState = meta.summary.friendshipState;
     const relationshipLabel = {
@@ -8815,24 +9158,35 @@ function renderCommunityUserResults(profiles = []) {
           </div>
         </div>
       </div>
-      <div class="community-hunter-card__stats" aria-label="Koleksiyoner bilgileri">
-        <span>
-          <i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 15l2-6h12l2 6M3 15h18v4H3z"/><circle cx="7" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg></i>
-          <span><small>Araçlar</small><strong>${escapeHtml(vehicleCount.toLocaleString("tr-TR"))}</strong></span>
+      <div class="community-hunter-card__stats ${badgeCount === null ? "has-two" : "has-three"}" aria-label="Koleksiyoner bilgileri">
+        <span class="community-hunter-card__stat is-vehicles">
+          <i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 16.5v-5l1.8-4h10.4l1.8 4v5M4 12h16M7 16.5v1.25M17 16.5v1.25"/><path d="M7.5 12h9"/></svg></i>
+          <small>Araçlar</small>
+          <strong>${escapeHtml(vehicleCount.toLocaleString("tr-TR"))}</strong>
         </span>
-        <span>
-          <i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19M16 11a3 3 0 1 0 0-6M15 14h1a4.5 4.5 0 0 1 4.5 4.5V19"/></svg></i>
-          <span><small>Arkadaşlar</small><strong>${escapeHtml(meta.summary.followers.toLocaleString("tr-TR"))}</strong></span>
+        <span class="community-hunter-card__stat is-friends">
+          <i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8" r="3"/><path d="M3 19v-1.25A4.75 4.75 0 0 1 7.75 13h1.5A4.75 4.75 0 0 1 14 17.75V19M16 11a3 3 0 1 0 0-6M15.5 14h.75A4.75 4.75 0 0 1 21 18.75V19"/></svg></i>
+          <small>Arkadaşlar</small>
+          <strong>${escapeHtml(meta.summary.followers.toLocaleString("tr-TR"))}</strong>
         </span>
+        ${badgeCount === null ? "" : `
+          <span class="community-hunter-card__stat is-badges">
+            <i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 7 3v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg></i>
+            <small>Rozetler</small>
+            <strong>${escapeHtml(badgeCount.toLocaleString("tr-TR"))}</strong>
+          </span>
+        `}
       </div>
       <div class="community-hunter-card__actions">
         <button class="is-primary" type="button" data-community-profile="${escapeHtml(profile.username)}">
-          <span>Profili Aç</span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+          <svg class="community-hunter-card__action-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg>
+          <span>Profili İncele</span>
+          <svg class="community-hunter-card__action-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
         <button type="button" data-community-garage="${escapeHtml(profile.username)}"${meta.isPrivate ? " disabled" : ""}>
-          <span>Garaja Git</span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-6h12l2 6M3 15h18v4H3zM7 19v2m10-2v2"/></svg>
+          <svg class="community-hunter-card__action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12M7 20v-8h10v8M8.5 15h7"/></svg>
+          <span>Garajı Gör</span>
+          <svg class="community-hunter-card__action-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
       </div>
     `;
@@ -8840,7 +9194,7 @@ function renderCommunityUserResults(profiles = []) {
     card.querySelector("[data-community-follow]")?.addEventListener("click", () => void toggleFollowForUser(profile));
     card.querySelector("[data-community-garage]")?.addEventListener("click", () => navigateToPublicGarage(profile.username));
     card.querySelector("[data-community-favorite]")?.addEventListener("click", () => toggleCommunityHunterFavorite(profile.username));
-    communityUserSearchResults.appendChild(card);
+    target.appendChild(card);
   });
   syncCommunityHunterFavoriteButtons();
 }
@@ -8972,6 +9326,8 @@ async function loadCommunityFriendNetwork({ force = false, silent = false } = {}
   if (communityFriendNetworkLoaded && communityFriendNetworkViewerId === viewerId && !force) {
     renderCommunityFriendRequests();
     renderCommunityFriendList();
+    updateUserButton();
+    if (notificationQuickPanel?.classList.contains("is-visible")) renderNotificationQuickPanel();
     return;
   }
   if (!currentUser) {
@@ -8985,6 +9341,8 @@ async function loadCommunityFriendNetwork({ force = false, silent = false } = {}
       if (communityFriendRequestStatus) communityFriendRequestStatus.textContent = "İsteklerini görmek için giriş yapmalısın.";
       if (communityFriendListStatus) communityFriendListStatus.textContent = "Arkadaşlarını görmek için giriş yapmalısın.";
     }
+    updateUserButton();
+    if (notificationQuickPanel?.classList.contains("is-visible")) renderNotificationQuickPanel();
     return;
   }
   communityFriendNetworkLoading = true;
@@ -9022,12 +9380,14 @@ async function loadCommunityFriendNetwork({ force = false, silent = false } = {}
     if (communityFriendListStatus) communityFriendListStatus.textContent = "Arkadaşların şu anda yüklenemiyor.";
   } finally {
     communityFriendNetworkLoading = false;
+    updateUserButton();
+    if (notificationQuickPanel?.classList.contains("is-visible")) renderNotificationQuickPanel();
   }
 }
 
 async function respondToCommunityFriendRequest(requestId, accept, button) {
   if (!requestId || !currentUser || !supabaseClient) return;
-  const row = button?.closest("[data-friend-request-row]");
+  const row = button?.closest("[data-friend-request-row], [data-account-friend-request]");
   row?.querySelectorAll("button").forEach((action) => { action.disabled = true; });
   row?.setAttribute("aria-busy", "true");
   const { error } = await supabaseClient.rpc("respond_friend_request", {
@@ -9047,8 +9407,120 @@ async function respondToCommunityFriendRequest(requestId, accept, button) {
   await loadCommunityFriendNetwork({ force: true });
 }
 
+function cachedCommunityFavoriteProfile(username = "") {
+  const target = normalize(profileSearchTerm(username));
+  if (!target) return null;
+  const pools = [
+    communityFavoriteProfiles,
+    lastCommunityUserProfiles,
+    featuredCommunityProfiles,
+    communityFriendListProfiles
+  ];
+  for (const pool of pools) {
+    const profile = (pool || []).find((item) => normalize(profileSearchTerm(item?.username)) === target);
+    if (profile) {
+      return {
+        ...profile,
+        follower_count: profile.follower_count ?? profile.friend_count ?? 0,
+        friendship_state: profile.friendship_state || (communityFriendListProfiles.includes(profile) ? "friends" : undefined)
+      };
+    }
+  }
+  return null;
+}
+
+function renderCommunityFavoriteProfiles() {
+  renderCommunityUserResults(communityFavoriteProfiles, {
+    target: communityFavoriteList,
+    countTarget: communityFavoriteListCount,
+    mode: "favorites"
+  });
+}
+
+async function loadCommunityFavoriteProfiles({ force = false } = {}) {
+  if (!communityFavoriteList) return;
+  const names = [...communityHunterFavoriteUsernames]
+    .map((username) => profileSearchTerm(username))
+    .filter(Boolean);
+  const signature = `${currentUser?.id || "guest"}:${names.map((name) => normalize(name)).sort().join("|")}`;
+  if (!force && communityFavoriteProfilesSignature === signature) {
+    renderCommunityFavoriteProfiles();
+    return;
+  }
+
+  const requestId = ++communityFavoriteProfilesRequestId;
+  if (!names.length) {
+    communityFavoriteProfiles = [];
+    communityFavoriteProfilesSignature = signature;
+    if (communityFavoriteListStatus) communityFavoriteListStatus.textContent = "";
+    renderCommunityFavoriteProfiles();
+    return;
+  }
+  if (!currentUser) {
+    communityFavoriteProfiles = [];
+    communityFavoriteProfilesSignature = "";
+    if (communityFavoriteListCount) {
+      communityFavoriteListCount.textContent = "Giriş gerekli";
+      communityFavoriteListCount.dataset.state = "empty";
+    }
+    if (communityFavoriteListStatus) communityFavoriteListStatus.textContent = "Favori avcılarını görmek için giriş yapmalısın.";
+    communityFavoriteList.innerHTML = communityFriendEmptyMarkup(
+      "Favorilerin için giriş yap",
+      "Yıldızladığın koleksiyonerleri hesabına giriş yaptıktan sonra görüntüleyebilirsin."
+    );
+    return;
+  }
+
+  if (communityFavoriteListStatus) communityFavoriteListStatus.textContent = "Favori avcıların hazırlanıyor...";
+  communityFavoriteList.classList.add("is-loading");
+  communityFavoriteList.innerHTML = communityHunterSkeletonMarkup(Math.min(4, names.length));
+
+  try {
+    const profileByUsername = new Map();
+    names.forEach((username) => {
+      const profile = cachedCommunityFavoriteProfile(username);
+      if (profile) profileByUsername.set(normalize(username), profile);
+    });
+    const missingNames = names.filter((username) => !profileByUsername.has(normalize(username)));
+    if (missingNames.length) {
+      const results = await Promise.all(missingNames.map((username) => findPublicProfiles(username, 16)));
+      if (requestId !== communityFavoriteProfilesRequestId) return;
+      results.forEach((result, index) => {
+        const username = missingNames[index];
+        const exactProfile = (result.profiles || []).find(
+          (profile) => normalize(profileSearchTerm(profile.username)) === normalize(username)
+        );
+        if (exactProfile) profileByUsername.set(normalize(username), exactProfile);
+      });
+    }
+    if (requestId !== communityFavoriteProfilesRequestId) return;
+    communityFavoriteProfiles = names
+      .map((username) => profileByUsername.get(normalize(username)))
+      .filter(Boolean);
+    communityFavoriteProfilesSignature = signature;
+    renderCommunityFavoriteProfiles();
+    if (communityFavoriteListStatus) {
+      const unavailableCount = names.length - communityFavoriteProfiles.length;
+      communityFavoriteListStatus.textContent = unavailableCount
+        ? `${communityFavoriteProfiles.length} favori gösteriliyor; ${unavailableCount} profil artık erişilebilir değil.`
+        : `${communityFavoriteProfiles.length} favori koleksiyoner gösteriliyor.`;
+    }
+  } catch (error) {
+    if (requestId !== communityFavoriteProfilesRequestId) return;
+    console.warn("Favori avcılar yüklenemedi:", error?.message || error);
+    communityFavoriteProfiles = [];
+    communityFavoriteProfilesSignature = "";
+    renderCommunityFavoriteProfiles();
+    if (communityFavoriteListStatus) communityFavoriteListStatus.textContent = "Favori avcıların şu anda yüklenemiyor.";
+  } finally {
+    if (requestId === communityFavoriteProfilesRequestId) {
+      communityFavoriteList.classList.remove("is-loading");
+    }
+  }
+}
+
 function selectCommunityHunterSection(section = "discover") {
-  const nextSection = ["discover", "requests", "friends"].includes(section) ? section : "discover";
+  const nextSection = ["discover", "requests", "friends", "favorites"].includes(section) ? section : "discover";
   activeCommunityHunterSection = nextSection;
   communityHunterSectionTabs.forEach((button) => {
     const active = button.dataset.hunterSection === nextSection;
@@ -9061,6 +9533,10 @@ function selectCommunityHunterSection(section = "discover") {
   });
   if (nextSection === "discover") {
     void loadCommunityHunterDirectory();
+    return;
+  }
+  if (nextSection === "favorites") {
+    void loadCommunityFavoriteProfiles();
     return;
   }
   void loadCommunityFriendNetwork();
@@ -9119,6 +9595,7 @@ async function loadCommunityHunterDirectory({ force = false } = {}) {
       if (error) throw error;
       featuredCommunityProfiles = await attachFriendshipStates(await attachPublicProfileAvatars(data || []));
     }
+    featuredCommunityProfiles = await attachCommunityRewardSummaries(featuredCommunityProfiles);
     lastCommunityUserProfiles = featuredCommunityProfiles;
     communitySpotlightLoaded = true;
     communitySpotlightViewerId = viewerId;
@@ -10553,14 +11030,14 @@ function updateUserButton() {
     ? String(collectionItemsForUsername(currentUser.username).length)
     : "0";
   accountMessageCount.textContent = String(unreadCount);
-  accountMessageCount.title = notifications.comments ? `${notifications.comments} yorum bildirimi` : "";
+  accountMessageCount.title = notifications.notifications ? `${notifications.notifications} bildirim` : "";
   accountMessageCount.classList.toggle("is-active", unreadCount > 0);
   topMessageCount.textContent = String(notifications.messages);
   topMessageCount.classList.toggle("is-active", notifications.messages > 0);
-  topNotificationCount.textContent = String(notifications.comments);
-  topNotificationCount.classList.toggle("is-active", notifications.comments > 0);
+  topNotificationCount.textContent = String(notifications.notifications);
+  topNotificationCount.classList.toggle("is-active", notifications.notifications > 0);
   topMessageButton.classList.toggle("is-active", notifications.messages > 0);
-  topNotificationButton.classList.toggle("is-active", notifications.comments > 0);
+  topNotificationButton.classList.toggle("is-active", notifications.notifications > 0);
   topMessageButton.classList.toggle("is-logged-out", !currentUser);
   topNotificationButton.classList.toggle("is-logged-out", !currentUser);
   userButton.classList.toggle("is-logged-in", Boolean(currentUser));
@@ -10601,26 +11078,65 @@ function userInitials(value) {
   return String(value || "HR").slice(0, 2).toLocaleUpperCase("tr-TR");
 }
 
+function closeAccountCenterPanels({ restoreFocus = false } = {}) {
+  [messageQuickPanel, notificationQuickPanel].forEach((panel) => {
+    panel?.classList.remove("is-visible");
+    panel?.setAttribute("aria-hidden", "true");
+  });
+  accountMenu?.classList.remove("is-visible");
+  accountMenu?.setAttribute("aria-hidden", "true");
+  [topMessageButton, topNotificationButton, userButton].forEach((button) => {
+    button?.setAttribute("aria-expanded", "false");
+  });
+  if (restoreFocus && accountCenterLastTrigger instanceof HTMLElement) {
+    accountCenterLastTrigger.focus();
+  }
+  if (restoreFocus) accountCenterLastTrigger = null;
+}
+
+function toggleAccountCenterPanel(panel, trigger) {
+  if (!panel || !trigger) return;
+  const willOpen = !panel.classList.contains("is-visible");
+  closeAccountCenterPanels();
+  if (!willOpen) return;
+  panel.classList.add("is-visible");
+  panel.setAttribute("aria-hidden", "false");
+  trigger.setAttribute("aria-expanded", "true");
+  accountCenterLastTrigger = trigger;
+}
+
 function toggleAccountMenu() {
   const willOpen = !accountMenu.classList.contains("is-visible");
-  accountMenu.classList.toggle("is-visible", willOpen);
-  userButton.setAttribute("aria-expanded", String(willOpen));
-  if (willOpen) updateUserButton();
+  closeAccountCenterPanels();
+  if (!willOpen) return;
+  accountMenu.classList.add("is-visible");
+  accountMenu.setAttribute("aria-hidden", "false");
+  userButton.setAttribute("aria-expanded", "true");
+  accountCenterLastTrigger = userButton;
+  updateUserButton();
 }
 
 function closeAccountMenu() {
   accountMenu.classList.remove("is-visible");
+  accountMenu.setAttribute("aria-hidden", "true");
   userButton.setAttribute("aria-expanded", "false");
 }
 
 function openOwnProfilePage() {
   if (!currentUser) {
+    closeAccountMenu();
     openAuthModal("login", "Profilini görmek için giriş yap.");
     return;
   }
   closeAccountMenu();
   navigateToView("profile", { clearSearch: true, scroll: true });
 }
+
+userButton?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleAccountMenu();
+});
+openProfileSettings?.addEventListener("click", openOwnProfilePage);
 
 function openOwnProfileStudio(sectionName = "identity") {
   if (!currentUser) {
@@ -14878,16 +15394,13 @@ document.querySelector("#openDirectMarketListing").addEventListener("click", () 
   requireAuth(() => openMarketListingModal());
 });
 
-userButton.addEventListener("click", () => {
+openAccountGarage?.addEventListener("click", () => {
   if (!currentUser) {
-    openAuthModal("login");
+    openAuthModal("login", "Garajını görmek için giriş yap.");
     return;
   }
-  toggleAccountMenu();
-});
-
-openProfileSettings.addEventListener("click", () => {
-  openOwnProfilePage();
+  closeAccountCenterPanels();
+  navigateToView("collection", { clearSearch: true, scroll: true });
 });
 
 openProfileEditor?.addEventListener("click", () => {
@@ -15969,12 +16482,57 @@ document.querySelectorAll("[data-community-action]").forEach((button) => {
 });
 
 topMessageButton.addEventListener("click", () => {
-  closeAccountMenu();
+  if (!currentUser) {
+    closeAccountCenterPanels();
+    openAuthModal("login", "Mesajları görmek için önce giriş yapmalısın.");
+    return;
+  }
+  renderMessageQuickPanel();
+  toggleAccountCenterPanel(messageQuickPanel, topMessageButton);
+});
+
+topNotificationButton.addEventListener("click", async () => {
+  if (!currentUser) {
+    closeAccountCenterPanels();
+    openAuthModal("login", "Bildirimleri görmek için önce giriş yapmalısın.");
+    return;
+  }
+  renderNotificationQuickPanel();
+  toggleAccountCenterPanel(notificationQuickPanel, topNotificationButton);
+  if (notificationQuickPanel.classList.contains("is-visible")) {
+    await loadCommunityFriendNetwork({ silent: true });
+    renderNotificationQuickPanel();
+  }
+});
+
+notificationQuickFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeNotificationQuickFilter = button.dataset.notificationFilter || "all";
+    renderNotificationQuickPanel();
+  });
+});
+
+accountPopoverCloseButtons.forEach((button) => {
+  button.addEventListener("click", () => closeAccountCenterPanels({ restoreFocus: true }));
+});
+
+markAllNotificationsReadButton?.addEventListener("click", () => {
+  void markAllAccountNotificationsRead();
+});
+
+openAllMessages?.addEventListener("click", () => {
+  closeAccountCenterPanels();
   openMessageModal("messages");
 });
 
-topNotificationButton.addEventListener("click", () => {
-  closeAccountMenu();
+openAllNotifications?.addEventListener("click", () => {
+  closeAccountCenterPanels();
+  if (activeNotificationQuickFilter === "friends") {
+    setActiveView("community", { clearSearch: true, scroll: true });
+    selectCommunitySection("communityHunters");
+    selectCommunityHunterSection("requests");
+    return;
+  }
   openMessageModal("comments");
 });
 
@@ -15995,7 +16553,16 @@ openInbox.addEventListener("click", () => {
 accountLogout.addEventListener("click", logoutCurrentUser);
 
 document.addEventListener("click", (event) => {
-  if (!event.target.closest(".account-shell")) closeAccountMenu();
+  if (!dashboardAccountDock?.contains(event.target)) closeAccountCenterPanels();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const hasOpenAccountPanel = [accountMenu, messageQuickPanel, notificationQuickPanel]
+    .some((panel) => panel?.classList.contains("is-visible"));
+  if (!hasOpenAccountPanel) return;
+  event.preventDefault();
+  closeAccountCenterPanels({ restoreFocus: true });
 });
 
 authForm.addEventListener("submit", handleAuthSubmit);

@@ -1,0 +1,148 @@
+/*
+ * Hunt Garaj — ortak tipografi sistemi
+ * Arayüz ve rakamlar: Inter
+ * Sayfa, bölüm ve hero başlıkları: Geist Sans
+ */
+
+/* === Primitive tokens === */
+:root {
+  --font-family-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-display: "Geist", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --font-size-label: 0.625rem;
+  --font-size-caption: 0.6875rem;
+  --font-size-body-sm: 0.75rem;
+  --font-size-body: 0.8125rem;
+  --font-size-control: 0.75rem;
+  --font-size-card-title: 0.875rem;
+  --font-size-section-title: 1.125rem;
+  --font-size-page-title: 1.35rem;
+  --font-size-hero-title: clamp(2rem, 3.5vw, 3.2rem);
+
+  --font-weight-regular: 450;
+  --font-weight-medium: 550;
+  --font-weight-semibold: 650;
+  --font-weight-bold: 750;
+  --font-weight-display: 850;
+
+  --line-height-tight: 1.05;
+  --line-height-title: 1.15;
+  --line-height-body: 1.55;
+
+  /* Semantic tokens */
+  --font-ui: var(--font-family-ui);
+  --font-display: var(--font-family-display);
+  --type-page-title-size: var(--font-size-page-title);
+  --type-section-title-size: var(--font-size-section-title);
+  --type-body-size: var(--font-size-body);
+
+  /* Legacy aliases: existing modules now resolve to the same two families. */
+  --hr-font: var(--font-ui);
+  --explore-ui: var(--font-ui);
+  --explore-display: var(--font-display);
+  --explore-mono: var(--font-ui);
+  --garage-ui: var(--font-ui);
+  --garage-display: var(--font-display);
+  --garage-mono: var(--font-ui);
+  --wishlist-ui: var(--font-ui);
+  --wishlist-display: var(--font-display);
+  --wishlist-mono: var(--font-ui);
+  --community-font: var(--font-ui);
+  --community-label: var(--font-ui);
+  --community-display: var(--font-display);
+  --community-mono: var(--font-ui);
+  --chat-font: var(--font-ui);
+}
+
+/*
+ * Bazı modüller font değişkenlerini body seviyesinde tekrar tanımlıyor.
+ * Bu katman en son yüklendiği için tüm görünümlerde aynı sözleşmeyi korur.
+ */
+body.dashboard-shell,
+body.dashboard-shell.is-explore-view,
+body.dashboard-shell.is-collection-view,
+body.dashboard-shell.is-wishlist-view,
+body.dashboard-shell.is-community-view,
+body.dashboard-shell.is-profile-view {
+  --hr-font: var(--font-ui);
+  --explore-ui: var(--font-ui);
+  --explore-display: var(--font-display);
+  --explore-mono: var(--font-ui);
+  --garage-ui: var(--font-ui);
+  --garage-display: var(--font-display);
+  --garage-mono: var(--font-ui);
+  --wishlist-ui: var(--font-ui);
+  --wishlist-display: var(--font-display);
+  --wishlist-mono: var(--font-ui);
+  --community-font: var(--font-ui);
+  --community-label: var(--font-ui);
+  --community-display: var(--font-display);
+  --community-mono: var(--font-ui);
+  --chat-font: var(--font-ui);
+
+  font-family: var(--font-ui) !important;
+  font-optical-sizing: auto;
+  font-variant-numeric: tabular-nums;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === UI typography === */
+body.dashboard-shell *,
+body.dashboard-shell *::before,
+body.dashboard-shell *::after {
+  font-family: var(--font-ui) !important;
+}
+
+body.dashboard-shell :where(button, input, select, textarea, option, output, kbd, code) {
+  font-family: var(--font-ui) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Display typography === */
+body.dashboard-shell :where(h1, h2, h3, h4, h5, h6),
+body.dashboard-shell .section-heading strong,
+body.dashboard-shell .module-jargon > .module-jargon__title {
+  font-family: var(--font-display) !important;
+  font-optical-sizing: auto;
+}
+
+/*
+ * Keşfet / Garaj / Topluluk / İstek Listesi gibi ortak sayfa kimlikleri.
+ * Ölçü ve ritim bütün modüllerde aynıdır; vurgu farklı fontla değil,
+ * Geist ağırlığı ve mevcut turuncu imza çizgisiyle kurulur.
+ */
+body.dashboard-shell .module-jargon > .module-jargon__label {
+  font-family: var(--font-ui) !important;
+  font-size: var(--font-size-label) !important;
+  font-weight: var(--font-weight-bold) !important;
+  line-height: 1 !important;
+  letter-spacing: 0.11em !important;
+}
+
+body.dashboard-shell .module-jargon > .module-jargon__title {
+  font-size: var(--type-page-title-size) !important;
+  font-style: italic !important;
+  font-weight: var(--font-weight-display) !important;
+  line-height: var(--line-height-tight) !important;
+  letter-spacing: -0.035em !important;
+}
+
+/* Ortak başlık seviyeleri: boyutlar rol bazlı, rastgele değil. */
+body.dashboard-shell .section-heading :where(h2, h3, h4, strong),
+body.dashboard-shell .community-section-heading :where(h2, h3, h4),
+body.dashboard-shell .profile-section-heading :where(h2, h3, h4) {
+  font-size: var(--type-section-title-size);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title);
+  letter-spacing: -0.025em;
+}
+
+/* Başlık dışında Geist kullanılmasını engelleyen yüksek özgüllüklü düzeltmeler. */
+body.dashboard-shell .community-chat :where(button, input, textarea, label, span, p, small, strong, time),
+body.dashboard-shell .dashboard-account-dock :where(button, span, small, strong, p),
+body.dashboard-shell .hunter-card :where(button, span, small, strong, p) {
+  font-family: var(--font-ui) !important;
+}
+

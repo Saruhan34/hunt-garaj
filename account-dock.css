@@ -1,0 +1,1577 @@
+/* Hunt Radar — sol alt hesap merkezi */
+body.dashboard-shell .dashboard-sidebar,
+body.dashboard-shell.is-profile-view .dashboard-sidebar {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: visible;
+}
+
+body.dashboard-shell .dashboard-account-dock,
+body.dashboard-shell.is-profile-view .dashboard-account-dock {
+  position: relative;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  border-top: 1px solid rgba(255, 255, 255, .075);
+  padding-top: 12px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-shell,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-shell {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 58px;
+  grid-template-columns: 40px minmax(0, 1fr) 18px;
+  align-items: center;
+  justify-content: initial;
+  gap: 10px;
+  border: 1px solid rgba(255, 111, 70, .23);
+  border-radius: 13px;
+  padding: 8px 9px;
+  background:
+    linear-gradient(100deg, rgba(255, 91, 50, .07), transparent 58%),
+    rgba(10, 15, 20, .88);
+  color: #f3f6f8;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .035),
+    0 10px 24px rgba(0, 0, 0, .18);
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button:hover,
+body.dashboard-shell .dashboard-account-dock .user-button[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button[aria-expanded="true"] {
+  border-color: rgba(255, 117, 76, .48);
+  background:
+    linear-gradient(100deg, rgba(255, 91, 50, .115), transparent 62%),
+    rgba(13, 19, 25, .96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .05),
+    0 12px 28px rgba(0, 0, 0, .24);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in {
+  border-color: rgba(52, 214, 164, .25);
+  background:
+    linear-gradient(100deg, rgba(52, 214, 164, .075), transparent 60%),
+    rgba(10, 16, 20, .9);
+  color: #f3f6f8;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in:hover,
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in[aria-expanded="true"] {
+  border-color: rgba(52, 214, 164, .46);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__avatar {
+  box-sizing: border-box;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 119, 76, .42);
+  border-radius: 50%;
+  background: #080c10;
+  box-shadow: 0 0 0 2px rgba(255, 106, 63, .08);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in .user-button__avatar {
+  border-color: rgba(52, 214, 164, .44);
+  box-shadow: 0 0 0 2px rgba(52, 214, 164, .08);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__identity,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__identity {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  text-align: left;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__identity strong,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__identity strong {
+  overflow: hidden;
+  color: #f4f6f8;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .69rem;
+  font-weight: 760;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__identity small,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__identity small {
+  overflow: hidden;
+  color: #84909c;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .58rem;
+  font-weight: 590;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__chevron,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__chevron {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 18px;
+  color: #798591;
+  transform: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__chevron::before,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__chevron::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  content: "";
+  transform: translate(-65%, -50%) rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button[aria-expanded="true"] .user-button__chevron::before,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button[aria-expanded="true"] .user-button__chevron::before {
+  transform: translate(-35%, -50%) rotate(225deg);
+}
+
+body.dashboard-shell .dashboard-account-dock .top-quick-actions,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-quick-actions {
+  position: static;
+  z-index: auto;
+  top: auto;
+  right: auto;
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 2px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  grid-template-columns: 21px minmax(0, 1fr) auto;
+  place-items: center start;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: transparent;
+  color: #c7cfd7;
+  box-shadow: none;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .8rem;
+  font-weight: 760;
+  line-height: 1;
+  text-align: left;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button:hover,
+body.dashboard-shell .dashboard-account-dock .top-action-button.is-active,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button.is-active {
+  border-color: rgba(255, 255, 255, .075);
+  background: rgba(255, 255, 255, .035);
+  color: #f1f4f6;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button.is-active::after,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button.is-active::after {
+  content: none;
+}
+
+body.dashboard-shell .dashboard-account-dock__action-icon,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-icon {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  color: #97a4af;
+}
+
+body.dashboard-shell .dashboard-account-dock__action-icon svg,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+body.dashboard-shell .dashboard-account-dock__action-label,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button .message-count,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button .message-count {
+  position: static;
+  top: auto;
+  right: auto;
+  min-width: 24px;
+  height: 20px;
+  border: 1px solid rgba(255, 145, 111, .42);
+  border-radius: 7px;
+  padding: 0 6px;
+  background:
+    linear-gradient(135deg, rgba(255, 124, 79, .98), rgba(220, 52, 35, .98));
+  color: #fff8f4;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .28),
+    inset 0 -1px 0 rgba(112, 17, 11, .32),
+    0 5px 12px rgba(187, 38, 25, .26);
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .58rem;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu {
+  z-index: 140;
+  top: auto;
+  right: auto;
+  bottom: 0;
+  left: calc(100% + 13px);
+  width: min(330px, calc(100vw - var(--dashboard-sidebar-width) - 32px));
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
+  border: 1px solid rgba(255, 113, 72, .25);
+  border-radius: 15px;
+  padding: 15px;
+  background:
+    linear-gradient(145deg, rgba(255, 98, 55, .055), transparent 40%),
+    rgba(10, 15, 20, .985);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .045),
+    0 24px 64px rgba(0, 0, 0, .48);
+  scrollbar-width: thin;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu.is-visible,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu.is-visible {
+  display: grid;
+  gap: 12px;
+  animation: dashboardAccountDockMenuIn 170ms cubic-bezier(.16, 1, .3, 1);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__hero,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__hero {
+  gap: 11px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, .075);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__avatar {
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 119, 76, .42);
+  background: #080c10;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__hero .eyebrow,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__hero .eyebrow {
+  margin: 0 0 3px;
+  color: #ff805d;
+  font-size: .56rem;
+  letter-spacing: .12em;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu h2,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu h2 {
+  color: #f5f7f9;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .98rem;
+  font-weight: 760;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu p,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu p {
+  color: #84909c;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .64rem;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__rank,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__rank {
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, .025);
+  color: #aeb8c2;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .63rem;
+  line-height: 1.4;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__stats,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__stats {
+  gap: 7px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__stats span,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__stats span {
+  border-color: rgba(255, 255, 255, .075);
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, .025);
+  color: #87939e;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .63rem;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__stats strong,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__stats strong {
+  margin-bottom: 3px;
+  color: #f4f6f8;
+  font-size: .93rem;
+  font-weight: 760;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__primary-actions,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__primary-actions {
+  display: grid;
+  gap: 5px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action {
+  display: grid;
+  min-height: 40px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  justify-content: initial;
+  gap: 10px;
+  border-color: transparent;
+  border-radius: 9px;
+  padding: 0 10px;
+  background: transparent;
+  color: #dbe1e6;
+  font-family: "Segoe UI Variable", "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: .68rem;
+  font-weight: 680;
+  text-align: left;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action:hover {
+  border-color: rgba(255, 255, 255, .075);
+  background: rgba(255, 255, 255, .035);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action i,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action i {
+  color: #798591;
+  font-size: .78rem;
+  font-style: normal;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action--danger,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action--danger {
+  color: #ff927b;
+}
+
+@keyframes dashboardAccountDockMenuIn {
+  from {
+    opacity: 0;
+    transform: translateX(-7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 760px) {
+  body.dashboard-shell .dashboard-account-dock .account-menu,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    width: auto;
+    max-height: calc(100vh - 28px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.dashboard-shell .dashboard-account-dock .account-menu.is-visible,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu.is-visible {
+    animation: none;
+  }
+}
+
+/* Sağ üst hesap merkezi */
+body.dashboard-shell .dashboard-sidebar,
+body.dashboard-shell.is-profile-view .dashboard-sidebar {
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+body.dashboard-shell .dashboard-account-dock,
+body.dashboard-shell.is-profile-view .dashboard-account-dock {
+  box-sizing: border-box;
+  position: absolute;
+  z-index: 240;
+  top: 22px;
+  right: 18px;
+  display: flex;
+  width: auto;
+  height: 48px;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, .095);
+  border-radius: 15px;
+  padding: 3px;
+  background: rgba(8, 12, 16, .94);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .045),
+    0 16px 38px rgba(0, 0, 0, .34);
+  backdrop-filter: blur(18px) saturate(1.18);
+}
+
+body.dashboard-shell .dashboard-account-dock::before,
+body.dashboard-shell.is-profile-view .dashboard-account-dock::before {
+  content: none;
+}
+
+@media (min-width: 1181px) {
+  body.dashboard-shell.is-community-view .community-hub-hero,
+  body.dashboard-shell.is-explore-view .explore-commandbar,
+  body.dashboard-shell.is-collection-view .garage-dashboard__hero,
+  body.dashboard-shell.is-wishlist-view .wishlist-commandbar,
+  body.dashboard-shell.is-profile-view .profile-dashboard__hero,
+  body.dashboard-shell .dashboard-view-header {
+    padding-right: 178px;
+  }
+
+  body.dashboard-shell.is-community-view .community-hub-hero__actions {
+    grid-template-columns: minmax(210px, 1fr) 154px auto;
+    gap: 12px;
+  }
+
+  body.dashboard-shell.is-community-view .community-header-create {
+    min-width: 112px;
+    padding-inline: 15px;
+  }
+}
+
+body.dashboard-shell .dashboard-account-dock .top-quick-actions,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-quick-actions {
+  position: static;
+  display: flex;
+  width: auto;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button {
+  position: relative;
+  display: grid;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 0;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  padding: 0;
+  background: transparent;
+  color: #909ca8;
+  box-shadow: none;
+  font-family: "Inter", sans-serif;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button:hover {
+  border-color: rgba(255, 255, 255, .085);
+  background: rgba(255, 255, 255, .045);
+  color: #f1f4f6;
+  transform: translateY(-1px);
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button[aria-expanded="true"] {
+  border-color: rgba(255, 109, 69, .3);
+  background: rgba(255, 100, 61, .095);
+  color: #ff7956;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button.is-active,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button.is-active {
+  border-color: transparent;
+  background: transparent;
+  color: #cdd4da;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button.is-active:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button.is-active:hover,
+body.dashboard-shell .dashboard-account-dock .top-action-button.is-active[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button.is-active[aria-expanded="true"] {
+  border-color: rgba(255, 109, 69, .3);
+  background: rgba(255, 100, 61, .095);
+  color: #ff7956;
+}
+
+body.dashboard-shell .dashboard-account-dock__action-icon,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-icon {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  color: inherit;
+}
+
+body.dashboard-shell .dashboard-account-dock__action-icon svg,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.65;
+}
+
+body.dashboard-shell .dashboard-account-dock__action-label,
+body.dashboard-shell.is-profile-view .dashboard-account-dock__action-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+body.dashboard-shell .dashboard-account-dock .top-action-button .message-count,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button .message-count {
+  position: absolute;
+  z-index: 2;
+  top: -4px;
+  right: -4px;
+  min-width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #090d11;
+  border-radius: 999px;
+  padding: 0 4px;
+  background: #ff5d3a;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 70, 43, .3);
+  font-family: "Inter", sans-serif;
+  font-size: .58rem;
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-shell,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-shell {
+  position: relative;
+  display: block;
+  width: 46px;
+  margin-left: 2px;
+  padding-left: 5px;
+  border-left: 1px solid rgba(255, 255, 255, .085);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button {
+  box-sizing: border-box;
+  display: grid;
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  height: 40px;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 0;
+  border: 0;
+  border-radius: 11px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button:hover,
+body.dashboard-shell .dashboard-account-dock .user-button[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button[aria-expanded="true"],
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in:hover,
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in[aria-expanded="true"],
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in[aria-expanded="true"] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .12);
+  transform: translateY(-1px);
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in {
+  border-color: transparent;
+  background: transparent;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__avatar {
+  box-sizing: border-box;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px !important;
+  padding: 0 !important;
+  background: #070a0d !important;
+  box-shadow: none;
+  isolation: isolate;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button.is-logged-in .user-button__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button.is-logged-in .user-button__avatar {
+  border: 0;
+  box-shadow: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__avatar img,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit !important;
+}
+
+body.dashboard-shell .dashboard-account-dock .user-button__identity,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__identity,
+body.dashboard-shell .dashboard-account-dock .user-button__chevron,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button__chevron {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu,
+body.dashboard-shell .dashboard-account-dock .account-popover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-popover {
+  position: absolute;
+  z-index: 250;
+  top: calc(100% + 11px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+  display: none;
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(650px, calc(100vh - 92px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .105);
+  border-radius: 16px;
+  padding: 0;
+  background:
+    linear-gradient(145deg, rgba(255, 101, 61, .045), transparent 36%),
+    rgba(10, 15, 20, .985);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .045),
+    0 28px 72px rgba(0, 0, 0, .55);
+  font-family: "Inter", sans-serif;
+  scrollbar-width: thin;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu.is-visible,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu.is-visible,
+body.dashboard-shell .dashboard-account-dock .account-popover.is-visible,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-popover.is-visible {
+  display: grid;
+  animation: accountCenterPanelIn 180ms cubic-bezier(.16, 1, .3, 1);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu {
+  width: min(330px, calc(100vw - 28px));
+  gap: 11px;
+  padding: 15px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__hero,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__hero {
+  box-sizing: border-box;
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 104px;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 129, 87, .22);
+  border-radius: 14px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 9% 0%, rgba(255, 127, 81, .13), transparent 42%),
+    linear-gradient(118deg, rgba(255, 255, 255, .045), transparent 48%),
+    rgba(12, 18, 24, .92);
+  color: inherit;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .055),
+    0 10px 24px rgba(0, 0, 0, .2);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 170ms cubic-bezier(.2, .8, .2, 1),
+    background-color 170ms cubic-bezier(.2, .8, .2, 1),
+    box-shadow 170ms cubic-bezier(.2, .8, .2, 1),
+    transform 170ms cubic-bezier(.2, .8, .2, 1);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-entry::after,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-entry::after {
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 39%;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 104, 64, .85), rgba(255, 186, 108, .38), transparent);
+  box-shadow: 0 0 13px rgba(255, 91, 48, .22);
+  content: "";
+  pointer-events: none;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-entry:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-entry:hover {
+  border-color: rgba(255, 129, 87, .4);
+  background:
+    radial-gradient(circle at 9% 0%, rgba(255, 127, 81, .19), transparent 44%),
+    linear-gradient(118deg, rgba(255, 255, 255, .06), transparent 48%),
+    rgba(14, 20, 26, .96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .075),
+    0 14px 30px rgba(0, 0, 0, .28),
+    0 0 20px rgba(255, 91, 48, .055);
+  transform: translateY(-1px);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-entry:focus-visible,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-entry:focus-visible {
+  outline: 2px solid rgba(255, 125, 89, .86);
+  outline-offset: 2px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-copy,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-copy {
+  display: grid;
+  min-width: 0;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__avatar,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__avatar {
+  width: 54px;
+  height: 54px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 1px;
+  background: #070a0d;
+  background:
+    linear-gradient(#070a0d, #070a0d) padding-box,
+    linear-gradient(145deg, rgba(255, 218, 179, .72), rgba(255, 104, 64, .5), rgba(164, 178, 190, .2)) border-box;
+  box-shadow:
+    0 0 0 2px rgba(255, 103, 64, .055),
+    0 8px 18px rgba(0, 0, 0, .34);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__avatar img,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  border-radius: 11px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__hero .eyebrow,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__hero .eyebrow {
+  margin: 0 0 3px;
+  color: #ff7d59;
+  font-family: "Inter", sans-serif;
+  font-size: .59rem;
+  font-weight: 750;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-name,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-name {
+  overflow: hidden;
+  color: #f6f8fa;
+  font-family: "Geist", "Inter", sans-serif;
+  font-size: 1rem;
+  font-weight: 720;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-email,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-email {
+  overflow: hidden;
+  margin-top: 3px;
+  color: #8995a0;
+  font-family: "Inter", sans-serif;
+  font-size: .66rem;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-cta,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  color: #ff8866;
+  font-family: "Inter", sans-serif;
+  font-size: .63rem;
+  font-weight: 720;
+  letter-spacing: .01em;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-cta svg,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-cta svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transition: transform 170ms cubic-bezier(.2, .8, .2, 1);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__profile-entry:hover .account-menu__profile-cta svg,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-entry:hover .account-menu__profile-cta svg {
+  transform: translateX(2px);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu h2,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu h2 {
+  margin: 0;
+  color: #f6f8fa;
+  font-family: "Geist", "Inter", sans-serif;
+  font-size: 1rem;
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu p,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu p {
+  margin: 3px 0 0;
+  color: #8995a0;
+  font-family: "Inter", sans-serif;
+  font-size: .66rem;
+  line-height: 1.4;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__rank,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__rank {
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, .025);
+  color: #a5afb8;
+  font-family: "Inter", sans-serif;
+  font-size: .64rem;
+  line-height: 1.45;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__stats,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__stats span,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__stats span {
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, .025);
+  color: #87939e;
+  font-family: "Inter", sans-serif;
+  font-size: .63rem;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__stats strong,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__stats strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #f4f6f8;
+  font-size: .95rem;
+  font-weight: 730;
+  font-variant-numeric: tabular-nums;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__primary-actions,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__primary-actions {
+  display: grid;
+  gap: 3px;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action {
+  display: grid;
+  min-height: 43px;
+  grid-template-columns: 28px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0 9px;
+  background: transparent;
+  color: #dce2e7;
+  font-family: "Inter", sans-serif;
+  font-size: .69rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action:hover,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action:hover {
+  border-color: rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .04);
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action-icon,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 105, 65, .08);
+  color: #ff7956;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action-icon svg,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action-icon svg,
+body.dashboard-shell .dashboard-account-dock .account-menu__action-arrow,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action-arrow {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.65;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action-arrow,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action-arrow {
+  color: #68747e;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action--danger,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action--danger {
+  color: #ff9a83;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-menu__action--danger .account-menu__action-icon,
+body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__action--danger .account-menu__action-icon {
+  background: rgba(255, 83, 62, .08);
+  color: #ff8068;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-popover {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+body.dashboard-shell .dashboard-account-dock .account-popover--messages {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.account-popover__header {
+  display: flex;
+  min-height: 70px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .075);
+  padding: 13px 14px 12px 16px;
+}
+
+.account-popover__header > div:first-child {
+  min-width: 0;
+}
+
+.account-popover__header span {
+  display: block;
+  margin-bottom: 4px;
+  color: #ff7956;
+  font-size: .56rem;
+  font-weight: 760;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.account-popover__header h2 {
+  margin: 0;
+  color: #f5f7f9;
+  font-family: "Geist", "Inter", sans-serif;
+  font-size: 1.06rem;
+  font-weight: 730;
+  line-height: 1.2;
+}
+
+.account-popover__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.account-popover__mark-read {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: transparent;
+  color: #aab4bd;
+  font-family: "Inter", sans-serif;
+  font-size: .61rem;
+  font-weight: 650;
+}
+
+.account-popover__mark-read:hover {
+  background: rgba(255, 255, 255, .04);
+  color: #f1f4f6;
+}
+
+.account-popover__close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 9px;
+  padding: 0;
+  background: rgba(255, 255, 255, .025);
+  color: #8d99a4;
+}
+
+.account-popover__close:hover {
+  border-color: rgba(255, 119, 78, .28);
+  background: rgba(255, 104, 65, .07);
+  color: #ff8767;
+}
+
+.account-popover__close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.7;
+}
+
+.account-popover__tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, .065);
+  padding: 8px 12px;
+}
+
+.account-popover__tabs button {
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: transparent;
+  color: #8d99a4;
+  font-family: "Inter", sans-serif;
+  font-size: .64rem;
+  font-weight: 650;
+}
+
+.account-popover__tabs button:hover {
+  color: #d8dee3;
+}
+
+.account-popover__tabs button.is-active {
+  border-color: rgba(255, 112, 72, .22);
+  background: rgba(255, 103, 64, .085);
+  color: #ff8464;
+}
+
+.account-popover__list {
+  min-height: 170px;
+  overflow-y: auto;
+  padding: 7px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 117, 76, .35) transparent;
+}
+
+.account-popover__footer {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+  padding: 0 16px;
+  background: rgba(255, 255, 255, .018);
+  color: #cbd2d8;
+  font-family: "Inter", sans-serif;
+  font-size: .65rem;
+  font-weight: 680;
+  text-align: left;
+}
+
+.account-popover__footer:hover {
+  background: rgba(255, 107, 66, .055);
+  color: #ff8a6a;
+}
+
+.account-popover__footer svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.65;
+}
+
+.account-preview-item {
+  position: relative;
+  display: grid;
+  width: 100%;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  padding: 10px;
+  background: transparent;
+  color: #dfe4e8;
+  text-align: left;
+}
+
+button.account-preview-item:hover {
+  border-color: rgba(255, 255, 255, .07);
+  background: rgba(255, 255, 255, .035);
+}
+
+.account-preview-item.is-unread {
+  border-color: rgba(255, 112, 72, .12);
+  background:
+    linear-gradient(90deg, rgba(255, 99, 60, .075), transparent 62%),
+    rgba(255, 255, 255, .015);
+}
+
+.account-preview-item.is-unread::before {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 22px;
+  border-radius: 99px;
+  background: #ff6846;
+  box-shadow: 0 0 10px rgba(255, 85, 52, .28);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.account-preview-item__avatar,
+.account-preview-item__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .035);
+  color: #ff7c5a;
+}
+
+.account-preview-item__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-preview-item__avatar > .reward-avatar {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border-radius: inherit;
+  box-shadow: none;
+}
+
+.account-preview-item__icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.65;
+}
+
+.account-preview-item__body {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.account-preview-item__topline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.account-preview-item__body strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #eef1f4;
+  font-family: "Inter", sans-serif;
+  font-size: .68rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-preview-item__body p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #8f9aa4;
+  font-size: .62rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.account-preview-item__body time,
+.account-preview-item__meta {
+  color: #68747e;
+  font-size: .56rem;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.account-preview-item__count {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 7px;
+  padding: 0 5px;
+  background: #ff603e;
+  color: #fff;
+  font-size: .56rem;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-friend-request {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid rgba(255, 124, 83, .12);
+  border-radius: 11px;
+  padding: 10px;
+  background: rgba(255, 97, 57, .035);
+}
+
+.account-friend-request__identity {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 3px;
+}
+
+.account-friend-request__identity strong {
+  overflow: hidden;
+  color: #eff2f4;
+  font-size: .68rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-friend-request__identity span {
+  color: #8f9aa4;
+  font-size: .6rem;
+  line-height: 1.4;
+}
+
+.account-friend-request__actions {
+  display: flex;
+  grid-column: 2;
+  gap: 6px;
+}
+
+.account-friend-request__actions button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, .025);
+  color: #aab4bd;
+  font-family: "Inter", sans-serif;
+  font-size: .59rem;
+  font-weight: 680;
+}
+
+.account-friend-request__actions button.is-primary {
+  border-color: rgba(58, 211, 159, .25);
+  background: rgba(45, 197, 145, .08);
+  color: #66e5b8;
+}
+
+.account-friend-request__actions button:hover {
+  border-color: rgba(255, 255, 255, .18);
+  color: #eef1f3;
+}
+
+.account-friend-request__actions button.is-primary:hover {
+  border-color: rgba(71, 224, 170, .42);
+  background: rgba(45, 197, 145, .12);
+  color: #83ecc7;
+}
+
+.account-friend-request__actions button:disabled {
+  opacity: .45;
+  cursor: wait;
+}
+
+.account-friend-request__actions svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.account-preview-empty {
+  display: grid;
+  min-height: 170px;
+  place-items: center;
+  padding: 26px 20px;
+  text-align: center;
+}
+
+.account-preview-empty > div {
+  display: grid;
+  max-width: 245px;
+  justify-items: center;
+  gap: 7px;
+}
+
+.account-preview-empty__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 3px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .025);
+  color: #7f8b96;
+}
+
+.account-preview-empty__icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.65;
+}
+
+.account-preview-empty strong {
+  color: #e9edf0;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.account-preview-empty p {
+  margin: 0;
+  color: #7f8b96;
+  font-size: .62rem;
+  line-height: 1.5;
+}
+
+@keyframes accountCenterPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 760px) {
+  body.dashboard-shell .dashboard-account-dock,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock {
+    top: 10px;
+    right: 10px;
+    border-radius: 13px;
+    padding: 3px;
+  }
+
+  body.dashboard-shell .dashboard-account-dock .top-action-button,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button,
+  body.dashboard-shell .dashboard-account-dock .user-button,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  body.dashboard-shell .dashboard-account-dock .account-shell,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-shell {
+    width: 42px;
+  }
+
+  body.dashboard-shell .dashboard-account-dock .account-menu,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu,
+  body.dashboard-shell .dashboard-account-dock .account-popover,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-popover {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+    max-height: min(76vh, 650px);
+    border-radius: 17px;
+    transform-origin: center bottom;
+  }
+
+  body.dashboard-shell .dashboard-account-dock .account-menu,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu {
+    padding: 14px;
+  }
+
+  .account-popover__header {
+    min-height: 66px;
+    padding-inline: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.dashboard-shell .dashboard-account-dock .account-menu__profile-entry,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-entry,
+  body.dashboard-shell .dashboard-account-dock .account-menu__profile-cta svg,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-cta svg {
+    transition: none;
+  }
+
+  body.dashboard-shell .dashboard-account-dock .account-menu__profile-entry:hover,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-entry:hover,
+  body.dashboard-shell .dashboard-account-dock .account-menu__profile-entry:hover .account-menu__profile-cta svg,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu__profile-entry:hover .account-menu__profile-cta svg {
+    transform: none;
+  }
+
+  body.dashboard-shell .dashboard-account-dock .top-action-button,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .top-action-button,
+  body.dashboard-shell .dashboard-account-dock .user-button,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .user-button {
+    transition: none;
+  }
+
+  body.dashboard-shell .dashboard-account-dock .account-menu.is-visible,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-menu.is-visible,
+  body.dashboard-shell .dashboard-account-dock .account-popover.is-visible,
+  body.dashboard-shell.is-profile-view .dashboard-account-dock .account-popover.is-visible {
+    animation: none;
+  }
+}
